@@ -9,10 +9,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#04100e; --panel:#08201c; --panel2:#0a2723; --line:#123a34; --line2:#1b4f46;
-  --ink:#e8f6f2; --dim:#7ba49b; --dim2:#4f7a71;
-  --green:#00c389; --red:#ff6b6b; --amber:#ffb84d; --blue:#4aa8ff; --violet:#a78bfa;
-  --eagles:#004C54;
+  /* Midnight Green #004C54 is the brand, so it owns the sidebar and the
+     primary action and nothing else. The working surface is neutral, because
+     a green canvas competes with the twelve competitor colours and with the
+     green/red of the deltas, which is exactly the information you need to read
+     fastest. Brand on the rail, data on neutral ground. */
+  --eagles:#004C54; --eagles-lo:#003B41; --eagles-hi:#00646E; --silver:#A5ACAF;
+  --bg:#0C0E10; --panel:#141719; --panel2:#1A1E21; --line:#262B2F; --line2:#394046;
+  --ink:#E9ECEE; --dim:#98A1A8; --dim2:#69737B;
+  --green:#35D28A; --red:#FF6E79; --amber:#F2B33D; --blue:#4aa8ff; --violet:#a78bfa;
   --sans:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
   --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
   --r:10px;
@@ -27,36 +32,38 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
 /* ---------------- sidebar ---------------- */
-aside{width:236px;flex:none;background:var(--panel);border-right:1px solid var(--line);
-  display:flex;flex-direction:column;padding:16px 12px}
+aside{width:236px;flex:none;background:var(--eagles);border-right:1px solid var(--eagles-lo);
+  display:flex;flex-direction:column;padding:16px 12px;
+  background-image:linear-gradient(180deg,#005760 0%,#004C54 42%,#003B41 100%)}
 .brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px}
 .brand .mark{width:30px;height:30px;border-radius:8px;flex:none;
-  background:linear-gradient(140deg,#00c389,#004C54);display:grid;place-items:center;
-  font-weight:800;font-size:13px;color:#02110f}
-.brand h1{font-size:14px;font-weight:700;letter-spacing:-.1px}
-.brand span{display:block;font-size:11px;color:var(--dim2);font-weight:500}
+  background:#fff;display:grid;place-items:center;overflow:hidden;
+  font-weight:800;font-size:13px;color:var(--eagles)}
+.brand .mark img{width:100%;height:100%;object-fit:contain;display:block}
+.brand h1{font-size:14px;font-weight:700;letter-spacing:-.1px;color:#fff}
+.brand span{display:block;font-size:11px;color:#8FB4B8;font-weight:500}
 
-.weekpick{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);
+.weekpick{background:#00000026;border:1px solid #ffffff1f;border-radius:var(--r);
   padding:10px 12px;margin-bottom:16px}
-.weekpick .lab{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim2);font-weight:700}
+.weekpick .lab{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:#8FB4B8;font-weight:700}
 .weekpick .val{display:flex;align-items:baseline;gap:8px;margin-top:3px}
 .weekpick .val b{font-size:21px;font-weight:700;letter-spacing:-.4px}
-.weekpick .val em{font-style:normal;font-size:12px;color:var(--dim)}
-.weekpick .opp{margin-top:6px;font-size:12px;color:var(--dim);display:flex;align-items:center;gap:6px}
+.weekpick .val em{font-style:normal;font-size:12px;color:#B7D2D5}
+.weekpick .opp{margin-top:6px;font-size:12px;color:#B7D2D5;display:flex;align-items:center;gap:6px}
 
 nav{display:flex;flex-direction:column;gap:1px}
 nav button{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;
-  color:var(--dim);font-size:13px;font-weight:500;text-align:left;transition:.12s}
-nav button:hover{background:var(--panel2);color:var(--ink)}
-nav button.on{background:var(--line);color:var(--ink);font-weight:600}
-nav button .k{margin-left:auto;font-size:10px;color:var(--dim2);font-family:var(--mono)}
+  color:#BCD6D9;font-size:13px;font-weight:500;text-align:left;transition:.12s}
+nav button:hover{background:#ffffff14;color:#fff}
+nav button.on{background:#ffffff26;color:#fff;font-weight:600}
+nav button .k{margin-left:auto;font-size:10px;color:#7FA6AB;font-family:var(--mono)}
 nav button .ic{width:15px;text-align:center;opacity:.9}
-nav .sep{height:1px;background:var(--line);margin:10px 6px}
+nav .sep{height:1px;background:#ffffff1f;margin:10px 6px}
 
-.side-foot{margin-top:auto;padding:12px 8px 4px;border-top:1px solid var(--line);
-  font-size:11px;color:var(--dim2);line-height:1.7}
+.side-foot{margin-top:auto;padding:12px 8px 4px;border-top:1px solid #ffffff1f;
+  font-size:11px;color:#8FB4B8;line-height:1.7}
 .side-foot .row{display:flex;justify-content:space-between;gap:8px}
-.side-foot b{color:var(--dim);font-weight:600}
+.side-foot b{color:#DCEAEB;font-weight:600}
 
 /* ---------------- main ---------------- */
 main{flex:1;display:flex;flex-direction:column;min-width:0}
@@ -68,11 +75,11 @@ header .sub{font-size:12px;color:var(--dim)}
 .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;
   padding:5px 9px;border-radius:99px;background:var(--panel2);border:1px solid var(--line);color:var(--dim)}
 .pill .dot{width:6px;height:6px;border-radius:99px;background:var(--dim2)}
-.pill.ok{color:#8ef0cd;border-color:#0d4a38}.pill.ok .dot{background:var(--green)}
-.pill.warn{color:#ffd79b;border-color:#4a3a12}.pill.warn .dot{background:var(--amber)}
-.btn{background:var(--green);color:#02110f;font-weight:700;font-size:13px;padding:8px 15px;
-  border-radius:8px;transition:.12s}
-.btn:hover{filter:brightness(1.09)}
+.pill.ok{color:#8FE9C4;border-color:#0C5F4C}.pill.ok .dot{background:var(--green)}
+.pill.warn{color:#F7D79B;border-color:#5A4614}.pill.warn .dot{background:var(--amber)}
+.btn{background:var(--eagles);color:#fff;font-weight:700;font-size:13px;padding:8px 15px;
+  border-radius:8px;transition:.12s;border:1px solid var(--eagles-hi)}
+.btn:hover{background:var(--eagles-hi)}
 .btn.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line2);font-weight:600}
 .btn.ghost:hover{background:var(--line)}
 .btn.sm{padding:5px 10px;font-size:12px;border-radius:7px}
@@ -97,11 +104,18 @@ table{width:100%;border-collapse:collapse;font-size:13px}
 th{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim2);
   font-weight:700;text-align:left;padding:0 10px 8px;border-bottom:1px solid var(--line)}
 th.r,td.r{text-align:right}
-td{padding:8px 10px;border-bottom:1px solid #0d2b26}
+td{padding:8px 10px;border-bottom:1px solid #21262A}
 tr:last-child td{border-bottom:none}
-tbody tr:hover{background:#0a2a24}
+tbody tr:hover{background:#1A1E21}
 .name{font-weight:600;cursor:pointer}
 .name:hover{color:var(--green)}
+/* The name pill is lifted from the Framer site, where each competitor already
+   owns a colour. It carries the brand without tinting the whole surface. */
+.pillname{display:inline-block;padding:2px 9px;border-radius:6px;font-weight:800;
+  font-size:11px;letter-spacing:.03em;text-transform:uppercase;cursor:pointer;
+  color:#0C0E10;transition:.12s}
+.pillname:hover{filter:brightness(1.12)}
+.pillname.out{background:#2A3035!important;color:var(--dim2);text-decoration:line-through}
 .up{color:var(--green)}.down{color:var(--red)}.flat{color:var(--dim2)}
 .muted{color:var(--dim)}.tiny{font-size:11px}
 .dead{color:var(--dim2);text-decoration:line-through}
@@ -122,28 +136,28 @@ tbody tr:hover{background:#0a2a24}
 
 .wl{display:inline-grid;place-items:center;width:19px;height:19px;border-radius:5px;
   font-size:10px;font-weight:800;font-family:var(--mono)}
-.wl.W{background:#0d4a38;color:#8ef0cd}.wl.L{background:#4a1620;color:#ffb3b3}
+.wl.W{background:#0C5F4C;color:#9CF0CE}.wl.L{background:#5C1A24;color:#FFBFC4}
 .wl.A{background:var(--line);color:var(--dim2)}
 
 /* ---------------- run / verify ---------------- */
 .steps{display:flex;flex-direction:column;gap:0}
-.step{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid #0d2b26}
+.step{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid #21262A}
 .step:last-child{border-bottom:none}
 .step .ic{width:20px;height:20px;border-radius:99px;flex:none;display:grid;place-items:center;
   font-size:11px;font-weight:800;background:var(--line);color:var(--dim2);margin-top:1px}
-.step.ok .ic{background:#0d4a38;color:var(--green)}
-.step.warn .ic{background:#4a3a12;color:var(--amber)}
+.step.ok .ic{background:#0C5F4C;color:var(--green)}
+.step.warn .ic{background:#5A4614;color:var(--amber)}
 .step .t{font-weight:600;font-size:13px}
 .step .d{font-size:12px;color:var(--dim);margin-top:2px;line-height:1.55}
-.step .d code{font-family:var(--mono);font-size:11px;color:#a8d8cd;background:#0d2b26;
+.step .d code{font-family:var(--mono);font-size:11px;color:#B7C4CB;background:#20262B;
   padding:1px 5px;border-radius:4px}
 
 .checks{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .check{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:8px;
   background:var(--panel2);border:1px solid var(--line);font-size:12px}
 .check .s{width:16px;height:16px;border-radius:99px;flex:none;display:grid;place-items:center;
-  font-size:9px;font-weight:800;background:#0d4a38;color:var(--green)}
-.check.warn .s{background:#4a3a12;color:var(--amber)}
+  font-size:9px;font-weight:800;background:#0C5F4C;color:var(--green)}
+.check.warn .s{background:#5A4614;color:var(--amber)}
 .check .x{margin-left:auto;color:var(--dim);font-family:var(--mono);font-size:11px}
 
 /* ---------------- storylines ---------------- */
@@ -153,11 +167,11 @@ tbody tr:hover{background:#0a2a24}
 .lead .top{display:flex;align-items:center;gap:9px;margin-bottom:7px}
 .lead .kind{font-size:10px;text-transform:uppercase;letter-spacing:.07em;font-weight:800;
   padding:3px 7px;border-radius:5px;background:var(--line);color:var(--dim)}
-.lead .kind.hot{background:#4a1620;color:#ffb3b3}
-.lead .kind.cold{background:#12324a;color:#a8d0ff}
-.lead .kind.big{background:#0d4a38;color:#8ef0cd}
+.lead .kind.hot{background:#5C1A24;color:#FFBFC4}
+.lead .kind.cold{background:#123C57;color:#AED6FF}
+.lead .kind.big{background:#0C5F4C;color:#9CF0CE}
 .lead h4{font-size:15px;font-weight:700;letter-spacing:-.2px}
-.lead p{font-size:13px;color:#c3ded7;line-height:1.65;margin-top:2px}
+.lead p{font-size:13px;color:#CBDEDF;line-height:1.65;margin-top:2px}
 .lead .score{margin-left:auto;font-size:10px;color:var(--dim2);font-family:var(--mono)}
 .copy{position:absolute;top:12px;right:12px;opacity:0;transition:.12s}
 .lead:hover .copy{opacity:1}
@@ -172,15 +186,15 @@ tbody tr:hover{background:#0a2a24}
 .drawer .dh{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
 .drawer .db{flex:1;overflow-y:auto;padding:18px 20px}
 .avatar{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
-  font-weight:800;font-size:15px;color:#02110f}
+  font-weight:800;font-size:15px;color:#00171A}
 
 .pickgrid{display:grid;grid-template-columns:repeat(17,1fr);gap:3px}
 .pickgrid div{aspect-ratio:1;border-radius:3px;display:grid;place-items:center;
   font-size:8px;font-weight:800;font-family:var(--mono)}
-.hit{background:#0d4a38;color:#8ef0cd}.miss{background:#4a1620;color:#ffb3b3}
+.hit{background:#0C5F4C;color:#9CF0CE}.miss{background:#5C1A24;color:#FFBFC4}
 .pend{background:var(--line);color:var(--dim2)}
 
-.kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #0d2b26;font-size:13px}
+.kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #21262A;font-size:13px}
 .kv:last-child{border:none}
 .kv span:first-child{color:var(--dim)}
 .kv span:last-child{font-weight:600;font-family:var(--mono)}
@@ -192,22 +206,46 @@ tbody tr:hover{background:#0a2a24}
 .seg{display:inline-flex;background:var(--bg);border-radius:7px;padding:2px;border:1px solid var(--line)}
 .seg button{padding:3px 11px;border-radius:5px;font-size:11px;font-weight:700;color:var(--dim2)}
 .seg button.on{background:var(--line2);color:var(--ink)}
-.seg button.on[data-v="W"]{background:#0d4a38;color:#8ef0cd}
-.seg button.on[data-v="L"]{background:#4a1620;color:#ffb3b3}
+.seg button.on[data-v="W"]{background:#0C5F4C;color:#9CF0CE}
+.seg button.on[data-v="L"]{background:#5C1A24;color:#FFBFC4}
 .lev{margin-left:auto;font-size:11px;color:var(--dim);font-family:var(--mono)}
 
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(70px);
-  background:var(--green);color:#02110f;font-weight:700;font-size:13px;padding:10px 18px;
+  background:var(--eagles);color:#fff;font-weight:700;font-size:13px;padding:10px 18px;
   border-radius:99px;z-index:99;transition:.2s;box-shadow:0 8px 30px #0008}
 .toast.on{transform:translateX(-50%)}
 .spark{display:block}
+
+/* ---------------- picks matrix ---------------- */
+.pickmatrix{font-size:12px;min-width:820px}
+.pickmatrix th{padding-bottom:10px}
+.pickmatrix td{padding:5px 6px;border-bottom:1px solid #1B1F23}
+.pickmatrix .wknum{color:var(--dim2);width:26px}
+.pickmatrix .matchup{white-space:nowrap;display:flex;align-items:center;gap:5px;padding-right:14px}
+.team{display:inline-grid;place-items:center;min-width:34px;padding:2px 5px;border-radius:4px;
+  background:#22282C;color:var(--dim);font-size:10px;font-weight:800;font-family:var(--mono)}
+.team.phl{background:var(--eagles);color:#fff}
+.pickmatrix .res{margin-left:2px}
+.pk{text-align:center;font-weight:800;font-family:var(--mono);font-size:11px;width:34px}
+.pk-hit{color:#5FE0A6}.pk-miss{color:#FF8A93}.pk-todo{color:#454B50}
+.pickmatrix tr.bye td{text-align:center;background:var(--eagles);color:#CFE6E8;
+  font-weight:800;font-size:10px;letter-spacing:.14em;padding:5px;border-radius:5px}
+.pickmatrix tfoot td{padding-top:9px;color:var(--dim);font-size:11px;border:none}
+.pickmatrix tfoot tr.foot td:nth-child(2){font-weight:600}
+.pickmatrix tfoot td.num{text-align:center;color:var(--ink);font-weight:600}
+.split{position:relative;height:16px;border-radius:5px;background:#5C1A24;overflow:hidden;
+  display:flex;align-items:center}
+.split i{position:absolute;left:0;top:0;bottom:0;background:#0C5F4C}
+.split span{position:relative;font-size:9px;font-weight:800;font-family:var(--mono);
+  padding:0 5px;color:#E9ECEE}
+.split span:last-child{margin-left:auto}
 </style>
 </head>
 <body>
 
 <aside>
   <div class="brand">
-    <div class="mark">FEP</div>
+    <div class="mark" id="mark">FEP</div>
     <div><h1>FEP Control</h1><span id="brandSub"></span></div>
   </div>
 
@@ -220,12 +258,13 @@ tbody tr:hover{background:#0a2a24}
   <nav id="nav">
     <button data-v="run" class="on"><span class="ic">▶</span>Run &amp; Verify<span class="k">1</span></button>
     <button data-v="board"><span class="ic">▦</span>The Board<span class="k">2</span></button>
-    <button data-v="story"><span class="ic">✎</span>Storylines<span class="k">3</span></button>
-    <button data-v="whatif"><span class="ic">⑂</span>What If<span class="k">4</span></button>
+    <button data-v="picks"><span class="ic">▩</span>The Picks<span class="k">3</span></button>
+    <button data-v="story"><span class="ic">✎</span>Storylines<span class="k">4</span></button>
+    <button data-v="whatif"><span class="ic">⑂</span>What If<span class="k">5</span></button>
     <div class="sep"></div>
-    <button data-v="chart"><span class="ic">◨</span>Chart<span class="k">5</span></button>
-    <button data-v="publish"><span class="ic">↥</span>Publish<span class="k">6</span></button>
-    <button data-v="history"><span class="ic">◷</span>History<span class="k">7</span></button>
+    <button data-v="chart"><span class="ic">◨</span>Chart<span class="k">6</span></button>
+    <button data-v="publish"><span class="ic">↥</span>Publish<span class="k">7</span></button>
+    <button data-v="history"><span class="ic">◷</span>History<span class="k">8</span></button>
   </nav>
 
   <div class="side-foot">
@@ -247,6 +286,7 @@ tbody tr:hover{background:#0a2a24}
   <div class="scroll">
     <section class="view on" id="v-run"></section>
     <section class="view" id="v-board"></section>
+    <section class="view" id="v-picks"></section>
     <section class="view" id="v-story"></section>
     <section class="view" id="v-whatif"></section>
     <section class="view" id="v-chart"></section>
@@ -276,6 +316,10 @@ const rec = wins+"-"+(played.length-wins);
 const next = D.games.find(g=>g.result==='A');
 
 document.getElementById('brandSub').textContent = D.year+" season";
+// Use the real FEP wordmark when it is present, otherwise keep the text mark.
+(function(){const m=document.getElementById('mark');const i=new Image();
+ i.onload=()=>{m.textContent='';m.appendChild(i);};
+ i.onerror=()=>{};i.src='assets/fep-logo.png';i.alt='FEP';})();
 document.getElementById('wkNum').textContent = "Week "+D.week;
 document.getElementById('wkRec').textContent = "Eagles "+rec;
 document.getElementById('wkOpp').innerHTML =
@@ -304,7 +348,7 @@ function show(v){
 }
 addEventListener('keydown',e=>{
   if(e.target.matches('input,textarea')) return;
-  const map={'1':'run','2':'board','3':'story','4':'whatif','5':'chart','6':'publish','7':'history'};
+  const map={'1':'run','2':'board','3':'picks','4':'story','5':'whatif','6':'chart','7':'publish','8':'history'};
   if(map[e.key]) show(map[e.key]);
   if(e.key==='Escape') closeDrawer();
 });
@@ -403,7 +447,7 @@ function rankAt(week,name){
     const dead=D.board[n]<=0;
     return `<tr>
       <td class="num muted">${dead?'—':i+1}</td>
-      <td><span class="name ${dead?'dead':''}" data-n="${n}" style="${dead?'':'color:'+color(n)}">${n}</span></td>
+      <td><span class="pillname ${dead?'out':''}" data-n="${n}" style="background:${color(n)}">${n}</span></td>
       <td class="r num oddscell" style="font-weight:700;--w:${Math.max(D.board[n],0)/Math.max(...Object.values(D.board))*100}%;--c:${dead?'#2b4a44':color(n)}">${pct(D.board[n])}</td>
       <td class="r num ${d>0?'up':d<0?'down':'flat'}">${d?sgn(d):'—'}</td>
       <td class="r num muted">${move?(move>0?'▲'+move:'▼'+(-move)):'·'}</td>
@@ -439,6 +483,72 @@ function rankAt(week,name){
       ${D.twins.length?D.twins.slice(0,4).map(t=>`<div class="kv"><span>${t.pair[0]} &amp; ${t.pair[1]}</span>
         <span>${t.distance} game${t.distance===1?'':'s'} apart</span></div>`).join(''):'<p class="muted tiny">Nobody is redundant yet.</p>'}
       <p class="muted tiny" style="margin-top:10px;line-height:1.6">Identical remaining sheets mean the tiebreakers, not the picks, will separate them.</p></div>
+  </div>`;
+})();
+
+/* ================= THE PICKS ================= */
+(function(){
+  const DIVW = [0,6,7,8,10,16];
+  const cell = (n,g) => {
+    const pick = D.picks[n][g.i];
+    if (g.result === 'A') return `<td class="pk pk-todo">${pick}</td>`;
+    return `<td class="pk ${pick===g.result?'pk-hit':'pk-miss'}">${pick}</td>`;
+  };
+  // The bye has no game, so it gets a band across the grid the way the site does.
+  const byeWeek = (()=>{const ws=D.games.map(g=>g.week);
+    for(let w=1;w<=18;w++) if(!ws.includes(w)) return w; return null;})();
+
+  const rows=[];
+  for(let w=1;w<=18;w++){
+    if(w===byeWeek){
+      rows.push(`<tr class="bye"><td colspan="${D.roster.length+2}">BYE</td></tr>`);
+      continue;
+    }
+    const g=D.games.find(x=>x.week===w); if(!g) continue;
+    const away = g.label.startsWith('@') ? g.label.replace('@ ','') : 'Eagles';
+    const home = g.label.startsWith('@') ? 'Eagles' : g.label.replace('vs. ','');
+    const chip = t => `<span class="team ${t==='Eagles'?'phl':''}">${t==='Eagles'?'PHL':t.slice(0,3).toUpperCase()}</span>`;
+    rows.push(`<tr>
+      <td class="wknum num">${w}</td>
+      <td class="matchup">${chip(away)}${chip(home)}
+        <span class="res">${g.result==='A'?'':`<span class="wl ${g.result}">${g.result}</span>`}</span>
+        ${DIVW.includes(g.i)?'<span class="tiny muted">DIV</span>':''}</td>
+      ${D.roster.map(n=>cell(n,g)).join('')}</tr>`);
+  }
+
+  const foot = (label,fn) => `<tr class="foot"><td></td><td>${label}</td>
+    ${D.roster.map(n=>`<td class="num">${fn(n)}</td>`).join('')}</tr>`;
+
+  document.getElementById('v-picks').innerHTML = `
+  <div class="card">
+    <h3>The picks <span class="tag">green hit, red missed, grey still to come</span></h3>
+    <div style="overflow-x:auto">
+    <table class="pickmatrix">
+      <thead><tr><th></th><th>Matchup</th>
+        ${D.roster.map(n=>`<th class="r"><span class="pillname ${D.board[n]<=0?'out':''}"
+          data-n="${n}" style="background:${color(n)}">${n.slice(0,4)}</span></th>`).join('')}</tr></thead>
+      <tbody>${rows.join('')}</tbody>
+      <tfoot>
+        ${foot('Correct so far', n=>D.correct[n])}
+        ${foot('Predicted record', n=>{const w=D.picks[n].filter(x=>x==='W').length;return w+'-'+(17-w);})}
+        ${foot('Division record', n=>{const w=DIVW.filter(i=>D.picks[n][i]==='W').length;return w+'-'+(6-w);})}
+        ${foot('Points guess', n=>D.guesses[n])}
+      </tfoot>
+    </table></div>
+  </div>
+  <div class="grid g2 mt">
+    <div class="card"><h3>Where the field splits <span class="tag">remaining games only</span></h3>
+      <table><tbody>${D.chalk.slice(0,6).map(c=>`<tr><td>${c.label}</td>
+        <td style="width:150px"><div class="split"><i style="width:${c.picked_win/12*100}%"></i>
+          <span>${c.picked_win}W</span><span>${c.picked_loss}L</span></div></td>
+        <td class="r num muted tiny">ESPN ${pct(c.espn_weight*100)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="card"><h3>Consensus check</h3>
+      <p class="muted tiny" style="line-height:1.6">Games everyone still alive picked the same way cannot
+      move the board, whatever happens. Those are already flagged as dead rubbers in Storylines.</p>
+      <div class="mt">${(()=>{const dead=D.leverage.filter(l=>l.leverage<=0.05);
+        return dead.length?dead.map(l=>`<div class="kv"><span>${l.label}</span>
+          <span style="color:var(--dim2)">no leverage</span></div>`).join('')
+        :'<p class="tiny muted">Every remaining game still matters.</p>';})()}</div></div>
   </div>`;
 })();
 
