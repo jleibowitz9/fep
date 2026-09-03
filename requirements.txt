@@ -1,0 +1,9 @@
+# The engine, the ESPN pull, the chart and the stat pack use only the standard
+# library. These are needed for the optional extras.
+
+# Google Sheets push (cli.py push --live). Not needed for the CSV/paste path.
+google-api-python-client>=2.100
+google-auth>=2.20
+
+# Local dashboard (streamlit run app.py). Not needed for cli.py.
+streamlit>=1.30

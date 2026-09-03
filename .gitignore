@@ -1,0 +1,12 @@
+# Service-account key. Never commit this.
+credentials/*.json
+
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+node_modules/
+
+# ESPN responses are a cache, not a source of truth. The season file holds
+# everything that matters, with provenance.
+data/espn_cache/
