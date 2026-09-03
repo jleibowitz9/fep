@@ -11,6 +11,10 @@ The FEP weekly run, headless.
     python3 cli.py push [--live]   push weekly percentages to the Google Sheet
     python3 cli.py picks <file>    load picks from a CSV
 
+    python3 cli.py who <name>      career record and picking personality
+    python3 cli.py h2h <a> <b>     head to head across every shared season
+    python3 cli.py retro <year>    replay a past season through the model
+
 `week` is the one that matters. It refreshes from ESPN, runs the model, saves a
 snapshot, writes the stat pack, renders the chart, and publishes the chart data.
 Nothing is typed by hand.
@@ -23,7 +27,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from fep import analytics, chart, engine, espn, publish, season as season_mod, sheets, statpack
+from fep import (analytics, chart, engine, espn, history, publish,
+                 season as season_mod, sheets, statpack)
 
 YEAR = int(os.environ.get("FEP_YEAR", "2026"))
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -210,6 +215,77 @@ def cmd_picks(argv):
             guesses[name]))
 
 
+def cmd_who(argv):
+    if not argv:
+        sys.exit("usage: python3 cli.py who <name>")
+    name = argv[0].capitalize()
+    record = history.career(name)
+    print("\n{}  (all-time #{}, {} career points)".format(
+        name, record["all_time_place"], record["career_points"]))
+    print("  seasons     {} ({} to {})".format(
+        len(record["seasons"]), record["first_season"], record["seasons"][-1]))
+    print("  titles      {} {}".format(
+        record["championships"],
+        record["title_years"] if record["title_years"] else ""))
+    print("  best        {} place in {}".format(record["best_finish"], record["best_finish_year"]))
+    print("  worst       {} place in {}".format(record["worst_finish"], record["worst_finish_year"]))
+    print("  average     {} place, {} correct picks".format(
+        record["average_place"], record["average_correct"]))
+    print("  top 3 / bottom 3: {} / {}".format(record["top3"], record["bottom3"]))
+    try:
+        p = history.pick_personality(name)
+        print("\n  picks {:+.2f} wins vs reality, {}% accurate".format(p["optimism"], p["accuracy"]))
+        print("  goes against the field {}% of the time".format(p["contrarian_rate"]))
+        print("  backs the Eagles in {}% of division games".format(p["division_faith"]))
+    except history.HistoryError:
+        pass
+    print("\nReady-made lines:")
+    for line in history.context_lines(name):
+        print("  " + line)
+
+
+def cmd_h2h(argv):
+    if len(argv) < 2:
+        sys.exit("usage: python3 cli.py h2h <a> <b>")
+    a, b = argv[0].capitalize(), argv[1].capitalize()
+    result = history.head_to_head(a, b)
+    print("\n{}\n".format(result["summary"]))
+    print("  {:<6} {:>18} {:>18}".format("year", a, b))
+    for row in result["detail"]:
+        star = lambda n: "*" if row["winner"] == n else " "
+        print("  {:<6} {:>16} {}{:>16} {}".format(
+            row["year"],
+            "{} ({})".format(row[a]["place"], row[a]["correct"]), star(a),
+            "{} ({})".format(row[b]["place"], row[b]["correct"]), star(b)))
+    print("\n  shown as place (correct picks). * = finished ahead.")
+
+
+def cmd_retro(argv):
+    if not argv:
+        sys.exit("usage: python3 cli.py retro <year>")
+    year = int(argv[0])
+    r = history.retro_season(year)
+    print("\n{} replayed  (Eagles {}, {} competitors)".format(
+        year, r["record"], len(r["competitors"])))
+    print("  " + r["method"])
+    for note in r["notes"]:
+        print("  note: " + note)
+    print("\n  final standings")
+    for name, score in sorted(r["final_correct"].items(), key=lambda kv: -kv[1]):
+        print("    {:<8} {}".format(name, score))
+    print("\n  decided after game {} of {} ({} to spare)".format(
+        r["decided_after_game"], r["games"], r["games_to_spare"]))
+    if r["eliminations"]:
+        print("\n  eliminations")
+        for name, game in r["eliminations"].items():
+            print("    {:<8} after game {}".format(name, game))
+    if r["lead_changes"]:
+        print("\n  lead changes")
+        for change in r["lead_changes"]:
+            print("    after game {:>2}: {} -> {}".format(
+                change["after_game"], change["from"], change["to"]))
+
+
 COMMANDS = {
     "init": lambda a: cmd_init(),
     "refresh": lambda a: cmd_refresh(),
@@ -219,6 +295,9 @@ COMMANDS = {
     "statpack": cmd_statpack,
     "push": cmd_push,
     "picks": cmd_picks,
+    "who": cmd_who,
+    "h2h": cmd_h2h,
+    "retro": cmd_retro,
 }
 
 
@@ -231,7 +310,8 @@ def main():
         sys.exit("Unknown command {!r}. Try --help.".format(command))
     try:
         COMMANDS[command](sys.argv[2:])
-    except (engine.SeasonError, sheets.SheetError, espn.ESPNError) as exc:
+    except (engine.SeasonError, sheets.SheetError, espn.ESPNError,
+            history.HistoryError) as exc:
         sys.exit("Error: {}".format(exc))
 
 

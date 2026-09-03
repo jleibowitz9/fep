@@ -54,6 +54,35 @@ not typed.
 | `cli.py refresh` | pull from ESPN, preserving any manual overrides |
 | `cli.py leverage` | every remaining game ranked by how much it swings the pool |
 | `cli.py statpack [N]` | print a week's stat pack to the terminal |
+| `cli.py who <name>` | career record, picking personality, ready-made lines |
+| `cli.py h2h <a> <b>` | head to head across every shared season |
+| `cli.py retro <year>` | replay any season from 2016 on through the model |
+
+## History
+
+`fep/history.py` reads all ten seasons: the record book, career totals, and
+game-by-game picks for 2016 through 2025. It exists so no number in a newsletter
+is ever quoted from memory.
+
+`cli.py retro <year>` replays a past season week by week and reconstructs the
+drama those pre-newsletter years never got: when each competitor was
+mathematically eliminated, when the lead changed, and how close it actually was.
+2021, for instance, went to the final game with a three-way tie at 14.
+
+Two honest caveats, both stated in the output:
+
+- Historical ESPN win probabilities do not exist, so a replay treats every
+  unplayed game as a coin flip. That is the **straight-up** board, not the
+  weighted one.
+- Points guesses were not recorded before 2024, so the third tiebreaker cannot
+  be applied and anyone reaching it splits evenly.
+
+The data has real quirks and the module surfaces rather than hides them: 2016's
+Week 16 was really a win that the family scored as a loss (and every 2016 total
+was computed against that loss), 2020 Week 3 was a tie that counted for nobody,
+and `reconcile_totals()` recomputes all 104 competitor-seasons from their own
+pick grids. 102 match exactly; the two that do not are single-cell source-sheet
+quirks where the stated total is authoritative.
 
 ## Where things live
 

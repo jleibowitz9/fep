@@ -408,5 +408,94 @@ class TestStatpack(unittest.TestCase):
         self.assertIn("Leverage Index", text)
 
 
+
+class TestHistory(unittest.TestCase):
+    """Ten seasons of record, and the quirks that make them awkward."""
+
+    @classmethod
+    def setUpClass(cls):
+        from fep import history
+        cls.H = history
+        cls.seasons = history.weekly_picks()
+
+    def test_every_season_loads(self):
+        self.assertEqual(sorted(self.seasons), list(range(2016, 2026)))
+
+    def test_every_season_has_six_division_games(self):
+        """The NFC East plays home and away, always. A parsing slip shows here."""
+        for year, season in self.seasons.items():
+            self.assertEqual(len(season["division_indices"]), 6,
+                             "{} found {} division games".format(
+                                 year, len(season["division_indices"])))
+
+    def test_pick_sheets_are_index_aligned(self):
+        for year, season in self.seasons.items():
+            games = len(season["results"])
+            for name, sheet in season["picks"].items():
+                self.assertEqual(len(sheet), games,
+                                 "{} {} has {} picks for {} games".format(
+                                     year, name, len(sheet), games))
+
+    def test_giants_are_division_but_jets_are_not(self):
+        for name in ("Giants", "at Giants", "New York Giants", "Cowboys",
+                     "at Dallas", "Redskins", "Washington", "Football Team",
+                     "Commanders"):
+            self.assertTrue(self.H.is_division(name), name)
+        for name in ("New York Jets", "at Jets", "Bears", "at Rams", ""):
+            self.assertFalse(self.H.is_division(name), name)
+
+    def test_2020_tie_is_excluded(self):
+        """It counted for nobody, and the totals only reconcile that way."""
+        season = self.seasons[2020]
+        self.assertEqual(len(season["results"]), 15)   # 16 games minus the tie
+        self.assertNotIn(self.H.TIE, season["results"])
+        self.assertTrue(any("tie" in n.lower() for n in season["notes"]))
+
+    def test_known_record_discrepancies_are_flagged(self):
+        """2016 and 2020 disagree with the record book, on purpose."""
+        for year in (2016, 2020):
+            notes = " ".join(self.seasons[year]["notes"]).lower()
+            self.assertIn("record", notes, "{} should flag its discrepancy".format(year))
+
+    def test_computed_totals_match_the_record_book(self):
+        """Every competitor's correct-pick count, recomputed from their picks.
+
+        102 of 104 competitor-seasons reconcile exactly. The two that do not are
+        single-cell source-sheet quirks where the stated total is authoritative.
+        A new entry here means the pick grids and the record book have drifted,
+        which would make any historical claim unsafe to publish.
+        """
+        unexplained = [r for r in self.H.reconcile_totals() if not r["known"]]
+        self.assertEqual(unexplained, [], "unexplained pick-total mismatches")
+
+    def test_reconciliation_covers_every_competitor_season(self):
+        checked = sum(len(s["picks"]) for s in self.seasons.values())
+        self.assertGreaterEqual(checked, 100)
+        self.assertLessEqual(len(self.H.reconcile_totals()), 3)
+
+    def test_retro_reproduces_every_champion(self):
+        """The strongest end-to-end check available on the historical data."""
+        book = {r["year"]: (r["champion"], r["winning_score"])
+                for r in self.H.champions()}
+        for year in sorted(self.seasons):
+            result = self.H.retro_season(year)
+            champion, score = book[year]
+            top = max(result["final_correct"].values())
+            tied = [n for n, v in result["final_correct"].items() if v == top]
+            self.assertEqual(top, score, "{} winning score".format(year))
+            self.assertIn(champion, tied, "{} champion not among the leaders".format(year))
+
+    def test_head_to_head_is_symmetric(self):
+        a = self.H.head_to_head("Nathan", "Jacob")
+        b = self.H.head_to_head("Jacob", "Nathan")
+        self.assertEqual(a["a_ahead"], b["b_ahead"])
+        self.assertEqual(a["seasons"], b["seasons"])
+
+    def test_context_lines_have_no_banned_dashes(self):
+        for name in ("Nathan", "Pop", "Buhduh"):
+            for line in self.H.context_lines(name):
+                for dash in ("—", "–"):
+                    self.assertNotIn(dash, line)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
