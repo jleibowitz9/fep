@@ -10,6 +10,7 @@ The FEP weekly run, headless.
     python3 cli.py statpack [N]    print the stat pack for a week
     python3 cli.py push [--live]   push weekly percentages to the Google Sheet
     python3 cli.py token           generate a shared secret for the Apps Script
+    python3 cli.py dashboard       build and open the weekly dashboard
     python3 cli.py picks <file>    load picks from a CSV
 
     python3 cli.py who <name>      career record and picking personality
@@ -193,6 +194,27 @@ def cmd_push(argv):
     print("Wrote {} cells to {}".format(result["updated_cells"], result["updated_range"]))
 
 
+def cmd_dashboard(argv):
+    """Build the single-file dashboard for a week and open it."""
+    import subprocess
+    sys.path.insert(0, os.path.join(ROOT, "dashboard"))
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "dashboard_build", os.path.join(ROOT, "dashboard", "build.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    mock = next((a.split("=", 1)[1] for a in argv if a.startswith("--mock=")), None)
+    week = next((int(a) for a in argv if a.isdigit()), None)
+    data = (__import__("json").load(open(mock)) if mock
+            else module.collect(YEAR, week))
+    path = module.build(data)
+    print("Built {} ({:.0f} KB)".format(
+        os.path.relpath(path, ROOT), os.path.getsize(path) / 1024))
+    if "--no-open" not in argv:
+        subprocess.run(["open", path], check=False)
+
+
 def cmd_token(argv):
     """Generate the shared secret that pairs the CLI with the Apps Script."""
     import json
@@ -322,6 +344,7 @@ COMMANDS = {
     "push": cmd_push,
     "picks": cmd_picks,
     "token": cmd_token,
+    "dashboard": cmd_dashboard,
     "who": cmd_who,
     "h2h": cmd_h2h,
     "retro": cmd_retro,

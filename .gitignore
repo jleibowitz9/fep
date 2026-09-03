@@ -10,3 +10,4 @@ node_modules/
 # ESPN responses are a cache, not a source of truth. The season file holds
 # everything that matters, with provenance.
 data/espn_cache/
+dashboard/index.html

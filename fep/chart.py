@@ -300,7 +300,19 @@ _TEMPLATE = r"""
 <script type="application/json" data-payload>__PAYLOAD__</script>
 <script>
 (function(){
-  var root = document.currentScript.closest('[data-fep]');
+  // document.currentScript is null when a script is injected and executed
+  // dynamically (as the dashboard does when it mounts this chart), so fall back
+  // to the first chart container that has not been drawn into yet.
+  var root = (document.currentScript && document.currentScript.closest('[data-fep]'));
+  if (!root) {
+    var all = document.querySelectorAll('[data-fep]');
+    for (var q = 0; q < all.length; q++) {
+      var svg = all[q].querySelector('[data-svg]');
+      if (svg && !svg.childNodes.length) { root = all[q]; break; }
+    }
+    if (!root) root = all[all.length - 1];
+  }
+  if (!root) return;
   var D = JSON.parse(root.querySelector('[data-payload]').textContent);
   var svg = root.querySelector('[data-svg]');
   var tip = root.querySelector('[data-tip]');

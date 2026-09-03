@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FEP Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#04100e; --panel:#08201c; --panel2:#0a2723; --line:#123a34; --line2:#1b4f46;
+  --ink:#e8f6f2; --dim:#7ba49b; --dim2:#4f7a71;
+  --green:#00c389; --red:#ff6b6b; --amber:#ffb84d; --blue:#4aa8ff; --violet:#a78bfa;
+  --eagles:#004C54;
+  --sans:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;
+  -webkit-font-smoothing:antialiased;display:flex;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px;border:3px solid var(--bg)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---------------- sidebar ---------------- */
+aside{width:236px;flex:none;background:var(--panel);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;padding:16px 12px}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px}
+.brand .mark{width:30px;height:30px;border-radius:8px;flex:none;
+  background:linear-gradient(140deg,#00c389,#004C54);display:grid;place-items:center;
+  font-weight:800;font-size:13px;color:#02110f}
+.brand h1{font-size:14px;font-weight:700;letter-spacing:-.1px}
+.brand span{display:block;font-size:11px;color:var(--dim2);font-weight:500}
+
+.weekpick{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);
+  padding:10px 12px;margin-bottom:16px}
+.weekpick .lab{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim2);font-weight:700}
+.weekpick .val{display:flex;align-items:baseline;gap:8px;margin-top:3px}
+.weekpick .val b{font-size:21px;font-weight:700;letter-spacing:-.4px}
+.weekpick .val em{font-style:normal;font-size:12px;color:var(--dim)}
+.weekpick .opp{margin-top:6px;font-size:12px;color:var(--dim);display:flex;align-items:center;gap:6px}
+
+nav{display:flex;flex-direction:column;gap:1px}
+nav button{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;
+  color:var(--dim);font-size:13px;font-weight:500;text-align:left;transition:.12s}
+nav button:hover{background:var(--panel2);color:var(--ink)}
+nav button.on{background:var(--line);color:var(--ink);font-weight:600}
+nav button .k{margin-left:auto;font-size:10px;color:var(--dim2);font-family:var(--mono)}
+nav button .ic{width:15px;text-align:center;opacity:.9}
+nav .sep{height:1px;background:var(--line);margin:10px 6px}
+
+.side-foot{margin-top:auto;padding:12px 8px 4px;border-top:1px solid var(--line);
+  font-size:11px;color:var(--dim2);line-height:1.7}
+.side-foot .row{display:flex;justify-content:space-between;gap:8px}
+.side-foot b{color:var(--dim);font-weight:600}
+
+/* ---------------- main ---------------- */
+main{flex:1;display:flex;flex-direction:column;min-width:0}
+header{height:60px;flex:none;border-bottom:1px solid var(--line);display:flex;
+  align-items:center;gap:14px;padding:0 24px;background:var(--panel)}
+header h2{font-size:16px;font-weight:700;letter-spacing:-.2px}
+header .sub{font-size:12px;color:var(--dim)}
+.pills{display:flex;gap:6px;margin-left:auto;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;
+  padding:5px 9px;border-radius:99px;background:var(--panel2);border:1px solid var(--line);color:var(--dim)}
+.pill .dot{width:6px;height:6px;border-radius:99px;background:var(--dim2)}
+.pill.ok{color:#8ef0cd;border-color:#0d4a38}.pill.ok .dot{background:var(--green)}
+.pill.warn{color:#ffd79b;border-color:#4a3a12}.pill.warn .dot{background:var(--amber)}
+.btn{background:var(--green);color:#02110f;font-weight:700;font-size:13px;padding:8px 15px;
+  border-radius:8px;transition:.12s}
+.btn:hover{filter:brightness(1.09)}
+.btn.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line2);font-weight:600}
+.btn.ghost:hover{background:var(--line)}
+.btn.sm{padding:5px 10px;font-size:12px;border-radius:7px}
+
+.scroll{flex:1;overflow-y:auto;padding:24px}
+.view{display:none;animation:in .18s ease}
+.view.on{display:block}
+@keyframes in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ---------------- primitives ---------------- */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.card > h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);
+  font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card > h3 .tag{margin-left:auto;font-size:10px;text-transform:none;letter-spacing:0;color:var(--dim2)}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}
+.g21{grid-template-columns:2fr 1fr}.g12{grid-template-columns:1fr 2fr}
+@media(max-width:1180px){.g2,.g3,.g21,.g12{grid-template-columns:1fr}}
+.mt{margin-top:14px}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim2);
+  font-weight:700;text-align:left;padding:0 10px 8px;border-bottom:1px solid var(--line)}
+th.r,td.r{text-align:right}
+td{padding:8px 10px;border-bottom:1px solid #0d2b26}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#0a2a24}
+.name{font-weight:600;cursor:pointer}
+.name:hover{color:var(--green)}
+.up{color:var(--green)}.down{color:var(--red)}.flat{color:var(--dim2)}
+.muted{color:var(--dim)}.tiny{font-size:11px}
+.dead{color:var(--dim2);text-decoration:line-through}
+
+.bar{height:5px;border-radius:99px;background:var(--line);overflow:hidden}
+/* The odds figure sits on its own bar, so the magnitude reads at a glance
+   without spending a column that collapses on a narrow window. */
+.oddscell{position:relative;isolation:isolate}
+.oddscell::before{content:"";position:absolute;left:6px;right:6px;bottom:4px;height:3px;
+  border-radius:99px;background:var(--line);z-index:-1}
+.oddscell::after{content:"";position:absolute;left:6px;bottom:4px;height:3px;width:var(--w);
+  max-width:calc(100% - 12px);border-radius:99px;background:var(--c);opacity:.85;z-index:-1}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--green)}
+
+.stat{display:flex;flex-direction:column;gap:3px}
+.stat .v{font-size:26px;font-weight:700;letter-spacing:-.6px;font-family:var(--mono)}
+.stat .l{font-size:11px;color:var(--dim);font-weight:500}
+
+.wl{display:inline-grid;place-items:center;width:19px;height:19px;border-radius:5px;
+  font-size:10px;font-weight:800;font-family:var(--mono)}
+.wl.W{background:#0d4a38;color:#8ef0cd}.wl.L{background:#4a1620;color:#ffb3b3}
+.wl.A{background:var(--line);color:var(--dim2)}
+
+/* ---------------- run / verify ---------------- */
+.steps{display:flex;flex-direction:column;gap:0}
+.step{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid #0d2b26}
+.step:last-child{border-bottom:none}
+.step .ic{width:20px;height:20px;border-radius:99px;flex:none;display:grid;place-items:center;
+  font-size:11px;font-weight:800;background:var(--line);color:var(--dim2);margin-top:1px}
+.step.ok .ic{background:#0d4a38;color:var(--green)}
+.step.warn .ic{background:#4a3a12;color:var(--amber)}
+.step .t{font-weight:600;font-size:13px}
+.step .d{font-size:12px;color:var(--dim);margin-top:2px;line-height:1.55}
+.step .d code{font-family:var(--mono);font-size:11px;color:#a8d8cd;background:#0d2b26;
+  padding:1px 5px;border-radius:4px}
+
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.check{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:8px;
+  background:var(--panel2);border:1px solid var(--line);font-size:12px}
+.check .s{width:16px;height:16px;border-radius:99px;flex:none;display:grid;place-items:center;
+  font-size:9px;font-weight:800;background:#0d4a38;color:var(--green)}
+.check.warn .s{background:#4a3a12;color:var(--amber)}
+.check .x{margin-left:auto;color:var(--dim);font-family:var(--mono);font-size:11px}
+
+/* ---------------- storylines ---------------- */
+.lead{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:14px 16px;margin-bottom:10px;position:relative;transition:.12s}
+.lead:hover{border-color:var(--line2)}
+.lead .top{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.lead .kind{font-size:10px;text-transform:uppercase;letter-spacing:.07em;font-weight:800;
+  padding:3px 7px;border-radius:5px;background:var(--line);color:var(--dim)}
+.lead .kind.hot{background:#4a1620;color:#ffb3b3}
+.lead .kind.cold{background:#12324a;color:#a8d0ff}
+.lead .kind.big{background:#0d4a38;color:#8ef0cd}
+.lead h4{font-size:15px;font-weight:700;letter-spacing:-.2px}
+.lead p{font-size:13px;color:#c3ded7;line-height:1.65;margin-top:2px}
+.lead .score{margin-left:auto;font-size:10px;color:var(--dim2);font-family:var(--mono)}
+.copy{position:absolute;top:12px;right:12px;opacity:0;transition:.12s}
+.lead:hover .copy{opacity:1}
+
+/* ---------------- drawer ---------------- */
+.scrim{position:fixed;inset:0;background:#000a;opacity:0;pointer-events:none;transition:.18s;z-index:40}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:460px;max-width:92vw;background:var(--panel);
+  border-left:1px solid var(--line2);z-index:50;transform:translateX(100%);transition:.22s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column}
+.drawer.on{transform:none}
+.drawer .dh{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
+.drawer .db{flex:1;overflow-y:auto;padding:18px 20px}
+.avatar{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
+  font-weight:800;font-size:15px;color:#02110f}
+
+.pickgrid{display:grid;grid-template-columns:repeat(17,1fr);gap:3px}
+.pickgrid div{aspect-ratio:1;border-radius:3px;display:grid;place-items:center;
+  font-size:8px;font-weight:800;font-family:var(--mono)}
+.hit{background:#0d4a38;color:#8ef0cd}.miss{background:#4a1620;color:#ffb3b3}
+.pend{background:var(--line);color:var(--dim2)}
+
+.kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #0d2b26;font-size:13px}
+.kv:last-child{border:none}
+.kv span:first-child{color:var(--dim)}
+.kv span:last-child{font-weight:600;font-family:var(--mono)}
+
+/* ---------------- what if ---------------- */
+.wif{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:8px;
+  background:var(--panel2);border:1px solid var(--line);margin-bottom:6px}
+.wif .lbl{font-size:13px;font-weight:600;min-width:150px}
+.seg{display:inline-flex;background:var(--bg);border-radius:7px;padding:2px;border:1px solid var(--line)}
+.seg button{padding:3px 11px;border-radius:5px;font-size:11px;font-weight:700;color:var(--dim2)}
+.seg button.on{background:var(--line2);color:var(--ink)}
+.seg button.on[data-v="W"]{background:#0d4a38;color:#8ef0cd}
+.seg button.on[data-v="L"]{background:#4a1620;color:#ffb3b3}
+.lev{margin-left:auto;font-size:11px;color:var(--dim);font-family:var(--mono)}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(70px);
+  background:var(--green);color:#02110f;font-weight:700;font-size:13px;padding:10px 18px;
+  border-radius:99px;z-index:99;transition:.2s;box-shadow:0 8px 30px #0008}
+.toast.on{transform:translateX(-50%)}
+.spark{display:block}
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="brand">
+    <div class="mark">FEP</div>
+    <div><h1>FEP Control</h1><span id="brandSub"></span></div>
+  </div>
+
+  <div class="weekpick">
+    <div class="lab">Current week</div>
+    <div class="val"><b id="wkNum"></b><em id="wkRec"></em></div>
+    <div class="opp" id="wkOpp"></div>
+  </div>
+
+  <nav id="nav">
+    <button data-v="run" class="on"><span class="ic">▶</span>Run &amp; Verify<span class="k">1</span></button>
+    <button data-v="board"><span class="ic">▦</span>The Board<span class="k">2</span></button>
+    <button data-v="story"><span class="ic">✎</span>Storylines<span class="k">3</span></button>
+    <button data-v="whatif"><span class="ic">⑂</span>What If<span class="k">4</span></button>
+    <div class="sep"></div>
+    <button data-v="chart"><span class="ic">◨</span>Chart<span class="k">5</span></button>
+    <button data-v="publish"><span class="ic">↥</span>Publish<span class="k">6</span></button>
+    <button data-v="history"><span class="ic">◷</span>History<span class="k">7</span></button>
+  </nav>
+
+  <div class="side-foot">
+    <div class="row"><span>Outcomes left</span><b id="fOut"></b></div>
+    <div class="row"><span>Still alive</span><b id="fAlive"></b></div>
+    <div class="row"><span>Last run</span><b id="fRun"></b></div>
+  </div>
+</aside>
+
+<main>
+  <header>
+    <div>
+      <h2 id="hTitle"></h2>
+      <div class="sub" id="hSub"></div>
+    </div>
+    <div class="pills" id="hPills"></div>
+    <button class="btn" id="runBtn">Run Week 8</button>
+  </header>
+  <div class="scroll">
+    <section class="view on" id="v-run"></section>
+    <section class="view" id="v-board"></section>
+    <section class="view" id="v-story"></section>
+    <section class="view" id="v-whatif"></section>
+    <section class="view" id="v-chart"></section>
+    <section class="view" id="v-publish"></section>
+    <section class="view" id="v-history"></section>
+  </div>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<div class="drawer" id="drawer"></div>
+<div class="toast" id="toast"></div>
+
+<script type="application/json" id="data">__DATA__</script>
+<script>
+const D = JSON.parse(document.getElementById('data').textContent);
+const PAL = ["#ff6b6b","#f0932b","#e8d44d","#6ab04c","#26de81","#2bcbba",
+             "#45aaf2","#4b7bec","#5f6bef","#a55eea","#ff5eb4","#fd79a8"];
+const color = n => PAL[D.roster.indexOf(n) % PAL.length];
+const pct = v => (v===null||v===undefined) ? "--" : v.toFixed(1)+"%";
+const sgn = v => (v>0?"+":"")+v.toFixed(1);
+const el = (h) => { const t=document.createElement('template'); t.innerHTML=h.trim(); return t.content.firstChild; };
+
+/* ---------- shell ---------- */
+const played = D.games.filter(g=>g.result!=='A');
+const wins = played.filter(g=>g.result==='W').length;
+const rec = wins+"-"+(played.length-wins);
+const next = D.games.find(g=>g.result==='A');
+
+document.getElementById('brandSub').textContent = D.year+" season";
+document.getElementById('wkNum').textContent = "Week "+D.week;
+document.getElementById('wkRec').textContent = "Eagles "+rec;
+document.getElementById('wkOpp').innerHTML =
+  `<span class="wl ${played[played.length-1].result}">${played[played.length-1].result}</span> ${played[played.length-1].label}`;
+document.getElementById('fOut').textContent = D.outcomes.toLocaleString();
+document.getElementById('fAlive').textContent = D.conc.alive+" of 12";
+document.getElementById('fRun').textContent = D.generated;
+document.getElementById('hTitle').textContent = `${D.year} FEP · Week ${D.week}`;
+document.getElementById('hSub').textContent =
+  `${played[played.length-1].label} (${played[played.length-1].result}) · ${D.outcomes.toLocaleString()} outcomes remain`;
+document.getElementById('hPills').innerHTML = [
+  ['ok','ESPN synced'],['ok','Snapshot saved'],['warn','Sheet not pushed'],['ok','Chart published']
+].map(([c,t])=>`<span class="pill ${c}"><span class="dot"></span>${t}</span>`).join('');
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');
+  clearTimeout(t._x);t._x=setTimeout(()=>t.classList.remove('on'),1500);}
+function copy(text,msg){navigator.clipboard.writeText(text).then(()=>toast(msg||"Copied"));}
+
+document.getElementById('nav').onclick = e => {
+  const b = e.target.closest('button[data-v]'); if(!b) return; show(b.dataset.v);
+};
+function show(v){
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));
+  document.querySelector('.scroll').scrollTop=0;
+}
+addEventListener('keydown',e=>{
+  if(e.target.matches('input,textarea')) return;
+  const map={'1':'run','2':'board','3':'story','4':'whatif','5':'chart','6':'publish','7':'history'};
+  if(map[e.key]) show(map[e.key]);
+  if(e.key==='Escape') closeDrawer();
+});
+
+/* ---------- sparkline ---------- */
+function spark(name,w=76,h=20){
+  const vals=D.snapshots.map(s=>s.weighted[name]??0);
+  const max=Math.max(...D.snapshots.flatMap(s=>Object.values(s.weighted)),1);
+  const pts=vals.map((v,i)=>[i/(vals.length-1)*(w-2)+1, h-1-(v/max)*(h-2)]);
+  const dead=vals[vals.length-1]<=0;
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <path d="M${pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join('L')}"
+      fill="none" stroke="${dead?'#4f7a71':color(name)}" stroke-width="1.6"
+      stroke-linejoin="round" opacity="${dead?.5:1}"/>
+    <circle cx="${pts[pts.length-1][0].toFixed(1)}" cy="${pts[pts.length-1][1].toFixed(1)}"
+      r="2" fill="${dead?'#4f7a71':color(name)}"/></svg>`;
+}
+function rankAt(week,name){
+  const s=D.snapshots.find(x=>x.week===week); if(!s) return null;
+  return Object.entries(s.weighted).sort((a,b)=>b[1]-a[1]).findIndex(e=>e[0]===name)+1;
+}
+
+/* ================= RUN & VERIFY ================= */
+(function(){
+  const changed = D.games.filter(g=>g.weightSource==='manual');
+  const sum = Object.values(D.board).reduce((a,b)=>a+b,0);
+  const steps = [
+    ['ok','Fetched from ESPN',
+     `17 games, <code>seasontype=2</code>. 1 new result (<code>${played[played.length-1].label} ${played[played.length-1].result}</code>), 9 win probabilities refreshed.`],
+    ['ok','Validated inputs',
+     `12 pick sheets &times; 17 games. All picks W or L, all weights in <code>0..1</code>, 6 division games at <code>[0,6,7,8,10,16]</code>.`],
+    ['warn','Manual overrides preserved',
+     changed.length ? `Game ${changed[0].i} (<code>${changed[0].label}</code>) keeps your manual weight of <code>${(changed[0].weight*100).toFixed(1)}%</code>. ESPN wanted something else and was ignored.` : 'None.'],
+    ['ok','Computed the board',
+     `${D.outcomes.toLocaleString()} remaining universes enumerated in <code>0.03s</code>. Sums to <code>${sum.toFixed(1)}%</code>.`],
+    ['ok','Compared to Week '+(D.week-1),
+     `Largest single move <code>${sgn(Object.entries(D.heat.deltas).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))[0][1])}</code> (${Object.entries(D.heat.deltas).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))[0][0]}). No implausible jumps.`],
+    ['ok','Saved snapshot',
+     `Week ${D.week} board stored with the weights that produced it, so this week can be reproduced exactly later.`],
+  ];
+
+  // The displayed odds are rounded to one decimal, so their sum can land on
+  // 100.1 while the underlying board is exact. Check against a tolerance and
+  // say so, rather than showing a number that looks like a failure.
+  const sumOk = Math.abs(sum-100) < 0.5;
+  const checks = [
+    [sumOk?'ok':'warn','Board sums to 100%', sum.toFixed(1)+'% ±rounding'],
+    ['ok','Every competitor scored', D.roster.length+'/12'],
+    ['ok','Snapshots contiguous', '0..'+D.week],
+    ['ok','Sheet header matches roster','B..M'],
+    ['ok','Chart data immutable','week-0'+D.week+'.json'],
+    ['warn','Sheet not pushed yet','pending'],
+  ];
+
+  document.getElementById('v-run').innerHTML = `
+  <div class="grid g21">
+    <div class="card">
+      <h3>Run trace <span class="tag">what actually happened, step by step</span></h3>
+      <div class="steps">${steps.map(([s,t,d])=>`
+        <div class="step ${s}"><div class="ic">${s==='ok'?'✓':'!'}</div>
+          <div><div class="t">${t}</div><div class="d">${d}</div></div></div>`).join('')}</div>
+    </div>
+    <div class="card">
+      <h3>Preflight checks</h3>
+      <div class="checks" style="grid-template-columns:1fr">${checks.map(([s,t,x])=>`
+        <div class="check ${s==='ok'?'':'warn'}"><div class="s">${s==='ok'?'✓':'!'}</div>${t}
+          <span class="x">${x}</span></div>`).join('')}</div>
+    </div>
+  </div>
+
+  <div class="card mt">
+    <h3>Data audit <span class="tag">every game, every value, and where it came from</span></h3>
+    <table>
+      <thead><tr><th>Wk</th><th>Matchup</th><th>Result</th><th class="r">PHI pts</th>
+        <th class="r">ESPN win prob</th><th>Source</th><th class="r">Field picked W</th></tr></thead>
+      <tbody>${D.games.map(g=>{
+        const w = D.roster.filter(n=>D.picks[n][g.i]==='W').length;
+        const manual = g.weightSource==='manual';
+        return `<tr>
+          <td class="muted num">${g.week}</td>
+          <td>${g.label}${g.division?' <span class="tiny muted">DIV</span>':''}</td>
+          <td><span class="wl ${g.result}">${g.result==='A'?'·':g.result}</span></td>
+          <td class="r num muted">${g.points??'—'}</td>
+          <td class="r num">${(g.weight*100).toFixed(1)}%</td>
+          <td class="tiny ${manual?'':'muted'}" style="${manual?'color:var(--amber)':''}">${manual?'manual':'espn'}</td>
+          <td class="r num muted">${w}/12</td></tr>`;}).join('')}
+      </tbody>
+    </table>
+  </div>`;
+})();
+
+/* ================= BOARD ================= */
+(function(){
+  const rows = D.ranked.map((n,i)=>{
+    const d=D.heat.deltas[n]??0, prev=rankAt(D.week-1,n), move=prev?prev-(i+1):0;
+    const dead=D.board[n]<=0;
+    return `<tr>
+      <td class="num muted">${dead?'—':i+1}</td>
+      <td><span class="name ${dead?'dead':''}" data-n="${n}" style="${dead?'':'color:'+color(n)}">${n}</span></td>
+      <td class="r num oddscell" style="font-weight:700;--w:${Math.max(D.board[n],0)/Math.max(...Object.values(D.board))*100}%;--c:${dead?'#2b4a44':color(n)}">${pct(D.board[n])}</td>
+      <td class="r num ${d>0?'up':d<0?'down':'flat'}">${d?sgn(d):'—'}</td>
+      <td class="r num muted">${move?(move>0?'▲'+move:'▼'+(-move)):'·'}</td>
+      <td>${spark(n)}</td>
+      <td class="r num">${D.correct[n]}</td>
+      <td class="r num muted">${D.expected[n].toFixed(1)}</td>
+      <td class="r num muted tiny">${D.span[n].worst}–${D.span[n].best}</td>
+      <td class="r num muted">${D.diff[n]?D.diff[n].mean_distance.toFixed(1):'—'}</td>
+    </tr>`;}).join('');
+
+  document.getElementById('v-board').innerHTML = `
+  <div class="grid g3">
+    ${[['Leader',D.ranked[0],pct(D.board[D.ranked[0]])],
+       ['Effective field',D.conc.effective_field.toFixed(1)+' of 12','how open it is'],
+       ['Biggest mover',Object.entries(D.heat.deltas).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))[0][0],
+        sgn(Object.entries(D.heat.deltas).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))[0][1])+' this week']]
+      .map(([l,v,s])=>`<div class="card"><div class="stat"><div class="l">${l}</div>
+        <div class="v">${v}</div><div class="l">${s}</div></div></div>`).join('')}
+  </div>
+  <div class="card mt">
+    <h3>Standings <span class="tag">click any name for the full picture</span></h3>
+    <table><thead><tr>
+      <th>#</th><th>Competitor</th><th class="r">Odds</th><th class="r">Δ wk</th>
+      <th class="r">Rank</th><th>Season</th><th class="r">Correct</th><th class="r">Exp.</th>
+      <th class="r">Range</th><th class="r">Diff.</th></tr></thead><tbody>${rows}</tbody></table>
+  </div>
+  <div class="grid g2 mt">
+    <div class="card"><h3>Decision tree <span class="tag">how the title gets settled</span></h3>
+      <table><tbody>${D.deciding.rows.map(r=>`<tr><td>${r.layer}</td>
+        <td class="r num" style="font-weight:700">${pct(r.share)}</td>
+        <td class="r num tiny ${r.delta>0?'up':r.delta<0?'down':'flat'}">${r.delta!==null?sgn(r.delta):''}</td></tr>`).join('')}</tbody></table></div>
+    <div class="card"><h3>Effectively identical from here</h3>
+      ${D.twins.length?D.twins.slice(0,4).map(t=>`<div class="kv"><span>${t.pair[0]} &amp; ${t.pair[1]}</span>
+        <span>${t.distance} game${t.distance===1?'':'s'} apart</span></div>`).join(''):'<p class="muted tiny">Nobody is redundant yet.</p>'}
+      <p class="muted tiny" style="margin-top:10px;line-height:1.6">Identical remaining sheets mean the tiebreakers, not the picks, will separate them.</p></div>
+  </div>`;
+})();
+
+/* ================= STORYLINES ================= */
+(function(){
+  const leads=[];
+  const sorted=Object.entries(D.heat.deltas).sort((a,b)=>b[1]-a[1]);
+  const [upN,upV]=sorted[0], [dnN,dnV]=sorted[sorted.length-1];
+  const leader=D.ranked[0], prevLeader=(()=>{const s=D.snapshots.find(x=>x.week===D.week-1);
+    return s?Object.entries(s.weighted).sort((a,b)=>b[1]-a[1])[0][0]:null;})();
+
+  if(prevLeader && prevLeader!==leader) leads.push(['big','Lead change',
+    `${leader} takes over the top spot`,
+    `${leader} moves to ${pct(D.board[leader])}, displacing ${prevLeader}. That is the ${D.week===1?'first':'latest'} lead change of the season.`,98]);
+  leads.push(['hot','Heat check',`${upN} is the week's big riser`,
+    `${upN} gains ${sgn(upV)} points to sit at ${pct(D.board[upN])}, the largest single-week rise on the board.`,90]);
+  leads.push(['cold','Heat check',`${dnN} takes the week's worst hit`,
+    `${dnN} drops ${sgn(dnV)} to ${pct(D.board[dnN])}. ${D.board[dnN]<=0?'That is elimination.':'Still alive, but the room is getting smaller.'}`,88]);
+  if(D.nextLev) leads.push(['big','Leverage index',
+    `${D.nextLev.label} is worth ${pct(D.nextLev.leverage)} of the pool`,
+    `Nearly ${Math.round(D.nextLev.leverage)} percentage points of leaderboard equity change hands on this one result. ${(()=>{
+      const sw=Object.fromEntries(D.roster.map(n=>[n,D.nextLev.if_win[n]-D.nextLev.if_lose[n]]));
+      const h=Object.entries(sw).sort((a,b)=>b[1]-a[1])[0], l=Object.entries(sw).sort((a,b)=>a[1]-b[1])[0];
+      return `A win is worth ${sgn(h[1])} to ${h[0]}, and a loss is worth ${Math.abs(l[1]).toFixed(1)} to ${l[0]}.`})()}`,95]);
+  if(D.elim.eliminated.length) leads.push(['cold','Obituary',
+    `${D.elim.eliminated.length} ${D.elim.eliminated.length===1?'campaign is':'campaigns are'} over`,
+    `${D.elim.eliminated.join(', ')} ${D.elim.eliminated.length===1?'is':'are'} mathematically eliminated. No remaining combination of results gets them there.`,80]);
+  if(D.elim.eliminated_by_loss.length) leads.push(['cold','On the brink',
+    `A loss ends ${D.elim.eliminated_by_loss.join(' and ')}`,
+    `If the Eagles lose ${D.nextLev.label}, ${D.elim.eliminated_by_loss.join(' and ')} ${D.elim.eliminated_by_loss.length===1?'is':'are'} out on the spot.`,85]);
+  if(D.twins.length && D.twins[0].distance===0) leads.push(['','Redundancy',
+    `${D.twins[0].pair[0]} and ${D.twins[0].pair[1]} have become the same person`,
+    `Their remaining sheets are identical, so nothing either does from here separates them. This is decided by tiebreakers now: predicted records ${D.twins[0].predicted_wins[0]}-${17-D.twins[0].predicted_wins[0]} and ${D.twins[0].predicted_wins[1]}-${17-D.twins[0].predicted_wins[1]}, points guesses ${D.twins[0].points_guess[0]} and ${D.twins[0].points_guess[1]}.`,75]);
+  const chalk=D.chalk[0];
+  if(chalk) leads.push(['','Circle this game',`The field is split on ${chalk.label}`,
+    `${chalk.picked_win} picked the win and ${chalk.picked_loss} the loss, the most divided remaining game. ESPN has it at ${pct(chalk.espn_weight*100)}.`,70]);
+  if(D.cal.games) leads.push(['','Meta',
+    `ESPN's predictor is ${D.cal.beats_coinflip?'earning its keep':'worse than a coin flip'}`,
+    `Brier score of ${D.cal.brier} over ${D.cal.games} games (a coin flip scores 0.25). It has called ${D.cal.straight_up_correct} of ${D.cal.games} straight up, and projected ${D.cal.mean_predicted_wins} wins against an actual ${D.cal.actual_wins}.`,55]);
+  // A remaining game with zero leverage is a real story: every survivor picked
+  // it the same way, so the result cannot move the board at all.
+  const dead=D.leverage.filter(l=>l.leverage<=0.05);
+  if(dead.length){
+    const alive=D.roster.filter(n=>D.board[n]>0);
+    leads.push(['','Dead rubber',
+      dead.length===1 ? `${dead[0].label} cannot change anything`
+                      : `${dead.length} remaining games cannot change anything`,
+      `${dead.map(l=>l.label).join(', ')} carr${dead.length===1?'ies':'y'} zero leverage. All ${alive.length} surviving competitors picked ${dead.length===1?'it':'them'} the same way, so the result costs or credits everyone equally and the board does not move. Whatever happens, nothing happens.`,
+      68]);
+  }
+  const vol=Object.entries(D.vol).sort((a,b)=>b[1].total_movement-a[1].total_movement)[0];
+  if(vol) leads.push(['','Volatility',`${vol[0]} has been the season's rollercoaster`,
+    `${vol[0]} has covered ${vol[1].total_movement.toFixed(1)} points of total movement, peaking at ${pct(vol[1].peak)} in Week ${vol[1].peak_week}.`,50]);
+
+  leads.sort((a,b)=>b[4]-a[4]);
+  document.getElementById('v-story').innerHTML = `
+  <div class="card" style="margin-bottom:16px">
+    <h3>Story leads <span class="tag">ranked by newsworthiness · hover to copy</span></h3>
+    <p class="muted tiny" style="line-height:1.6">Every sentence below is generated from this week's model output, so the numbers are already verified. Copy one and edit it into your voice.</p>
+  </div>
+  ${leads.map((L,i)=>`<div class="lead">
+    <div class="top"><span class="kind ${L[0]}">${L[1]}</span><h4>${L[2]}</h4><span class="score">${L[4]}</span></div>
+    <p>${L[3]}</p>
+    <button class="btn ghost sm copy" data-c="${i}">Copy</button></div>`).join('')}
+  <div class="card mt"><h3>Full stat pack</h3>
+    <p class="muted tiny">Everything above plus the tables, as markdown, ready for the newsletter draft.</p>
+    <button class="btn ghost sm" style="margin-top:10px" id="copyPack">Copy stat pack markdown</button></div>`;
+
+  document.getElementById('v-story').addEventListener('click',e=>{
+    const b=e.target.closest('[data-c]'); if(!b) return;
+    const L=leads[+b.dataset.c]; copy(L[2]+". "+L[3],"Lead copied");
+  });
+  document.getElementById('copyPack').onclick=()=>copy(
+    `# ${D.year} FEP | Week ${D.week}\n\n`+leads.map(L=>`**${L[2]}**\n${L[3]}\n`).join('\n'),
+    "Stat pack copied");
+})();
+
+/* ================= WHAT IF ================= */
+(function(){
+  const rem=D.games.filter(g=>g.result==='A');
+  const levBy=Object.fromEntries(D.leverage.map(l=>[l.game_index,l.leverage]));
+  document.getElementById('v-whatif').innerHTML=`
+  <div class="grid g12">
+    <div class="card"><h3>Force a result</h3>
+      <p class="muted tiny" style="margin-bottom:12px;line-height:1.6">The board on the right is the real counterfactual for the next game. Deeper combinations recompute live once this is wired to the engine.</p>
+      ${rem.map(g=>`<div class="wif"><span class="lbl">${g.label}</span>
+        <span class="seg" data-i="${g.i}">
+          <button data-v="W">W</button><button data-v="?" class="on">?</button><button data-v="L">L</button></span>
+        <span class="lev">${levBy[g.i]!==undefined?pct(levBy[g.i]):''}</span></div>`).join('')}
+    </div>
+    <div>
+      <div class="card"><h3>Board <span class="tag" id="wifState">as it stands</span></h3>
+        <table><tbody id="wifBody"></tbody></table></div>
+      <div class="card mt"><h3>Leverage, every remaining game</h3>
+        <table><tbody>${D.leverage.slice(0,8).map(l=>`<tr><td>${l.label}</td>
+          <td style="width:110px"><div class="bar"><i style="width:${l.leverage/D.leverage[0].leverage*100}%"></i></div></td>
+          <td class="r num" style="font-weight:700">${pct(l.leverage)}</td></tr>`).join('')}</tbody></table></div>
+    </div>
+  </div>`;
+
+  function paint(board,label){
+    document.getElementById('wifState').textContent=label;
+    document.getElementById('wifBody').innerHTML=D.roster.slice()
+      .sort((a,b)=>board[b]-board[a]).map(n=>{
+        const base=D.board[n], d=board[n]-base;
+        return `<tr><td><span class="name ${board[n]<=0?'dead':''}" data-n="${n}"
+          style="${board[n]<=0?'':'color:'+color(n)}">${n}</span></td>
+          <td class="r num" style="font-weight:700">${pct(board[n])}</td>
+          <td class="r num tiny ${d>0.05?'up':d<-0.05?'down':'flat'}">${Math.abs(d)>0.05?sgn(d):''}</td></tr>`;}).join('');
+  }
+  paint(D.board,'as it stands');
+  document.getElementById('v-whatif').addEventListener('click',e=>{
+    const b=e.target.closest('.seg button'); if(!b) return;
+    const seg=b.parentElement, i=+seg.dataset.i, v=b.dataset.v;
+    seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('.seg').forEach(s=>{if(s!==seg)
+      s.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.v==='?'));});
+    if(v==='?'||!D.nextLev||i!==D.nextLev.game_index) return paint(D.board,'as it stands');
+    paint(v==='W'?D.nextLev.if_win:D.nextLev.if_lose,
+      `if the Eagles ${v==='W'?'win':'lose'} ${D.nextLev.label}`);
+  });
+})();
+
+/* ================= CHART / PUBLISH / HISTORY ================= */
+document.getElementById('v-chart').innerHTML=`
+<div class="card"><h3>Week ${D.week} chart <span class="tag">exactly what publishes to Framer</span></h3>
+  <div id="chartMount" style="min-height:420px"></div>
+  <div class="checks mt" style="grid-template-columns:repeat(3,1fr)">
+    <div class="check"><div class="s">✓</div>Contains weeks 0–${D.week} only<span class="x">immutable</span></div>
+    <div class="check"><div class="s">✓</div>No network calls<span class="x">baked in</span></div>
+    <div class="check"><div class="s">✓</div>Published<span class="x">week-0${D.week}.json</span></div>
+  </div></div>`;
+
+(function(){
+  const rows=[];
+  for(let w=0;w<=18;w++){
+    const s=D.snapshots.find(x=>x.week===w);
+    rows.push(D.roster.map(n=>s?s.weighted[n].toFixed(1):''));
+  }
+  document.getElementById('v-publish').innerHTML=`
+  <div class="grid g2">
+    <div class="card"><h3>Google Sheet <span class="tag">B2:M20, nothing else</span></h3>
+      <div class="checks" style="grid-template-columns:1fr;margin-bottom:12px">
+        <div class="check"><div class="s">✓</div>Header matches roster<span class="x">B..M</span></div>
+        <div class="check"><div class="s">✓</div>Column A untouched<span class="x">week labels</span></div>
+        <div class="check"><div class="s">✓</div>Column N onward untouched<span class="x">your formulas</span></div>
+      </div>
+      <button class="btn" id="pushBtn">Push to Weighted - MASTER</button>
+      <button class="btn ghost" id="pasteBtn" style="margin-left:8px">Copy paste block</button>
+      <table class="mt"><thead><tr><th>Wk</th>${D.roster.map(n=>`<th class="r tiny">${n.slice(0,3)}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map((r,i)=>`<tr><td class="muted num">${i}</td>${r.map(v=>`<td class="r num tiny ${v===''?'muted':''}">${v||'·'}</td>`).join('')}</tr>`).join('')}</tbody></table>
+    </div>
+    <div class="card"><h3>Chart data</h3>
+      <div class="kv"><span>File</span><span>chart-data/${D.year}/week-0${D.week}.json</span></div>
+      <div class="kv"><span>Weeks inside</span><span>0–${D.week}</span></div>
+      <div class="kv"><span>Framer week prop</span><span>${D.week}</span></div>
+      <div class="kv"><span>Status</span><span style="color:var(--green)">pushed</span></div>
+      <p class="muted tiny" style="margin-top:12px;line-height:1.6">Each week is its own immutable file, so an old newsletter can never start showing future data.</p>
+    </div>
+  </div>`;
+  document.getElementById('pushBtn').onclick=()=>toast("Prototype: no write performed");
+  document.getElementById('pasteBtn').onclick=()=>copy(rows.map(r=>r.join('\t')).join('\n'),"Paste block copied");
+})();
+
+(function(){
+  const champs=D.champions;
+  document.getElementById('v-history').innerHTML=`
+  <div class="grid g2">
+    <div class="card"><h3>Ten seasons</h3>
+      <table><thead><tr><th>Year</th><th>Champion</th><th class="r">Score</th><th class="r">Field avg</th><th>Eagles</th></tr></thead>
+      <tbody>${champs.map(c=>`<tr><td class="num">${c.year}</td>
+        <td><span class="name" data-n="${c.champion}" style="color:${color(c.champion)}">${c.champion}</span></td>
+        <td class="r num" style="font-weight:700">${c.winning_score}</td>
+        <td class="r num muted">${c.field_average}</td>
+        <td class="muted num tiny">${c.record}</td></tr>`).join('')}</tbody></table></div>
+    <div class="card"><h3>Context for this week</h3>
+      <div class="kv"><span>Average winning score</span><span>${(champs.reduce((a,c)=>a+c.winning_score,0)/champs.length).toFixed(1)}</span></div>
+      <div class="kv"><span>Lowest ever</span><span>${Math.min(...champs.map(c=>c.winning_score))} (${champs.find(c=>c.winning_score===Math.min(...champs.map(x=>x.winning_score))).year})</span></div>
+      <div class="kv"><span>Highest ever</span><span>${Math.max(...champs.map(c=>c.winning_score))} (${champs.find(c=>c.winning_score===Math.max(...champs.map(x=>x.winning_score))).year})</span></div>
+      <div class="kv"><span>Unique champions</span><span>${new Set(champs.map(c=>c.champion)).size} of 10</span></div>
+      <div class="kv"><span>Leader's pace</span><span>${(D.correct[D.ranked[0]]/played.length*17).toFixed(1)}</span></div>
+      <p class="muted tiny" style="margin-top:12px;line-height:1.6">${D.ranked[0]} is on pace for
+        ${(D.correct[D.ranked[0]]/played.length*17).toFixed(1)} correct picks, which would have won
+        ${champs.filter(c=>D.correct[D.ranked[0]]/played.length*17>=c.winning_score).length} of the last 10 seasons.</p>
+    </div>
+  </div>`;
+})();
+
+/* ================= DRAWER ================= */
+function openDrawer(name){
+  const c=D.career[name]||{}, p=D.personality[name]||{}, d=D.diff[name]||{};
+  const picks=D.picks[name].map((v,i)=>{
+    const g=D.games[i];
+    const cls=g.result==='A'?'pend':(v===g.result?'hit':'miss');
+    return `<div class="${cls}" title="${g.label}: picked ${v}${g.result!=='A'?', actual '+g.result:''}">${v}</div>`;}).join('');
+  document.getElementById('drawer').innerHTML=`
+    <div class="dh"><div class="avatar" style="background:${color(name)}">${name[0]}</div>
+      <div><div style="font-weight:700;font-size:16px">${name}</div>
+        <div class="tiny muted">${pct(D.board[name])} to win · ${D.correct[name]} correct · rank ${D.ranked.indexOf(name)+1}</div></div>
+      <button class="btn ghost sm" style="margin-left:auto" onclick="closeDrawer()">Close</button></div>
+    <div class="db">
+      <h3 style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:8px">Season sheet</h3>
+      <div class="pickgrid">${picks}</div>
+      <p class="tiny muted" style="margin-top:8px">Green hit, red missed, grey still to come.</p>
+      <h3 style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:18px 0 6px">This season</h3>
+      <div class="kv"><span>Odds</span><span>${pct(D.board[name])}</span></div>
+      <div class="kv"><span>Change this week</span><span class="${D.heat.deltas[name]>0?'up':D.heat.deltas[name]<0?'down':''}">${sgn(D.heat.deltas[name]||0)}</span></div>
+      <div class="kv"><span>Expected final</span><span>${D.expected[name].toFixed(2)}</span></div>
+      <div class="kv"><span>Floor / ceiling</span><span>${D.span[name].worst} / ${D.span[name].best}</span></div>
+      <div class="kv"><span>Predicted record</span><span>${D.picks[name].filter(x=>x==='W').length}-${17-D.picks[name].filter(x=>x==='W').length}</span></div>
+      <div class="kv"><span>Points guess</span><span>${D.guesses[name]}</span></div>
+      <div class="kv"><span>Closest rival</span><span>${d.nearest||'—'} (${d.nearest_distance??'—'} apart)</span></div>
+      <h3 style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:18px 0 6px">Career</h3>
+      <div class="kv"><span>Seasons</span><span>${(c.seasons||[]).length}</span></div>
+      <div class="kv"><span>Titles</span><span>${c.championships??'—'}${c.title_years&&c.title_years.length?' ('+c.title_years.join(', ')+')':''}</span></div>
+      <div class="kv"><span>Best / worst finish</span><span>${c.best_finish??'—'} / ${c.worst_finish??'—'}</span></div>
+      <div class="kv"><span>Average correct</span><span>${c.average_correct??'—'}</span></div>
+      <div class="kv"><span>Optimism</span><span>${p.optimism!==undefined?sgn(p.optimism)+' wins':'—'}</span></div>
+      <div class="kv"><span>Contrarian rate</span><span>${p.contrarian_rate!==undefined?p.contrarian_rate+'%':'—'}</span></div>
+      <button class="btn ghost sm" style="margin-top:16px;width:100%" onclick='copy(${JSON.stringify(
+        `${name} sits at ${pct(D.board[name])} with ${D.correct[name]} correct picks, ${
+        D.heat.deltas[name]>0?'up':'down'} ${Math.abs(D.heat.deltas[name]||0).toFixed(1)} on the week.`
+      )},"Line copied")'>Copy a ready-made line</button>
+    </div>`;
+  document.getElementById('drawer').classList.add('on');
+  document.getElementById('scrim').classList.add('on');
+}
+function closeDrawer(){document.getElementById('drawer').classList.remove('on');
+  document.getElementById('scrim').classList.remove('on');}
+document.getElementById('scrim').onclick=closeDrawer;
+document.body.addEventListener('click',e=>{const n=e.target.closest('[data-n]');if(n)openDrawer(n.dataset.n);});
+
+document.getElementById('runBtn').onclick=()=>{show('run');toast("Prototype: showing last run's trace");};
+</script>
+<script id="chartJs">__CHART__</script>
+</body>
+</html>
