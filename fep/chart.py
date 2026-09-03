@@ -44,22 +44,65 @@ import html
 import json
 from typing import Dict, List, Optional, Sequence
 
-# Twelve hues that stay distinguishable on a dark ground. Order is the roster
-# order, so a competitor keeps their colour across every week of the season.
+# The FEP competitor colours, in roster order. These are canonical: they are
+# the colours used on the Framer site and they identify a person, not a series.
 PALETTE = [
-    "#ff6b6b",  # Amir
-    "#f0932b",  # Andy
-    "#e8d44d",  # Buhduh
-    "#6ab04c",  # Emer
-    "#26de81",  # Hanan
-    "#2bcbba",  # Jacob
-    "#45aaf2",  # Jay
-    "#4b7bec",  # Jen
-    "#5f6bef",  # Marsha
-    "#a55eea",  # Nathan
-    "#ff5eb4",  # Pop
-    "#fd79a8",  # Sarah
+    "#972B2B",  # Amir
+    "#97612B",  # Andy
+    "#97972B",  # Buhduh
+    "#61972B",  # Emer
+    "#2B972B",  # Hanan
+    "#2B9761",  # Jacob
+    "#2B9797",  # Jay
+    "#2B6197",  # Jen
+    "#2B2B97",  # Marsha
+    "#612B97",  # Nathan
+    "#972B97",  # Pop
+    "#972B61",  # Sarah
 ]
+
+# The canonical colours are mid-dark by design, which is right for a filled pill
+# but not for a 3px line on a near-black chart: measured against the chart
+# ground, only seven of the twelve clear a 3.0 contrast ratio, and Marsha's
+# #2B2B97 sits at 1.75, effectively invisible. Raising lightness in HLS (rather
+# than blending toward white) keeps the hue and the saturation exactly and lifts
+# every competitor above 4.1. So: canonical colour for fills, this for strokes.
+LINE_LIGHTNESS = 0.62
+
+
+def _relight(hex_color: str, lightness: float) -> str:
+    import colorsys
+    r, g, b = (int(hex_color[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    hue, _, sat = colorsys.rgb_to_hls(r, g, b)
+    return "#%02X%02X%02X" % tuple(
+        round(c * 255) for c in colorsys.hls_to_rgb(hue, lightness, sat))
+
+
+def _luminance(hex_color: str) -> float:
+    def channel(c):
+        c = c / 255
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (int(hex_color[i:i + 2], 16) for i in (1, 3, 5))
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+
+
+def _contrast(a: str, b: str) -> float:
+    la, lb = _luminance(a), _luminance(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+DARK_INK = "#0C0E10"
+
+
+def _ink_on(hex_color: str) -> str:
+    """Whichever of near-black or white actually reads on this swatch.
+
+    Measure both rather than thresholding on luminance: the yellow-greens sit
+    right on the boundary, and a threshold picked by eye gets them wrong.
+    """
+    return (DARK_INK if _contrast(DARK_INK, hex_color) >= _contrast("#FFFFFF", hex_color)
+            else "#FFFFFF")
+
 
 DIM = "#4a5568"
 
@@ -107,6 +150,8 @@ def build_series(
             {
                 "name": name,
                 "color": PALETTE[position % len(PALETTE)],
+                "line": _relight(PALETTE[position % len(PALETTE)], LINE_LIGHTNESS),
+                "ink": _ink_on(PALETTE[position % len(PALETTE)]),
                 "values": values,
                 "drawn": drawn,
                 "eliminated_at": eliminated_at,
@@ -164,6 +209,8 @@ def build_payload(
             {
                 "name": s["name"],
                 "color": s["color"],
+                "line": s["line"],
+                "ink": s["ink"],
                 "values": s["values"],
                 "drawn": s["drawn"],
                 "eliminatedAt": s["eliminated_at"],
@@ -418,7 +465,9 @@ _TEMPLATE = r"""
       if (!pts.length) return;
 
       var out = s.eliminatedAt !== null && s.eliminatedAt !== undefined;
-      var color = out ? D.dim : s.color;
+      // Canonical colour identifies the person; the lifted one is what can
+      // actually be seen as a line on this ground.
+      var color = out ? D.dim : (s.line || s.color);
       var cls = 'fep-line' + (focus && focus !== s.name ? ' fep-dimmed' : '');
 
       var path = el('path', {
@@ -495,7 +544,7 @@ _TEMPLATE = r"""
     var rank = D.ranks[i][s.name];
     var gm = D.games[i];
     tip.innerHTML =
-      '<b style="color:' + s.color + '">' + s.name + '</b>' +
+      '<b style="color:' + (s.line || s.color) + '">' + s.name + '</b>' +
       '<span class="game">' + D.labels[i] + (gm && gm.label && gm.label !== 'Bye'
         ? '  ' + gm.label + (gm.result ? '  (' + gm.result + ')' : '') : '  bye week') +
       '</span>' +
@@ -542,9 +591,10 @@ _TEMPLATE = r"""
     chip.className = 'fep-chip'; chip.type = 'button';
     chip.setAttribute('aria-pressed', 'false');
     if (out) chip.setAttribute('data-out', '1');
-    chip.style.color = out ? '' : s.color;
-    chip.innerHTML = '<span class="fep-swatch" style="background:' + (out ? D.dim : s.color) + '"></span>' +
-      s.name + (out ? '' : ' <span style="opacity:.75;font-variant-numeric:tabular-nums">' +
+    if (out) { chip.style.color = ''; }
+    else { chip.style.background = s.color; chip.style.color = s.ink; chip.style.borderColor = 'transparent'; }
+    chip.innerHTML = (out ? '<span class="fep-swatch" style="background:' + D.dim + '"></span>' : '') +
+      s.name + (out ? '' : ' <span style="opacity:.8;font-variant-numeric:tabular-nums">' +
       (s.current || 0).toFixed(1) + '%</span>');
     chip.addEventListener('click', function(){
       pinned = (pinned === s.name) ? null : s.name;

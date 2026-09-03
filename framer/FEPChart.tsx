@@ -27,7 +27,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 type Series = {
     name: string
+    /** Canonical competitor colour, as used on the site. For fills. */
     color: string
+    /** Same hue lifted in lightness so it reads as a line on a dark ground. */
+    line?: string
+    /** Near-black or white, whichever is readable on `color`. */
+    ink?: string
     values: (number | null)[]
     eliminatedAt: number | null
 }
@@ -250,6 +255,7 @@ export default function FEPChart({
         setTip({
             name: s.name,
             color: s.color,
+            line: s.line,
             label: data.labels[i],
             game: data.games[i],
             value: v,
@@ -406,7 +412,9 @@ export default function FEPChart({
                         }
                         if (!pts.length) return null
                         const dimmed = !!focus && focus !== s.name
-                        const color = out ? DIM : s.color
+                        // Canonical colour identifies the person; the lifted
+                        // one is what can actually be seen on this ground.
+                        const color = out ? DIM : s.line || s.color
                         const last = pts[pts.length - 1]
                         const k = 4.2
                         const quiet = out && focus !== s.name
@@ -479,7 +487,7 @@ export default function FEPChart({
                         zIndex: 5,
                     }}
                 >
-                    <b style={{ color: tip.color, fontSize: 13.5, fontWeight: 800 }}>{tip.name}</b>
+                    <b style={{ color: tip.line || tip.color, fontSize: 13.5, fontWeight: 800 }}>{tip.name}</b>
                     <div style={{ marginTop: 4, fontSize: 11.5, color: "#cfe3df", fontWeight: 600 }}>
                         {tip.label}
                         {tip.game && tip.game.label
@@ -522,27 +530,33 @@ export default function FEPChart({
                                 alignItems: "center",
                                 gap: 5,
                                 fontSize: 11,
-                                fontWeight: 600,
+                                fontWeight: 700,
                                 padding: "4px 9px",
                                 borderRadius: 999,
-                                background: on ? "rgba(255,255,255,.12)" : "rgba(255,255,255,.05)",
-                                border: `1px solid ${on ? s.color : "transparent"}`,
-                                color: out ? muted : s.color,
+                                // Filled pill in the canonical colour, matching
+                                // the site. Eliminated players lose the fill.
+                                background: out
+                                    ? "rgba(255,255,255,.05)"
+                                    : s.color,
+                                border: `1px solid ${on ? "#fff" : "transparent"}`,
+                                color: out ? muted : s.ink || "#fff",
                                 textDecoration: out ? "line-through" : "none",
                                 opacity: out ? 0.65 : 1,
                                 cursor: "pointer",
                                 fontFamily: "inherit",
                             }}
                         >
-                            <span
-                                style={{
-                                    width: 8,
-                                    height: 8,
-                                    borderRadius: 2,
-                                    background: out ? DIM : s.color,
-                                    flex: "none",
-                                }}
-                            />
+                            {out && (
+                                <span
+                                    style={{
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: 2,
+                                        background: DIM,
+                                        flex: "none",
+                                    }}
+                                />
+                            )}
                             {s.name}
                             {!out && (
                                 <span style={{ opacity: 0.75, fontVariantNumeric: "tabular-nums" }}>
