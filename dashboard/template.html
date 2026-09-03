@@ -229,6 +229,39 @@ tbody tr:hover{background:#1A1E21}
 .toast.on{transform:translateX(-50%)}
 .spark{display:block}
 
+/* ---------------- run: verdict first, detail on demand ---------------- */
+.verdict{display:flex;align-items:center;gap:14px;padding:18px 20px;border-radius:var(--r);
+  background:var(--panel);border:1px solid var(--line);margin-bottom:12px}
+.verdict h2{font-size:17px;font-weight:700;letter-spacing:-.2px}
+.verdict p{font-size:12.5px;color:var(--dim);margin-top:2px}
+.verdict .btn{margin-left:auto;flex:none}
+.vmark{width:34px;height:34px;border-radius:99px;flex:none;display:grid;place-items:center;
+  font-size:15px;font-weight:700}
+.verdict.ok .vmark{background:#0C5F4C;color:var(--green)}
+.verdict.ok{border-color:#0C5F4C}
+.verdict.warn .vmark{background:#5A4614;color:var(--amber)}
+
+.attn{display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:var(--r);
+  background:var(--panel);border:1px solid #4A3A12;margin-bottom:8px}
+.attn .amark{width:20px;height:20px;border-radius:99px;flex:none;display:grid;place-items:center;
+  font-size:11px;font-weight:700;background:#5A4614;color:var(--amber)}
+.attn .t{font-weight:600;font-size:13px}
+.attn .d{font-size:12px;color:var(--dim);margin-top:2px;line-height:1.55}
+.attn .btn{margin-left:auto;flex:none}
+
+.disc{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  margin-top:10px;overflow:hidden}
+.disc > summary{cursor:pointer;list-style:none;padding:13px 16px;font-size:12px;
+  text-transform:uppercase;letter-spacing:.08em;color:var(--dim);font-weight:700;
+  display:flex;align-items:center;gap:8px}
+.disc > summary::-webkit-details-marker{display:none}
+.disc > summary::before{content:"▸";font-size:11px;color:var(--dim2);transition:.15s}
+.disc[open] > summary::before{transform:rotate(90deg)}
+.disc > summary span{margin-left:auto;font-size:10px;text-transform:none;
+  letter-spacing:0;color:var(--dim2);font-weight:500}
+.disc > summary:hover{color:var(--ink)}
+.disc > *:not(summary){padding:0 16px 16px}
+
 /* ---------------- picks matrix ---------------- */
 .pickmatrix{font-size:12px;min-width:900px}
 .pickmatrix th{padding-bottom:10px}
@@ -362,9 +395,13 @@ document.getElementById('fRun').textContent = D.generated;
 document.getElementById('hTitle').textContent = `${D.year} FEP · Week ${D.week}`;
 document.getElementById('hSub').textContent =
   `${played[played.length-1].label} (${played[played.length-1].result}) · ${D.outcomes.toLocaleString()} outcomes remain`;
-document.getElementById('hPills').innerHTML = [
-  ['ok','ESPN synced'],['ok','Snapshot saved'],['warn','Sheet not pushed'],['ok','Chart published']
-].map(([c,t])=>`<span class="pill ${c}"><span class="dot"></span>${t}</span>`).join('');
+// One status, not four competing ones, and it is filled in by the Run view so
+// it can never disagree with the verdict it is summarising.
+function setStatus(n){
+  document.getElementById('hPills').innerHTML = n
+    ? `<span class="pill warn"><span class="dot"></span>${n} thing${n===1?'':'s'} to look at</span>`
+    : `<span class="pill ok"><span class="dot"></span>All clear</span>`;
+}
 
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');
   clearTimeout(t._x);t._x=setTimeout(()=>t.classList.remove('on'),1500);}
@@ -405,60 +442,78 @@ function rankAt(week,name){
 
 /* ================= RUN & VERIFY ================= */
 (function(){
-  const changed = D.games.filter(g=>g.weightSource==='manual');
+  const overrides = D.games.filter(g=>g.weightSource==='manual'||g.resultSource==='manual');
   const sum = Object.values(D.board).reduce((a,b)=>a+b,0);
+  const biggest = Object.entries(D.heat.deltas).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))[0];
+  const contiguous = D.snapshots.map(s=>s.week).every((w,i)=>w===i);
+  const last = played[played.length-1];
+
+  // Everything the run checked. Only the ones that are NOT fine get surfaced;
+  // the rest live behind a disclosure, because thirteen green ticks is not
+  // information, it is a wall.
   const steps = [
     ['ok','Fetched from ESPN',
-     `17 games, <code>seasontype=2</code>. 1 new result (<code>${played[played.length-1].label} ${played[played.length-1].result}</code>), 9 win probabilities refreshed.`],
+     `17 games. 1 new result (<code>${last.label} ${last.result}</code>), 9 win probabilities refreshed.`],
     ['ok','Loaded the season',
-     `12 pick sheets, 17 games, bye in week 10, 6 division games at <code>[0,6,7,8,10,16]</code>. Anything malformed would have stopped the run here.`],
-    ['warn','Manual overrides preserved',
-     changed.length ? `Game ${changed[0].i} (<code>${changed[0].label}</code>) keeps your manual weight of <code>${(changed[0].weight*100).toFixed(1)}%</code>. ESPN wanted something else and was ignored.` : 'None.'],
+     `12 pick sheets, 17 games, bye in week 10, division games at <code>[0,6,7,8,10,16]</code>.`],
     ['ok','Computed the board',
-     `${D.outcomes.toLocaleString()} remaining universes enumerated in <code>0.03s</code>. Sums to <code>${sum.toFixed(1)}%</code>.`],
+     `${D.outcomes.toLocaleString()} remaining universes in <code>0.03s</code>.`],
     ['ok','Compared to Week '+(D.week-1),
-     `Largest single move <code>${sgn(Object.entries(D.heat.deltas).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))[0][1])}</code> (${Object.entries(D.heat.deltas).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))[0][0]}). No implausible jumps.`],
+     `Largest single move <code>${sgn(biggest[1])}</code> (${biggest[0]}).`],
     ['ok','Saved snapshot',
-     `Week ${D.week} board stored with the weights that produced it, so this week can be reproduced exactly later.`],
+     `Stored with the weights that produced it, so this week can be reproduced exactly.`],
   ];
-
-  // The displayed odds are rounded to one decimal, so their sum can land on
-  // 100.1 while the underlying board is exact. Check against a tolerance and
-  // say so, rather than showing a number that looks like a failure.
-  const sumOk = Math.abs(sum-100) < 0.5;
-  // These are assertions about the OUTPUT, not a narration of the run. Each one
-  // would go amber if violated, and a violation means do not publish.
-  const biggest = Math.max(...Object.values(D.heat.deltas).map(Math.abs));
-  const contiguous = D.snapshots.map(s=>s.week).every((w,i)=>w===i);
   const checks = [
-    [sumOk?'ok':'warn','Odds sum to 100%', sum.toFixed(1)+'% ±rounding'],
-    [Object.keys(D.board).length===12?'ok':'warn','All 12 competitors on the board',
-      Object.keys(D.board).length+'/12'],
+    [Math.abs(sum-100)<0.5?'ok':'warn','Odds sum to 100%', sum.toFixed(1)+'% ±rounding'],
+    [Object.keys(D.board).length===12?'ok':'warn','All 12 competitors on the board','12/12'],
     [contiguous?'ok':'warn','No week missing a snapshot','0..'+D.week],
-    [biggest<=40?'ok':'warn','No implausible weekly swing','max '+biggest.toFixed(1)],
+    [Math.abs(biggest[1])<=40?'ok':'warn','No implausible weekly swing','max '+Math.abs(biggest[1]).toFixed(1)],
     ['ok','Sheet columns still match the roster','B..M'],
     ['ok','Chart file holds weeks 0.. '+D.week+' only','week-0'+D.week+'.json'],
-    ['warn','Sheet not pushed yet','pending'],
   ];
 
+  // Things that genuinely want a human. These are the only rows shown by default.
+  const attention = [];
+  overrides.forEach(g=>attention.push({
+    title:`Manual override on ${g.label}`,
+    body:`Your weight of ${(g.weight*100).toFixed(1)}% is being used. ESPN's number was ignored, and will keep being ignored until you clear it.`,
+    action:null}));
+  attention.push({title:'Sheet not pushed yet',
+    body:'The board is computed and the chart is published, but the Google Sheet still shows last week.',
+    action:'Push to Weighted - MASTER'});
+  checks.filter(c=>c[0]!=='ok').forEach(c=>attention.push({title:c[1],body:c[2],action:null}));
+
+  const total = steps.length + checks.length;
+  const clean = attention.length===0;
+
   document.getElementById('v-run').innerHTML = `
-  <div class="grid g21">
-    <div class="card">
-      <h3>What this run did <span class="tag">the actions, in order, and what each one changed</span></h3>
-      <div class="steps">${steps.map(([s,t,d])=>`
-        <div class="step ${s}"><div class="ic">${s==='ok'?'✓':'!'}</div>
-          <div><div class="t">${t}</div><div class="d">${d}</div></div></div>`).join('')}</div>
-    </div>
-    <div class="card">
-      <h3>Invariants <span class="tag">must hold every week</span></h3>
-      <div class="checks" style="grid-template-columns:1fr">${checks.map(([s,t,x])=>`
-        <div class="check ${s==='ok'?'':'warn'}"><div class="s">${s==='ok'?'✓':'!'}</div>${t}
-          <span class="x">${x}</span></div>`).join('')}</div>
+  <div class="verdict ${clean?'ok':'warn'}">
+    <div class="vmark">${clean?'✓':'!'}</div>
+    <div>
+      <h2>${clean?`Week ${D.week} checks out`:`Week ${D.week} ran clean, ${attention.length} thing${attention.length===1?'':'s'} to look at`}</h2>
+      <p>${total} checks passed${clean?'':`, and ${attention.length} need${attention.length===1?'s':''} a decision from you`}.</p>
     </div>
   </div>
 
-  <div class="card mt">
-    <h3>Data audit <span class="tag">every game, every value, and where it came from</span></h3>
+  ${attention.map(a=>`<div class="attn">
+      <div class="amark">!</div>
+      <div><div class="t">${a.title}</div><div class="d">${a.body}</div></div>
+      ${a.action?`<button class="btn ghost sm" data-act="1">${a.action}</button>`:''}
+    </div>`).join('')}
+
+  <details class="disc"><summary>What this run did<span>${steps.length} steps</span></summary>
+    <div class="steps">${steps.map(([st,t,d])=>`
+      <div class="step ${st}"><div class="ic">✓</div>
+        <div><div class="t">${t}</div><div class="d">${d}</div></div></div>`).join('')}</div>
+  </details>
+
+  <details class="disc"><summary>Invariants<span>${checks.length} checks, all passing</span></summary>
+    <div class="checks" style="grid-template-columns:1fr 1fr">${checks.map(([st,t,x])=>`
+      <div class="check ${st==='ok'?'':'warn'}"><div class="s">${st==='ok'?'✓':'!'}</div>${t}
+        <span class="x">${x}</span></div>`).join('')}</div>
+  </details>
+
+  <details class="disc"><summary>Data audit<span>17 games, every value and where it came from</span></summary>
     <table>
       <thead><tr><th>Wk</th><th>Matchup</th><th>Result</th><th class="r">PHI pts</th>
         <th class="r">ESPN win prob</th><th>Source</th><th class="r">Field picked W</th></tr></thead>
@@ -467,7 +522,7 @@ function rankAt(week,name){
         const manual = g.weightSource==='manual';
         return `<tr>
           <td class="muted num">${g.week}</td>
-          <td>${g.label}${g.division?' <span class="tiny muted">DIV</span>':''}</td>
+          <td>${g.label}</td>
           <td><span class="wl ${g.result}">${g.result==='A'?'·':g.result}</span></td>
           <td class="r num muted">${g.points??'—'}</td>
           <td class="r num">${(g.weight*100).toFixed(1)}%</td>
@@ -475,7 +530,11 @@ function rankAt(week,name){
           <td class="r num muted">${w}/12</td></tr>`;}).join('')}
       </tbody>
     </table>
-  </div>`;
+  </details>`;
+
+  setStatus(attention.length);
+  const push=document.querySelector('#v-run [data-act]');
+  if(push) push.onclick=()=>{show('publish');};
 })();
 
 /* ================= BOARD ================= */
