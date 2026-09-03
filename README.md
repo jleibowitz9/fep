@@ -147,14 +147,18 @@ than filtered out of a master sheet.
 python3 tests/test_engine.py
 ```
 
-33 tests. The ones that matter:
+44 tests. The ones that matter:
 
 - **the 2025 replay** must match Jacob's published boards exactly, or ten years
   of family history quietly changes
+- **the retro replay** must reproduce the right champion and the exact winning
+  score for all ten seasons
 - **the tiebreaker cascade**, verified layer by layer, including the bug that
   was latent in 2025
 - **the Sheet range guard**, which must refuse to touch column A or the
   placement formulas
+- **six NFC East games every season**, which is what catches an opponent-parsing
+  slip in the historical data
 - **no em dashes or en dashes** anywhere in the stat pack
 
 ## Requirements
