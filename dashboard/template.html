@@ -38,11 +38,13 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 aside{width:236px;flex:none;background:var(--eagles);border-right:1px solid var(--eagles-lo);
   display:flex;flex-direction:column;padding:16px 12px;
   background-image:linear-gradient(180deg,#005760 0%,#004C54 42%,#003B41 100%)}
-.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px}
-.brand .mark{width:30px;height:30px;border-radius:8px;flex:none;
-  background:#fff;display:grid;place-items:center;overflow:hidden;
-  font-weight:700;font-size:13px;color:var(--eagles)}
-.brand .mark img{width:100%;height:100%;object-fit:contain;display:block}
+.brand{padding:2px 6px 18px}
+/* The wordmark is a transparent white 902x337 PNG, so it sits straight on the
+   green rail at its own aspect ratio. The square icon slot squashed it. */
+.brand .mark{display:block;height:34px;margin-bottom:7px}
+.brand .mark img{height:100%;width:auto;display:block}
+.brand .mark.fallback{width:32px;border-radius:8px;background:#fff;
+  display:grid;place-items:center;font-weight:700;font-size:13px;color:var(--eagles)}
 .brand h1{font-size:14px;font-weight:700;letter-spacing:-.1px;color:#fff}
 .brand span{display:block;font-size:11px;color:#8FB4B8;font-weight:500}
 
@@ -118,7 +120,10 @@ tbody tr:hover{background:#1A1E21}
   font-size:11px;letter-spacing:.03em;text-transform:uppercase;cursor:pointer;
   color:#0C0E10;transition:.12s}
 .pillname:hover{filter:brightness(1.12)}
-.pillname.out{background:#2A3035!important;color:var(--dim2);text-decoration:line-through}
+.pillname.out{background:#2A3035!important;color:var(--dim2)!important;text-decoration:line-through}
+/* Both declarations must be !important. The pill's ink is set inline and is
+   chosen for the competitor's own colour, so without this an eliminated Amir
+   kept white ink while an eliminated Jay kept near-black, on the same grey. */
 .up{color:var(--green)}.down{color:var(--red)}.flat{color:var(--dim2)}
 .muted{color:var(--dim)}.tiny{font-size:11px}
 .dead{color:var(--dim2);text-decoration:line-through}
@@ -253,8 +258,8 @@ tbody tr:hover{background:#1A1E21}
 
 <aside>
   <div class="brand">
-    <div class="mark" id="mark">FEP</div>
-    <div><h1>FEP Control</h1><span id="brandSub"></span></div>
+    <div class="mark fallback" id="mark">FEP</div>
+    <div><h1 id="brandTitle">FEP Control</h1><span id="brandSub"></span></div>
   </div>
 
   <div class="weekpick">
@@ -337,9 +342,16 @@ const next = D.games.find(g=>g.result==='A');
 
 document.getElementById('brandSub').textContent = D.year+" season";
 // Use the real FEP wordmark when it is present, otherwise keep the text mark.
-(function(){const m=document.getElementById('mark');const i=new Image();
- i.onload=()=>{m.textContent='';m.appendChild(i);};
- i.onerror=()=>{};i.src='assets/fep-logo.png';i.alt='FEP';})();
+(function(){
+  const m=document.getElementById('mark'), i=new Image();
+  i.onload=()=>{
+    m.textContent=''; m.classList.remove('fallback'); m.appendChild(i);
+    // The wordmark already says FEP, so the heading drops to just the app name.
+    document.getElementById('brandTitle').textContent='Control';
+  };
+  i.onerror=()=>{};                       // keep the text mark
+  i.src='assets/fep-logo.png'; i.alt='FEP';
+})();
 document.getElementById('wkNum').textContent = "Week "+D.week;
 document.getElementById('wkRec').textContent = "Eagles "+rec;
 document.getElementById('wkOpp').innerHTML =
@@ -679,7 +691,6 @@ function rankAt(week,name){
     rows.push(`<div class="wif ${done?'done':''}">
       <span class="wknum num">${w}</span>
       <span class="lbl">${g.label}</span>
-      ${g.division?'<span class="tiny muted">DIV</span>':''}
       <span class="seg" data-i="${g.i}">${seg}</span>
       <span class="lev" title="${done?'what this result actually cost':'equity that swings on this result'}">${mag!==undefined?pct(mag):''}</span></div>`);
   }
