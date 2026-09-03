@@ -497,5 +497,135 @@ class TestHistory(unittest.TestCase):
                 for dash in ("—", "–"):
                     self.assertNotIn(dash, line)
 
+class TestAppsScriptPush(unittest.TestCase):
+    """The Apps Script transport, against a mock that mimics the real thing.
+
+    Apps Script answers a POST with a 302 and serves the body from the redirect
+    target, which is the part most likely to break silently.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        import http.server
+        import json as _json
+        import socketserver
+        import threading
+
+        cls.state = {}
+        state = cls.state
+
+        class Mock(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def do_POST(self):
+                length = int(self.headers.get("Content-Length", 0))
+                state["payload"] = _json.loads(self.rfile.read(length))
+                mode = state.get("mode", "ok")
+                if mode == "html":
+                    state["body"] = "<html>Sign in</html>"
+                elif mode == "refuse":
+                    state["body"] = _json.dumps({"ok": False, "error": "bad token"})
+                else:
+                    values = state["payload"]["values"]
+                    state["body"] = _json.dumps({
+                        "ok": True, "wrote": len(values) * len(values[0]),
+                        "range": state["payload"]["tab"] + "!B2:M20"})
+                self.send_response(302)
+                self.send_header("Location", "/echo")
+                self.end_headers()
+
+            def do_GET(self):
+                body = state.get("body", "{}").encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        cls.server = socketserver.TCPServer(("127.0.0.1", 0), Mock)
+        cls.port = cls.server.server_address[1]
+        threading.Thread(target=cls.server.serve_forever, daemon=True).start()
+        cls.url = "http://127.0.0.1:{}/exec".format(cls.port)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.server.server_close()
+
+    def setUp(self):
+        self.state["mode"] = "ok"
+        self.state.pop("payload", None)
+        self.roster = ["Amir", "Andy", "Buhduh", "Emer", "Hanan", "Jacob",
+                       "Jay", "Jen", "Marsha", "Nathan", "Pop", "Sarah"]
+        self.season = {
+            "year": 2026, "roster": self.roster,
+            "sheet": {"tab": "Weighted - MASTER", "range": "B2:M20",
+                      "first_week": 0, "last_week": 18},
+            "snapshots": [{"week": 0, "weighted": {n: 1.0 for n in self.roster}}],
+        }
+        self._real = sheets.load_appsscript_config
+        sheets.load_appsscript_config = lambda p=None: {"url": self.url, "token": "s3cret"}
+
+    def tearDown(self):
+        sheets.load_appsscript_config = self._real
+
+    def test_writes_through_the_redirect(self):
+        result = sheets.push_via_appsscript(self.season)
+        self.assertEqual(result["updated_cells"], 19 * 12)
+        payload = self.state["payload"]
+        self.assertEqual(payload["firstRow"], 2)
+        self.assertEqual(payload["tab"], "Weighted - MASTER")
+        self.assertEqual(payload["roster"], self.roster)
+        self.assertEqual(len(payload["values"]), 19)
+        self.assertEqual(len(payload["values"][0]), 12)
+
+    def test_sends_the_roster_so_the_script_can_verify_alignment(self):
+        sheets.push_via_appsscript(self.season)
+        self.assertIn("roster", self.state["payload"])
+        self.assertIn("token", self.state["payload"])
+
+    def test_surfaces_a_refusal_from_the_script(self):
+        self.state["mode"] = "refuse"
+        with self.assertRaisesRegex(sheets.SheetError, "bad token"):
+            sheets.push_via_appsscript(self.season)
+
+    def test_detects_a_non_public_deployment(self):
+        self.state["mode"] = "html"
+        with self.assertRaisesRegex(sheets.SheetError, "not public"):
+            sheets.push_via_appsscript(self.season)
+
+    def test_range_guard_runs_before_any_network_call(self):
+        for bad in ("A2:M20", "B2:N20", "B1:M20"):
+            season = dict(self.season)
+            season["sheet"] = dict(self.season["sheet"], range=bad)
+            with self.assertRaises(sheets.SheetError):
+                sheets.push_via_appsscript(season, dry_run=True)
+            self.assertNotIn("payload", self.state, "a bad range reached the network")
+
+    def test_dry_run_makes_no_request(self):
+        result = sheets.push_via_appsscript(self.season, dry_run=True)
+        self.assertTrue(result["dry_run"])
+        self.assertNotIn("payload", self.state)
+
+    def test_roster_width_must_match_the_range(self):
+        season = dict(self.season)
+        season["roster"] = self.roster[:11]
+        with self.assertRaisesRegex(sheets.SheetError, "11 names"):
+            sheets.push_via_appsscript(season, dry_run=True)
+
+    def test_rejects_a_dev_url(self):
+        sheets.load_appsscript_config = self._real
+        import json as _json
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
+            _json.dump({"url": "https://script.google.com/macros/s/AAA/dev",
+                        "token": "x"}, fh)
+            path = fh.name
+        with self.assertRaisesRegex(sheets.SheetError, "/exec"):
+            sheets.load_appsscript_config(path)
+        os.unlink(path)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

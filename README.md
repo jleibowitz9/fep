@@ -102,37 +102,30 @@ silently disagree with the board after a result is corrected.
 Every result, score and weight records whether it came from ESPN or from you.
 Refreshing never overwrites a manual override, so it is always safe to run.
 
-## Google Sheets, one-time setup
+## Pushing to the Sheet
 
 The push writes **only** the weekly competitor percentages, to `B2:M20`. It never
 touches column A, and never touches column N or anything right of it where the
-placement formulas live. It reads row 1 first and aborts if the headers do not
-match the roster, rather than writing misaligned columns into a live site.
+placement formulas live. It checks row 1 against the roster and aborts on a
+mismatch rather than writing misaligned columns into a live site.
 
-To enable it (free, no billing account, no credit card):
+It goes through an **Apps Script web app that lives inside the spreadsheet**, so
+there is no Google Cloud project, no service account and no key file to rotate.
+That is not just convenience: service account key creation is blocked on this
+account by the `iam.disableServiceAccountKeyCreation` organization policy, and an
+Apps Script deployment runs as you and is not subject to it.
 
-1. Go to [console.cloud.google.com](https://console.cloud.google.com) and create
-   a project. Any name.
-2. APIs and Services, then Library. Search for **Google Sheets API** and enable it.
-3. APIs and Services, then Credentials. Create credentials, choose **Service
-   account**. Any name, no roles needed.
-4. Open the service account, go to **Keys**, Add key, Create new key, **JSON**.
-   It downloads a file.
-5. Save it as `credentials/service-account.json` in this folder. It is gitignored.
-6. Open the JSON and copy the `client_email` value. It looks like
-   `something@project-id.iam.gserviceaccount.com`.
-7. Share your FEP Google Sheet with that address as an **Editor**, the same way
-   you would share with a person.
+Setup is in **`appsscript/README.md`** and takes about five minutes. The short
+version: paste `appsscript/Code.gs` into Extensions > Apps Script, run
+`python3 cli.py token` for a secret, deploy as a web app, and save the URL and
+token to `credentials/appsscript.json` (gitignored).
 
-Then verify against a copy before touching the real tab:
+The same guards are enforced twice, in the Python client and again in the script
+itself, because a guard that only exists on the caller is not a guard. The script
+also rejects any cell that is not a number or blank, so a formula string cannot
+be injected into the Sheet.
 
-```bash
-python3 cli.py push --tab="Scratch"        # dry run against a duplicate tab
-python3 cli.py push --tab="Scratch" --live
-```
-
-If you never do this, everything else still works. `cli.py push` prints a
-paste-ready block, and `fep/sheets.py` will hand you a CSV.
+Until it is set up, `python3 cli.py push` prints a paste-ready block for cell B2.
 
 ## The chart
 

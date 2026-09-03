@@ -21,12 +21,25 @@ board genuinely moves.
 
 AUTHENTICATION
 --------------
-A Google service account. Free, no billing account needed, and unlike user
-OAuth its credentials do not expire every 7 days. See README.md for the setup
-steps. Jacob creates the credential; this module only consumes it.
+An Apps Script web app that lives inside the spreadsheet itself
+(`appsscript/Code.gs`). No Google Cloud project, no service account, no key
+file.
 
-If no credential is present, everything still works: use `as_rows` / `to_csv`
-and paste. That path is always available and needs no setup at all.
+That is not just simpler, it is necessary: service account key creation is
+blocked on Jacob's account by the `iam.disableServiceAccountKeyCreation`
+organization policy. An Apps Script deployment runs as him and is not subject
+to it.
+
+The deployment URL and a shared token live in `credentials/appsscript.json`,
+which is gitignored. The URL alone is enough to reach the script, so the token
+is a second factor, and the script itself refuses to write anywhere except
+B2:M20 of a tab whose header matches the roster.
+
+Service accounts are still supported (`push(..., transport="service_account")`)
+in case the policy is ever lifted, but Apps Script is the default.
+
+If neither is configured, everything still works: use `as_rows` / `to_csv` /
+`to_tsv_block` and paste. That path needs no setup at all.
 """
 
 from __future__ import annotations
@@ -216,8 +229,9 @@ def verify_alignment(season: dict, key_path: str = DEFAULT_KEY_PATH) -> dict:
     return {"header": in_sheet, "bounds": bounds, "ok": True}
 
 
-def push(season: dict, key_path: str = DEFAULT_KEY_PATH,
-         tab: Optional[str] = None, dry_run: bool = False) -> dict:
+def push_via_service_account(season: dict, key_path: str = DEFAULT_KEY_PATH,
+                             tab: Optional[str] = None,
+                             dry_run: bool = False) -> dict:
     """Write the weekly percentages. Aborts on any misalignment.
 
     Pass tab= to target a scratch copy, which is how the first push should
@@ -278,3 +292,137 @@ def service_account_email(key_path: str = DEFAULT_KEY_PATH) -> Optional[str]:
         return None
     with open(key_path) as fh:
         return json.load(fh).get("client_email")
+
+
+# ---------------------------------------------------------------------------
+# the Apps Script path (the default)
+# ---------------------------------------------------------------------------
+
+APPSSCRIPT_CONFIG = os.path.join(CREDENTIALS_DIR, "appsscript.json")
+
+
+def appsscript_available(config_path: str = APPSSCRIPT_CONFIG) -> bool:
+    return os.path.exists(config_path)
+
+
+def load_appsscript_config(config_path: str = APPSSCRIPT_CONFIG) -> dict:
+    import json
+    if not os.path.exists(config_path):
+        raise SheetError(
+            "no Apps Script config at {}. See appsscript/README.md for the "
+            "one-time setup, or use the paste path instead.".format(config_path))
+    with open(config_path) as fh:
+        config = json.load(fh)
+    for field in ("url", "token"):
+        if not config.get(field):
+            raise SheetError("{} is missing {!r}".format(config_path, field))
+    if "/exec" not in config["url"]:
+        raise SheetError(
+            "the Apps Script URL should end in /exec (a deployment), not /dev. "
+            "got: {}".format(config["url"]))
+    return config
+
+
+def new_token(length: int = 48) -> str:
+    """A random shared secret for FEP_TOKEN."""
+    import secrets
+    return secrets.token_urlsafe(length)
+
+
+def _call_appsscript(url: str, payload: dict, timeout: float = 60.0) -> dict:
+    import json
+    import urllib.error
+    import urllib.request
+
+    body = json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(
+        url, data=body, headers={"Content-Type": "application/json"})
+    try:
+        # Apps Script answers a POST with a 302 to script.googleusercontent.com
+        # and serves the body from there. urllib follows it by default, which is
+        # exactly what is wanted here.
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            raw = response.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        raise SheetError("Apps Script returned HTTP {}: {}".format(
+            exc.code, exc.read().decode("utf-8", "replace")[:400]))
+    except urllib.error.URLError as exc:
+        raise SheetError("could not reach the Apps Script deployment: {}".format(exc))
+
+    try:
+        result = json.loads(raw)
+    except ValueError:
+        # Almost always the sign-in page, which means the deployment is not set
+        # to "Anyone with the link".
+        hint = ("the deployment is not public. Redeploy with "
+                "'Who has access: Anyone with the link'."
+                if "<html" in raw.lower() else raw[:300])
+        raise SheetError("Apps Script did not return JSON. {}".format(hint))
+
+    if not result.get("ok"):
+        raise SheetError("Apps Script refused the write: {}".format(
+            result.get("error", result)))
+    return result
+
+
+def push_via_appsscript(season: dict, config_path: str = APPSSCRIPT_CONFIG,
+                        tab: Optional[str] = None, dry_run: bool = False) -> dict:
+    """Write the weekly percentages through the in-sheet Apps Script."""
+    sheet = dict(season["sheet"])
+    if tab:
+        sheet["tab"] = tab
+    if not sheet.get("tab"):
+        raise SheetError("season file has no sheet.tab set")
+
+    bounds = assert_safe_range(sheet["range"])
+    rows = as_rows(season)
+    roster = list(season["roster"])
+
+    if len(rows) != bounds["height"]:
+        raise SheetError("built {} rows but range {} covers {}".format(
+            len(rows), sheet["range"], bounds["height"]))
+    if len(roster) != bounds["width"]:
+        raise SheetError("roster has {} names but range {} is {} columns".format(
+            len(roster), sheet["range"], bounds["width"]))
+
+    payload = {
+        "tab": sheet["tab"],
+        "firstRow": bounds["first_row"],
+        "roster": roster,
+        "values": rows,
+    }
+
+    if dry_run:
+        return {"dry_run": True, "transport": "appsscript",
+                "range": "{}!{}".format(sheet["tab"], sheet["range"]),
+                "rows": len(rows), "columns": bounds["width"], "values": rows}
+
+    config = load_appsscript_config(config_path)
+    payload["token"] = config["token"]
+    result = _call_appsscript(config["url"], payload)
+    return {
+        "dry_run": False,
+        "transport": "appsscript",
+        "range": result.get("range"),
+        "updated_cells": result.get("wrote"),
+        "updated_range": result.get("range"),
+    }
+
+
+def push(season: dict, tab: Optional[str] = None, dry_run: bool = False,
+         transport: Optional[str] = None, **kwargs) -> dict:
+    """Write the weekly percentages, choosing whatever transport is configured.
+
+    Apps Script is preferred because service account keys are blocked by an
+    organization policy on this account.
+    """
+    if transport is None:
+        transport = "appsscript" if (
+            appsscript_available() or not credentials_available()
+        ) else "service_account"
+
+    if transport == "appsscript":
+        return push_via_appsscript(season, tab=tab, dry_run=dry_run, **kwargs)
+    if transport == "service_account":
+        return push_via_service_account(season, tab=tab, dry_run=dry_run, **kwargs)
+    raise SheetError("unknown transport {!r}".format(transport))

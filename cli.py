@@ -9,6 +9,7 @@ The FEP weekly run, headless.
     python3 cli.py leverage        rank every remaining game by how much it matters
     python3 cli.py statpack [N]    print the stat pack for a week
     python3 cli.py push [--live]   push weekly percentages to the Google Sheet
+    python3 cli.py token           generate a shared secret for the Apps Script
     python3 cli.py picks <file>    load picks from a CSV
 
     python3 cli.py who <name>      career record and picking personality
@@ -167,19 +168,44 @@ def cmd_push(argv):
 
     if not live:
         result = sheets.push(season, tab=tab, dry_run=True)
-        print("DRY RUN. Would write {} rows x {} columns to {}\n".format(
-            result["rows"], result["columns"], result["range"]))
+        configured = ("Apps Script" if sheets.appsscript_available()
+                      else ("service account" if sheets.credentials_available()
+                            else "NOTHING CONFIGURED, paste the block below"))
+        print("DRY RUN via {}. Would write {} rows x {} columns to {}\n".format(
+            configured, result["rows"], result["columns"], result["range"]))
         first_week = season["sheet"].get("first_week", 0)
         for offset, row in enumerate(result["values"]):
             if any(cell != "" for cell in row):
                 print("  wk {:>2}  {}".format(first_week + offset,
                                               "  ".join("{:>5}".format(c) for c in row)))
-        print("\nColumn A and everything from column N rightward are never touched.")
-        print("Re-run with --live to write. Use --tab=Scratch to target a copy first.")
+        print("\nColumn A and everything from column N rightward are never touched,")
+        print("by this tool and by the Apps Script independently.")
+        if not (sheets.appsscript_available() or sheets.credentials_available()):
+            print("\nNothing is configured yet, so paste this block into cell B2:\n")
+            print(sheets.to_tsv_block(season))
+            print("\nOr run `python3 cli.py token` and see appsscript/README.md")
+            print("to set up the one-click push.")
+        else:
+            print("Re-run with --live to write. Use --tab=Scratch to target a copy first.")
         return
 
     result = sheets.push(season, tab=tab)
     print("Wrote {} cells to {}".format(result["updated_cells"], result["updated_range"]))
+
+
+def cmd_token(argv):
+    """Generate the shared secret that pairs the CLI with the Apps Script."""
+    import json
+    token = sheets.new_token()
+    config_path = sheets.APPSSCRIPT_CONFIG
+    print("\nShared secret (paste into Apps Script > Project Settings >")
+    print("Script properties, as FEP_TOKEN):\n")
+    print("   " + token)
+    print("\nThen save this alongside your deployment URL at")
+    print("   " + os.path.relpath(config_path, ROOT))
+    print("\n" + json.dumps({"url": "PASTE_YOUR_/exec_URL_HERE", "token": token}, indent=2))
+    print("\nThat file is gitignored. Anyone holding both the URL and the token")
+    print("can write your weekly percentages, so treat it like a password.")
 
 
 def cmd_picks(argv):
@@ -295,6 +321,7 @@ COMMANDS = {
     "statpack": cmd_statpack,
     "push": cmd_push,
     "picks": cmd_picks,
+    "token": cmd_token,
     "who": cmd_who,
     "h2h": cmd_h2h,
     "retro": cmd_retro,
