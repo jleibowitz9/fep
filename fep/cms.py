@@ -27,6 +27,17 @@ Every slug carries the year, because Framer upserts on slug. Without the year,
 2027 week 1 would land on top of 2026 week 1 and the old row would be gone. The
 week is zero padded so that sorting a collection lexically sorts it
 chronologically.
+
+There is one column for the season, called `season`, holding the year. It also
+serves as the reference to the `seasons` table, whose slug is that year. A
+separate numeric `year` column alongside it was two names for one fact and an
+invitation to bind a component to the wrong one. `seasons` keeps `year` as its
+own attribute, because there it is the thing rather than a pointer to it.
+
+Colours live only in `competitors`, which is the mapping table. They used to be
+denormalised onto every picks and standings row, which meant changing a colour
+would have to rewrite hundreds of otherwise frozen rows to take effect. A
+component reads them through the `competitor` reference instead.
 """
 
 from __future__ import annotations
@@ -54,11 +65,34 @@ def _slugify(text: str) -> str:
     return text or "x"
 
 
+def split_label(label: str) -> dict:
+    """Pull a game label apart into the pieces a component actually wants.
+
+    'vs. Jaguars (London)' is one string doing three jobs: who, where in the
+    schedule, and where on earth. ESPN gives it to us joined up, so it gets
+    split here rather than in every component that needs just the team name.
+
+        {"opponent": "Jaguars", "home_away": "home",
+         "venue": "London", "neutral_site": True}
+    """
+    venue = ""
+    match = re.search(r"\(([^)]*)\)", label)
+    if match:
+        venue = match.group(1).strip()
+    cleaned = re.sub(r"\([^)]*\)", "", label).strip()
+    # Not r"(@|at)\b": there is no word boundary between "@" and a space,
+    # since neither is a word character, so that pattern never matches "@ Titans".
+    away = bool(re.match(r"^\s*(@|at\s)", cleaned, flags=re.I))
+    opponent = re.sub(r"^\s*(vs\.?|@|at)\s*", "", cleaned, flags=re.I).strip()
+    return {"opponent": opponent,
+            "home_away": "away" if away else "home",
+            "venue": venue,
+            "neutral_site": bool(venue)}
+
+
 def _opponent_slug(label: str) -> str:
     """'vs. Jaguars (London)' -> 'jaguars'. Just the team."""
-    cleaned = re.sub(r"\(.*?\)", "", label)
-    cleaned = re.sub(r"^\s*(vs\.?|@|at)\s*", "", cleaned, flags=re.I)
-    return _slugify(cleaned)
+    return _slugify(split_label(label)["opponent"])
 
 
 def _blank(value):
@@ -209,7 +243,7 @@ def competitors_table(season: dict) -> Table:
 
 
 COMPETITOR_SEASON_COLUMNS = [
-    "slug", "year", "season", "competitor", "name", "color",
+    "slug", "season", "competitor", "name",
     "predicted_wins", "predicted_losses", "predicted_division_wins",
     "predicted_division_losses", "points_guess", "correct", "place",
     "eliminated_week", "is_champion",
@@ -218,7 +252,6 @@ COMPETITOR_SEASON_COLUMNS = [
 
 def competitor_seasons_table(season: dict) -> Table:
     year = season["year"]
-    colors = season.get("colors") or chart.colors_for(season["roster"])
     snapshots = _snapshots(season)
     latest = snapshots[max(snapshots)] if snapshots else None
     division = season["division_indices"]
@@ -238,11 +271,9 @@ def competitor_seasons_table(season: dict) -> Table:
                 break
         rows.append({
             "slug": "{}-{}".format(year, _slugify(name)),
-            "year": year,
             "season": str(year),
             "competitor": _slugify(name),
             "name": name,
-            "color": colors.get(name, ""),
             "predicted_wins": wins,
             "predicted_losses": games - wins,
             "predicted_division_wins": division_wins,
@@ -257,9 +288,9 @@ def competitor_seasons_table(season: dict) -> Table:
 
 
 GAME_COLUMNS = [
-    "slug", "year", "season", "nfl_week", "game_index", "label", "opponent",
-    "home_away", "is_division", "kickoff", "result", "eagles_points",
-    "opponent_points", "espn_weight",
+    "slug", "season", "nfl_week", "game_index", "label", "opponent",
+    "home_away", "venue", "neutral_site", "is_division", "kickoff", "result",
+    "eagles_points", "opponent_points", "espn_weight",
 ]
 
 
@@ -273,16 +304,18 @@ def games_table(season: dict) -> Table:
     rows = []
     for game in season["games"]:
         label = game["label"]
+        parts = split_label(label)
         rows.append({
             "slug": "{}-w{:02d}-{}".format(year, game["nfl_week"],
                                            _opponent_slug(label)),
-            "year": year,
             "season": str(year),
             "nfl_week": game["nfl_week"],
             "game_index": game["index"],
             "label": label,
-            "opponent": re.sub(r"^\s*(vs\.?|@|at)\s*", "", label).strip(),
-            "home_away": "away" if label.strip().startswith("@") else "home",
+            "opponent": parts["opponent"],
+            "home_away": parts["home_away"],
+            "venue": parts["venue"],
+            "neutral_site": parts["neutral_site"],
             "is_division": bool(game["division"]),
             "kickoff": _blank(game.get("date")),
             "result": "" if game["result"] == engine.UNPLAYED else game["result"],
@@ -294,7 +327,7 @@ def games_table(season: dict) -> Table:
 
 
 WEEK_COLUMNS = [
-    "slug", "year", "week", "label", "is_bye", "game", "game_label", "result",
+    "slug", "season", "week", "label", "is_bye", "game", "game_label", "result",
     "eagles_record", "leader", "leader_pct", "remaining_outcomes",
     "still_alive", "decided_outright",
 ]
@@ -326,7 +359,7 @@ def weeks_table(season: dict) -> Table:
 
         rows.append({
             "slug": "{}-w{:02d}".format(year, week),
-            "year": year,
+            "season": str(year),
             "week": week,
             "label": "Preseason" if week == 0 else "Week {}".format(week),
             "is_bye": week in byes,
@@ -347,8 +380,7 @@ def weeks_table(season: dict) -> Table:
 
 
 PICK_COLUMNS = [
-    "slug", "year", "season", "nfl_week", "game", "competitor", "name",
-    "color", "pick",
+    "slug", "season", "nfl_week", "game", "competitor", "name", "pick",
 ]
 
 
@@ -361,7 +393,6 @@ def picks_table(season: dict) -> Table:
     game's `result` itself.
     """
     year = season["year"]
-    colors = season.get("colors") or chart.colors_for(season["roster"])
     rows = []
     for name in _submitted(season):
         sheet = season["picks"][name]
@@ -370,20 +401,18 @@ def picks_table(season: dict) -> Table:
                                                _opponent_slug(game["label"]))
             rows.append({
                 "slug": "{}-{}".format(game_slug, _slugify(name)),
-                "year": year,
                 "season": str(year),
                 "nfl_week": game["nfl_week"],
                 "game": game_slug,
                 "competitor": _slugify(name),
                 "name": name,
-                "color": colors.get(name, ""),
                 "pick": sheet[game["index"]],
             })
     return Table("picks", PICK_COLUMNS, rows)
 
 
 STANDING_COLUMNS = [
-    "slug", "year", "week", "week_ref", "competitor", "name", "color",
+    "slug", "season", "week", "week_ref", "competitor", "name",
     "weighted", "straight", "correct", "rank", "change", "is_eliminated",
     "is_bye",
 ]
@@ -397,7 +426,6 @@ def standings_table(season: dict) -> Table:
     that can no longer move.
     """
     year = season["year"]
-    colors = season.get("colors") or chart.colors_for(season["roster"])
     byes = set(_bye_weeks(season))
     ordered = sorted(season.get("snapshots", []), key=lambda s: s["week"])
 
@@ -410,12 +438,11 @@ def standings_table(season: dict) -> Table:
             before = previous.get(name)
             rows.append({
                 "slug": "{}-w{:02d}-{}".format(year, week, _slugify(name)),
-                "year": year,
+                "season": str(year),
                 "week": week,
                 "week_ref": "{}-w{:02d}".format(year, week),
                 "competitor": _slugify(name),
                 "name": name,
-                "color": colors.get(name, ""),
                 "weighted": board[name],
                 "straight": snapshot.get("straight", {}).get(name, ""),
                 "correct": snapshot.get("current_points", {}).get(name, ""),

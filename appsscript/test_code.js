@@ -53,7 +53,7 @@ const check = (label, cond, detail) => {
   else { failed++; console.log('  FAIL  ' + label + (detail ? '  ' + JSON.stringify(detail) : '')); }
 };
 
-const COLS = ['slug','year','week','name','weighted'];
+const COLS = ['slug','season','week','name','weighted'];
 const row = (y,w,n,v) => [`${y}-w${String(w).padStart(2,'0')}-${n}`, y, w, n, v];
 
 console.log('\n--- writeTable ---');
@@ -91,8 +91,10 @@ r = post({op:'writeTable', tab:'standings', year:2026, columns:COLS,
 check('allows a negative NUMBER', r.ok, r);
 r = post({op:'writeTable', tab:'standings', year:2026, columns:['name','year'], rows:[['a',2026]]});
 check('refuses when column A is not slug', !r.ok && /slug/.test(r.error), r);
+r = post({op:'writeTable', tab:'games', year:2026, columns:['slug','week'], rows:[['2026-w1',1]]});
+check('refuses a table with no season column at all', !r.ok && /season/.test(r.error), r);
 r = post({op:'writeTable', tab:'standings', year:2026,
-          columns:['slug','year','week','name','WEIGHTED'], rows:[row(2026,9,'z',1)]});
+          columns:['slug','season','week','name','WEIGHTED'], rows:[row(2026,9,'z',1)]});
 check('refuses a drifted header', !r.ok && /header mismatch/.test(r.error), r);
 r = post({op:'writeTable', tab:'standings', year:2026, columns:COLS, rows:[['',2026,1,'a',1]]});
 check('refuses an empty slug', !r.ok && /empty slug/.test(r.error), r);

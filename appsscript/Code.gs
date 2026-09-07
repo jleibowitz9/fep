@@ -156,10 +156,14 @@ function writeTable(body) {
   if (String(columns[0]).toLowerCase() !== 'slug') {
     return fail('column A must be "slug", got ' + JSON.stringify(columns[0]));
   }
-  var yearColumn = columns.indexOf('year');
+  // Every table names its season "season". The seasons table itself is the
+  // exception: there the year is the row's own attribute, not a pointer.
+  var yearColumn = columns.indexOf('season');
+  if (yearColumn === -1) { yearColumn = columns.indexOf('year'); }
   var crossSeason = CROSS_SEASON_TABS.indexOf(name) !== -1;
   if (yearColumn === -1 && !crossSeason) {
-    return fail(name + ' has no "year" column, so past seasons cannot be protected');
+    return fail(name + ' has neither a "season" nor a "year" column, so past ' +
+                'seasons cannot be protected. Refusing to write it.');
   }
   var pushYear = body.year === undefined ? null : String(body.year);
 

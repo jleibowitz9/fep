@@ -242,5 +242,70 @@ class ShapeTest(unittest.TestCase):
         self.assertEqual(len(tables["standings"].rows), 20 * 12)
 
 
+class SeasonColumnTest(unittest.TestCase):
+    """The Apps Script protects past seasons by reading this column.
+
+    If a table ever ships without it, the script refuses the whole write. These
+    assert the contract from the Python side so the failure is caught here
+    rather than on a live push.
+    """
+
+    def test_every_table_names_its_season(self):
+        season = build_season()
+        walk(season, 2)
+        for name, table in cms.tables(season).items():
+            if name == "competitors":
+                continue          # spans seasons by design
+            self.assertTrue(
+                "season" in table.columns or "year" in table.columns,
+                "{} has no season column".format(name))
+
+    def test_year_and_season_are_never_both_present(self):
+        """Two names for one fact is how a component gets bound to the wrong one."""
+        season = build_season()
+        walk(season, 2)
+        for name, table in cms.tables(season).items():
+            self.assertFalse("season" in table.columns and "year" in table.columns,
+                             "{} has both".format(name))
+
+    def test_colour_lives_only_in_competitors(self):
+        season = build_season()
+        walk(season, 2)
+        for name, table in cms.tables(season).items():
+            if name == "competitors":
+                self.assertIn("color", table.columns)
+            else:
+                self.assertNotIn("color", table.columns, name)
+
+
+class LabelTest(unittest.TestCase):
+    """ESPN hands us one string doing three jobs."""
+
+    def test_a_neutral_site_game(self):
+        self.assertEqual(cms.split_label("vs. Jaguars (London)"), {
+            "opponent": "Jaguars", "home_away": "home",
+            "venue": "London", "neutral_site": True})
+
+    def test_an_ordinary_home_game(self):
+        self.assertEqual(cms.split_label("vs. Commanders"), {
+            "opponent": "Commanders", "home_away": "home",
+            "venue": "", "neutral_site": False})
+
+    def test_an_away_game(self):
+        self.assertEqual(cms.split_label("@ Cowboys"), {
+            "opponent": "Cowboys", "home_away": "away",
+            "venue": "", "neutral_site": False})
+
+    def test_an_away_neutral_site_game(self):
+        self.assertEqual(cms.split_label("@ Dolphins (Madrid)"), {
+            "opponent": "Dolphins", "home_away": "away",
+            "venue": "Madrid", "neutral_site": True})
+
+    def test_the_venue_never_reaches_the_opponent_or_the_slug(self):
+        for label in ("vs. Jaguars (London)", "@ Dolphins (Madrid)"):
+            self.assertNotIn("(", cms.split_label(label)["opponent"])
+            self.assertNotIn("(", cms._opponent_slug(label))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

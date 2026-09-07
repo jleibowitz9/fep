@@ -28,6 +28,18 @@ rows even when it explicitly tries.
 
 ## The tables
 
+Two conventions, both there to stop a component being bound to the wrong thing:
+
+- **One column names the season, and it is called `season`.** It holds the year
+  and doubles as the reference to `seasons`, whose slug is that year. There used
+  to be a numeric `year` beside it, which was two names for one fact. `seasons`
+  itself still has `year`, because there it is the row's own attribute rather
+  than a pointer.
+- **Colour lives only in `competitors`.** That table is the mapping. It was
+  denormalised onto every picks and standings row, which meant changing somebody's
+  colour would have to rewrite hundreds of otherwise frozen rows to take effect.
+  Components read it through the `competitor` reference.
+
 | Table | Slug | Rows/season | Changes |
 |---|---|---|---|
 | `seasons` | `2026` | 1 | weekly |
