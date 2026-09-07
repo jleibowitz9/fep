@@ -7,7 +7,7 @@ so swapping Sheets for Framer's Server API later changes one file.
 
 ```bash
 python3 cli.py cms                    # what would be written
-python3 cli.py cms --csv=/tmp/tables  # write them out to look at
+python3 cli.py cms --csv             # write them to exports/cms/ to look at
 python3 cli.py cms --live             # push to the Sheet
 python3 cli.py cms --live --only=games,standings
 ```

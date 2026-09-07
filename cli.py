@@ -220,6 +220,8 @@ def cmd_cms(argv):
     season = _load()
     live = "--live" in argv
     out_dir = next((a.split("=", 1)[1] for a in argv if a.startswith("--csv=")), None)
+    if out_dir is None and "--csv" in argv:
+        out_dir = os.path.join(ROOT, "exports", "cms")
     only = next((a.split("=", 1)[1].split(",") for a in argv
                  if a.startswith("--only=")), None)
 
@@ -239,7 +241,7 @@ def cmd_cms(argv):
             if table.rows:
                 print("      first slug  {}".format(table.rows[0]["slug"]))
                 print("      last slug   {}".format(table.rows[-1]["slug"]))
-        print("\n  --csv=DIR   write them out to look at")
+        print("\n  --csv       write them to exports/cms/ to look at")
         print("  --live      push them to the Sheet")
         print("  --only=a,b  restrict to some tables")
         return

@@ -14,3 +14,6 @@ dashboard/index.html
 
 # Codex / agent worktrees
 .claude/worktrees/
+
+# generated CSV exports, regenerate with: python3 cli.py cms --csv
+exports/
