@@ -361,7 +361,12 @@ def competitors_table(season: dict) -> Table:
             "color": colors.get(name, ""),
             # A rookie's first season is this one, which history cannot know.
             "first_season": record["first_season"] or season["year"],
-            "seasons_played": len(seasons) + (0 if season["year"] in seasons else 1),
+            # Seasons on record, and nothing about the season doing the pushing.
+            # This used to add one when the current season was not yet in
+            # history, which made the answer depend on who was writing: a 2025
+            # push said 10 and a 2026 push said 11, and since both seasons write
+            # this table they overwrote each other on every run, forever.
+            "seasons_played": len(seasons),
             "titles": record["championships"],
             "title_years": ", ".join(str(y) for y in record["title_years"]),
             "career_points": record["career_points"],

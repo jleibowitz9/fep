@@ -103,6 +103,16 @@ class TwoSeasonsTest(unittest.TestCase):
         for slug in left:
             self.assertEqual(left[slug]["color"], right[slug]["color"], slug)
 
+    def test_the_shared_table_does_not_depend_on_who_is_pushing(self):
+        """competitors is written by every season, so every season must agree
+        about it. seasons_played once added one for a season not yet in
+        history, so a 2025 push said 10 and a 2026 push said 11 and the two
+        overwrote each other on every run."""
+        left = {r["slug"]: r for r in cms.tables(self.a)["competitors"].rows}
+        right = {r["slug"]: r for r in cms.tables(self.b)["competitors"].rows}
+        for slug in set(left) & set(right):
+            self.assertEqual(left[slug], right[slug], slug)
+
     def test_every_table_has_the_same_columns_in_both_seasons(self):
         """A column that appears in one season and not the other breaks the
         header check on the second push."""
