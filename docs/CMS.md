@@ -28,7 +28,14 @@ rows even when it explicitly tries.
 
 ## The tables
 
-Two conventions, both there to stop a component being bound to the wrong thing:
+Three conventions, all there to stop a component being bound to the wrong thing:
+
+- **A new column is appended, never inserted.** Framer maps a sheet column to a
+  CMS field. Inserting one shifts every column after it, and if any part of that
+  mapping is positional the shift is silent: a field keeps its name and starts
+  showing its neighbour's values. Appending costs nothing and removes the
+  question. A test pins the published order of each table.
+
 
 - **One column names the season, and it is called `season`.** It holds the year
   and doubles as the reference to `seasons`, whose slug is that year. There used

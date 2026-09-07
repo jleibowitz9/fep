@@ -441,6 +441,44 @@ class WeekOverWeekChangeTest(unittest.TestCase):
         self.assertNotEqual(rows["2026-w11-amir"]["change"], "")
 
 
+class ColumnOrderTest(unittest.TestCase):
+    """New columns are appended, never inserted.
+
+    Framer maps a sheet column to a CMS field. Inserting a column shifts every
+    column after it, and if any of that mapping is positional the shift is
+    silent: a field keeps its name and starts showing the neighbouring column's
+    values.
+    """
+
+    # The order as published. Anything new belongs after these, not among them.
+    PUBLISHED = {
+        "picks": ["slug", "season", "week_ref", "nfl_week", "game",
+                  "competitor", "name", "pick"],
+        "standings": ["slug", "season", "week", "week_ref", "competitor",
+                      "name", "weighted", "straight", "correct", "rank",
+                      "change", "is_eliminated", "is_bye"],
+        "competitors": ["slug", "name", "color", "first_season",
+                        "seasons_played", "titles", "title_years",
+                        "career_points", "all_time_rank"],
+    }
+
+    def test_published_columns_keep_their_position(self):
+        season = build_season()
+        walk(season, 3)
+        tables = cms.tables(season)
+        for name, published in self.PUBLISHED.items():
+            actual = list(tables[name].columns)
+            self.assertEqual(actual[:len(published)], published,
+                             "{} reordered its published columns".format(name))
+
+    def test_slug_is_always_first(self):
+        """The Apps Script matches rows on column A."""
+        season = build_season()
+        walk(season, 3)
+        for name, table in cms.tables(season).items():
+            self.assertEqual(table.columns[0], "slug", name)
+
+
 class SlugTest(unittest.TestCase):
 
     def test_every_slug_carries_the_year(self):

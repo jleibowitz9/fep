@@ -573,9 +573,13 @@ def weeks_table(season: dict) -> Table:
     return Table("weeks", WEEK_COLUMNS, rows)
 
 
+# New columns are appended, never inserted. Framer maps a sheet column to a CMS
+# field, and inserting one in the middle shifts every column after it. Even if
+# that mapping is by header name and survives, appending costs nothing and
+# removes the question.
 PICK_COLUMNS = [
     "slug", "season", "week_ref", "nfl_week", "game", "competitor", "name",
-    "is_bye", "pick",
+    "pick", "is_bye",
 ]
 
 
