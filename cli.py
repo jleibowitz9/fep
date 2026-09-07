@@ -246,9 +246,14 @@ def cmd_cms(argv):
         print("  --only=a,b  restrict to some tables")
         return
 
+    failures = []
     for result in sheets.push_tables(
             season, only=only, same_sheet="--same-sheet" in argv,
             allow_correction="--allow-correction" in argv):
+        if result.get("error"):
+            failures.append(result)
+            print("  {:<20} REFUSED".format(result["tab"]))
+            continue
         # `unchanged` is the number that matters on a frozen table: it means
         # the rows already published were replayed and not one of them moved.
         parts = ["+{} new".format(result.get("added", 0))]
@@ -263,6 +268,15 @@ def cmd_cms(argv):
         print("  {:<20} {}  ({} total{})".format(
             result.get("tab", "?"), ", ".join(parts), result.get("total", 0),
             ", frozen" if result.get("frozen") else ""))
+
+    if failures:
+        print("\n{} table(s) were refused and nothing was written to them:\n"
+              .format(len(failures)))
+        for failure in failures:
+            print("  {}".format(failure["tab"]))
+            print("     {}\n".format(failure["error"].replace(
+                "Apps Script refused the write: ", "")))
+        sys.exit("Fix these and re-run. The tables above are unchanged.")
 
 
 def cmd_dashboard(argv):

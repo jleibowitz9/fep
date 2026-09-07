@@ -591,7 +591,14 @@ def push_tables(season: dict, config_path: str = APPSSCRIPT_CONFIG,
         if not checked:
             assert_deployment_current(config["url"])
             checked = True
-        results.append(_call_appsscript(config["url"], payload, timeout=timeout))
+        try:
+            results.append(_call_appsscript(config["url"], payload,
+                                            timeout=timeout))
+        except SheetError as exc:
+            # Keep going. A refused write writes nothing, so the cost of
+            # continuing is zero and the benefit is that one run reports every
+            # table that needs attention rather than the first one.
+            results.append({"tab": name, "error": str(exc), "total": 0})
     return results
 
 
