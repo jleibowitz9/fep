@@ -47,7 +47,7 @@ Two conventions, both there to stop a component being bound to the wrong thing:
 | `competitor_seasons` | `2026-amir` | 12 | weekly |
 | `games` | `2026-w01` | 18 | **weekly** |
 | `weeks` | `2026-w03` | 19 | **frozen** |
-| `picks` | `2026-w01-amir` | 204 | **once a season** |
+| `picks` | `2026-w01-amir` | 216 | **once a season** |
 | `standings` | `2026-w07-amir` | 228 | **frozen, append only** |
 
 About 490 rows a season.
@@ -60,10 +60,11 @@ which is wrong for a neutral-site game: the 2026 Jaguars game in London reads
 `Jaguars (JAX)` at home and `Eagles (PHI)` away. Abbreviations are ESPN's, which
 is why Philadelphia is `PHI`.
 
-**Every NFL week gets a row, including the bye**, marked `is_bye` with both
-teams blank. A bye is a week with no matchup, not a week that does not exist,
-and leaving it out meant a schedule laid out from this table silently skipped a
-week. That is why there are 18 rows for a 17-game season.
+**Every NFL week gets a row in `games` and in `picks`, including the bye**,
+marked `is_bye`, with both teams blank and no pick. A bye is a week with no
+matchup rather than a week that does not exist, and leaving it out put a hole in
+any schedule or grid laid out from these tables. That is why a 17-game season
+has 18 `games` rows and 216 `picks` rows.
 
 **`games` holds current state on purpose.** A result genuinely becomes known
 partway through the season, so this table changes. Anything that needs the

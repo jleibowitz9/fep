@@ -115,7 +115,7 @@ class ImmutabilityTest(unittest.TestCase):
 
         self.assertEqual(len(history["standings"]), 19 * 12)
         self.assertEqual(len(history["weeks"]), 19)
-        self.assertEqual(len(history["picks"]), 17 * 12)
+        self.assertEqual(len(history["picks"]), 18 * 12)   # 17 games + the bye
 
     def test_a_frozen_row_is_never_deleted(self):
         season = self.season
@@ -485,7 +485,7 @@ class ShapeTest(unittest.TestCase):
         for name in ("Amir", "Jay", "Jen", "Marsha", "Sarah"):
             season["picks"][name] = []
         tables = cms.tables(season)
-        self.assertEqual(len(tables["picks"].rows), 17 * 7)
+        self.assertEqual(len(tables["picks"].rows), 18 * 7)   # 17 games + the bye
         self.assertEqual(len(tables["competitor_seasons"].rows), 7)
         # the roster is still twelve: they exist, they just have not answered
         self.assertEqual(len(tables["competitors"].rows), 12)
@@ -534,7 +534,7 @@ class ShapeTest(unittest.TestCase):
         # 18 games plus a row for the bye, because every NFL week gets a row.
         self.assertEqual(len(tables["games"].rows), 19)
         self.assertEqual(sum(1 for r in tables["games"].rows if r["is_bye"]), 1)
-        self.assertEqual(len(tables["picks"].rows), 18 * 12)
+        self.assertEqual(len(tables["picks"].rows), 19 * 12)   # 18 games + a bye
         self.assertEqual(len(tables["standings"].rows), 20 * 12)
 
 
@@ -626,8 +626,16 @@ class OneKeyPerWeekTest(unittest.TestCase):
         self.assertEqual(games[0]["away_team"], "")
         self.assertEqual(
             len([r for r in tables["standings"].rows if r["week_ref"] == key]), 12)
-        # ...and no pick was consumed by it
-        self.assertEqual([r for r in tables["picks"].rows if r["week_ref"] == key], [])
+        # Everyone gets a row, flagged as a bye and holding no pick, so a grid
+        # laid out from this table has no hole where the week should be.
+        picks = [r for r in tables["picks"].rows if r["week_ref"] == key]
+        self.assertEqual(len(picks), 12)
+        self.assertTrue(all(r["is_bye"] for r in picks))
+        self.assertTrue(all(r["pick"] == "" for r in picks))
+        # ...and no game index was consumed by it
+        self.assertEqual(
+            sum(1 for r in tables["picks"].rows
+                if r["competitor"] == "amir" and r["pick"] in ("W", "L")), 17)
 
 
 class LabelTest(unittest.TestCase):

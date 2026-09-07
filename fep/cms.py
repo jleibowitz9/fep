@@ -575,12 +575,18 @@ def weeks_table(season: dict) -> Table:
 
 PICK_COLUMNS = [
     "slug", "season", "week_ref", "nfl_week", "game", "competitor", "name",
-    "pick",
+    "is_bye", "pick",
 ]
 
 
 def picks_table(season: dict) -> Table:
     """Written once a season and never again.
+
+    One row per competitor per NFL week, including the bye, where `is_bye` is
+    true and there is no pick. Skipping the bye left a hole in a grid laid out
+    from this table, exactly as it did in `games`: nobody picked that week
+    because there was no game, which is a fact about the week rather than a
+    reason to omit it.
 
     There is deliberately no `correct` column. It would have to be rewritten
     every week as results land, which would turn a write-once table into a
@@ -588,20 +594,24 @@ def picks_table(season: dict) -> Table:
     game's `result` itself.
     """
     year = season["year"]
+    by_week = {g["nfl_week"]: g for g in season["games"]}
+    byes = set(_bye_weeks(season))
     rows = []
     for name in _submitted(season):
         sheet = season["picks"][name]
-        for game in season["games"]:
-            key = game_slug(year, game["nfl_week"])
+        for week in sorted(set(by_week) | byes):
+            key = game_slug(year, week)
+            game = by_week.get(week)
             rows.append({
                 "slug": "{}-{}".format(key, _slugify(name)),
                 "season": str(year),
                 "week_ref": key,
-                "nfl_week": game["nfl_week"],
+                "nfl_week": week,
                 "game": key,
                 "competitor": _slugify(name),
                 "name": name,
-                "pick": sheet[game["index"]],
+                "is_bye": game is None,
+                "pick": sheet[game["index"]] if game else "",
             })
     return Table("picks", PICK_COLUMNS, rows)
 
