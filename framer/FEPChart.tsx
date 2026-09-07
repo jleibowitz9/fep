@@ -13,7 +13,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
  * immutable JSON file, so an old newsletter can never start showing future
  * weeks, and the file can be cached forever.
  *
- * Data URL is `${baseUrl}/week-${week}.json`, written by the FEP simulator.
+ * Data URL is `${baseUrl}/${year}/week-${week}.json`, written by the FEP
+ * simulator. Year and week are separate props so one instance of this component
+ * serves every season: point it at the root once, then set the two numbers.
  *
  * What it fixes about the previous chart:
  *   - hovering shows ONE competitor, not all twelve including the dead ones
@@ -51,6 +53,7 @@ const DIM = "#4a5568"
 
 type Props = {
     baseUrl?: string
+    year?: number
     week?: number
     title?: string
     showTitle?: boolean
@@ -71,6 +74,7 @@ type Props = {
  */
 export default function FEPChart({
     baseUrl = "",
+    year = 2026,
     week = 1,
     title = "",
     showTitle = true,
@@ -114,9 +118,16 @@ export default function FEPChart({
     // ---- data ------------------------------------------------------------
     const url = useMemo(() => {
         if (!baseUrl) return null
-        const base = String(baseUrl).replace(/\/+$/, "")
-        return `${base}/week-${String(week).padStart(2, "0")}.json`
-    }, [baseUrl, week])
+        // Tolerate a base URL that already ends in a year. Earlier versions of
+        // this component took the season inside baseUrl, so an instance set up
+        // that way keeps working, and changing the Year control now actually
+        // changes the season instead of being silently ignored.
+        const base = String(baseUrl)
+            .replace(/\/+$/, "")
+            .replace(/\/\d{4}$/, "")
+        const wk = String(week).padStart(2, "0")
+        return `${base}/${year}/week-${wk}.json`
+    }, [baseUrl, year, week])
 
     useEffect(() => {
         if (!url) return
@@ -614,6 +625,16 @@ function Notice({ style, ink, text }: any) {
 }
 
 addPropertyControls(FEPChart, {
+    year: {
+        type: ControlType.Number,
+        title: "Year",
+        defaultValue: 2026,
+        min: 2016,
+        max: 2100,
+        step: 1,
+        displayStepper: true,
+        description: "The season. Each year has its own folder of week files.",
+    },
     week: {
         type: ControlType.Number,
         title: "Week",
@@ -628,8 +649,11 @@ addPropertyControls(FEPChart, {
         type: ControlType.String,
         title: "Data base URL",
         defaultValue: "",
-        placeholder: "https://raw.githubusercontent.com/.../chart-data/2026",
-        description: "Set once. The chart loads {baseUrl}/week-NN.json",
+        placeholder: "https://raw.githubusercontent.com/.../chart-data",
+        description:
+            "Set once, to the folder holding the year folders. The chart loads " +
+            "{baseUrl}/{year}/week-NN.json. A URL that already ends in a year " +
+            "still works.",
     },
     showTitle: { type: ControlType.Boolean, title: "Title", defaultValue: true },
     title: {

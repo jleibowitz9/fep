@@ -29,15 +29,17 @@ Corrections still work. Republish that week's file and it propagates.
 
 ## One-time setup
 
-1. **Publish the data.** Commit the `chart-data/` folder to a public GitHub repo
-   (the existing `eagles-simulator` repo is fine). Both of these serve
-   `access-control-allow-origin: *` with no configuration, so the browser can
-   fetch them:
+1. **Publish the data.** `cli.py week` writes `chart-data/<year>/week-NN.json`
+   and commits it. Both of these serve `access-control-allow-origin: *` with no
+   configuration, so the browser can fetch them. Verified live:
 
    ```
-   https://raw.githubusercontent.com/jleibowitz9/eagles-simulator/main/chart-data/2026
-   https://cdn.jsdelivr.net/gh/jleibowitz9/eagles-simulator@main/chart-data/2026
+   https://raw.githubusercontent.com/jleibowitz9/fep/main/chart-data
+   https://cdn.jsdelivr.net/gh/jleibowitz9/fep@main/chart-data
    ```
+
+   Note there is no year on the end. The component adds `/<year>/week-NN.json`
+   itself, which is what lets one instance serve every season.
 
    Prefer `raw.githubusercontent.com` during the season: jsDelivr caches a branch
    for up to 12 hours, which can delay a correction.
@@ -47,22 +49,28 @@ Corrections still work. Republish that week's file and it propagates.
 
 3. **Set the base URL once.** Drop the component on the page, and in the
    properties panel set **Data base URL** to the folder URL from step 1. Leave
-   off the trailing slash and the filename; the component appends
-   `/week-NN.json` itself.
+   off the trailing slash, the year and the filename; the component appends
+   `/<year>/week-NN.json` itself.
+
+   A base URL that already ends in a year still works, so an instance set up
+   before **Year** existed does not break. The Year control wins either way.
 
 ## Weekly use
 
-Set **Week** on that newsletter. That is the whole workflow.
+Set **Year** and **Week** on that newsletter. That is the whole workflow.
 
-To drive it from the CMS instead of typing it, bind the `Week` property to a
-number field on the newsletter's collection item.
+To drive it from the CMS instead of typing them, bind both properties to fields
+on the newsletter's collection item. If the newsletter references a `weeks` item
+whose slug is `2026-w07`, its `season` and `week` fields are exactly these two
+numbers.
 
 ## Properties
 
 | Property | What it does |
 |---|---|
+| **Year** | The season. Each year has its own folder of week files. |
 | **Week** | Which week to render through. 0 is the preseason board. |
-| **Data base URL** | Set once. The folder holding `week-NN.json`. |
+| **Data base URL** | Set once. The folder holding the year folders. |
 | **Title** | On by default, auto-generated. Override with Custom title. |
 | **W/L strip** | The green/red result badges under the axis. |
 | **Background / Text / Muted / Grid** | Colours, defaulted to the Eagles palette. |
