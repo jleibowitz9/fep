@@ -26,7 +26,10 @@ WHAT CHANGED FROM 2025
 * FIX: identical points guesses used to split ~97/3 instead of 50/50. The old
   code put the split point exactly on the shared guess, so one competitor took
   all the mass below it and the other all the mass above. Emer and Jen both
-  guessed 455 in 2025, so every published board that season carried this. Equal
+  guessed 455 in 2025, but tiebreaker 2 separates them in every possible
+  universe (their division records differ, 5-1 against 6-0, and |5-a| can never
+  equal |6-a| for an integer a), so the points tiebreaker was never reached for
+  that pair and NO 2025 board was affected. See docs/REVIEW-2026.md. Equal
   guesses are now grouped and share their interval evenly.
 * FIX: step 4 above is now explicit rather than an accident of normalization.
 * FIX: played games no longer have to be a contiguous prefix. Any subset of
@@ -97,6 +100,8 @@ def validate(
     weights: Sequence[Optional[float]],
     division_indices: Sequence[int],
     points_guess: Dict[str, float],
+    points_scored: Optional[Sequence[Optional[int]]] = None,
+    model: str = "shrunk",
 ) -> None:
     """Fail loudly on a malformed season rather than scoring it wrong.
 
@@ -142,6 +147,39 @@ def validate(
     missing = sorted(set(picks) - set(points_guess))
     if missing:
         raise SeasonError("no points guess for {}".format(", ".join(missing)))
+    # A guess only has to be a finite number. NaN would propagate silently
+    # through the whole tiebreaker and infinity would swallow every interval.
+    for name in picks:
+        guess = points_guess[name]
+        if isinstance(guess, bool) or not isinstance(guess, (int, float)):
+            raise SeasonError(
+                "{}'s points guess is {!r}; must be a number".format(name, guess))
+        if not math.isfinite(float(guess)):
+            raise SeasonError("{}'s points guess is {}; must be finite".format(name, guess))
+
+    if points_scored is not None:
+        if len(points_scored) != games:
+            raise SeasonError(
+                "got {} scores for {} games".format(len(points_scored), games))
+        for i, score in enumerate(points_scored):
+            if score is None:
+                continue
+            if isinstance(score, bool) or not isinstance(score, (int, float)):
+                raise SeasonError(
+                    "game {} scored {!r}; must be a number or None".format(i, score))
+            if not math.isfinite(float(score)) or score < 0:
+                raise SeasonError(
+                    "game {} scored {}; must be finite and not negative".format(i, score))
+            if results[i] == UNPLAYED:
+                raise SeasonError(
+                    "game {} is unplayed but carries a score of {}".format(i, score))
+
+    # A misspelled model used to fall through to the shrunk branch and then
+    # report the misspelling back as the model name, so a typo looked like a
+    # deliberate choice in every downstream readout.
+    if model not in ("shrunk", "legacy"):
+        raise SeasonError(
+            "unknown points model {!r}; expected 'shrunk' or 'legacy'".format(model))
 
 
 # ---------------------------------------------------------------------------
@@ -177,15 +215,28 @@ def points_distribution(
     games_played = len(scored)
     remaining = total_games - len(played)
     points_so_far = float(sum(scored))
+    # A game can be played and still have no score recorded. It is not worth
+    # zero points -- it is worth an unknown number of points -- so it is
+    # projected exactly like an unplayed one. Summing only the scores we have
+    # and calling that the season total is what made a finished season with one
+    # missing score project a mean of 0.
+    unscored = len(played) - games_played
+    to_project = remaining + unscored
+    # Once nothing is left to project, the season total is not a random variable
+    # any more: it is points_so_far, known exactly.
+    exact = to_project == 0 and total_games > 0
 
     if model == "legacy":
         if games_played == 0:
             mean = prior_ppg * total_games
         else:
             mean = points_so_far / games_played * total_games
+        if exact:
+            mean = points_so_far
         sd = max(1.0, sd_per_game * math.sqrt(max(remaining, 0)))
         return {"mean": mean, "sd": sd, "ppg": mean / total_games, "model": model,
-                "games_played": games_played, "points_so_far": points_so_far}
+                "games_played": games_played, "points_so_far": points_so_far,
+                "exact": exact}
 
     # Shrink the observed rate toward the prior.
     denominator = prior_weight_games + games_played
@@ -195,13 +246,36 @@ def points_distribution(
     else:
         ppg = (prior_weight_games * prior_ppg + points_so_far) / denominator
 
-    mean = points_so_far + remaining * ppg
-    # Two sources of spread: the remaining games themselves, and the fact that
+    mean = points_so_far + to_project * ppg
+    # Two sources of spread: the games still to be projected, and the fact that
     # we do not actually know the scoring rate.
-    var = remaining * sd_per_game ** 2 + (remaining ** 2) * (sd_per_game ** 2) / denominator
+    var = (to_project * sd_per_game ** 2
+           + (to_project ** 2) * (sd_per_game ** 2) / denominator)
     sd = max(1.0, math.sqrt(var))
     return {"mean": mean, "sd": sd, "ppg": ppg, "model": model,
-            "games_played": games_played, "points_so_far": points_so_far}
+            "games_played": games_played, "points_so_far": points_so_far,
+            "exact": exact}
+
+
+def exact_shares(guesses: Dict[str, float], total: float) -> Dict[str, float]:
+    """Who is closest to a total that is already known.
+
+    Tiebreaker 3 is only probabilistic because the final points are unknown.
+    Once the season is over they are known, so this is a comparison, not a
+    distribution: whoever is nearest wins outright, and only competitors exactly
+    equally distant split.
+
+    Without this, a completed season still ran the Normal machinery with the sd
+    clamped to 1, which handed a 10-point guess 84.1% against a 12-point guess
+    when the Eagles had actually scored 10 -- a result that should be 100/0.
+    """
+    if not guesses:
+        return {}
+    distances = {name: abs(float(guess) - total) for name, guess in guesses.items()}
+    best = min(distances.values())
+    winners = [name for name, d in distances.items() if d == best]
+    share = 1.0 / len(winners)
+    return {name: (share if name in winners else 0.0) for name in guesses}
 
 
 def closest_shares(guesses: Dict[str, float], mean: float, sd: float) -> Dict[str, float]:
@@ -275,7 +349,24 @@ class Board:
         return sorted(self.order, key=lambda n: (-self.weighted[n], n))
 
     def eliminated(self):
-        return [n for n in self.order if self.weighted[n] <= 0.0]
+        """Mathematically out: wins in no possible outcome at all.
+
+        This reads the STRAIGHT board, which counts outcomes, not the weighted
+        one, which counts probability. A competitor whose every winning outcome
+        runs through games ESPN gives no chance to still wins those outcomes --
+        they are unlikely, not impossible. Reading `weighted <= 0` called such a
+        competitor eliminated, which is a claim about the rules, not the odds.
+        """
+        return [n for n in self.order if self.straight[n] <= 0.0]
+
+    def effectively_eliminated(self):
+        """Alive in the rulebook, gone in the model: no probability, some path.
+
+        This is the honest home for `weighted <= 0` -- worth reporting, but not
+        as "mathematically eliminated".
+        """
+        return [n for n in self.order
+                if self.weighted[n] <= 0.0 and self.straight[n] > 0.0]
 
     def as_row(self):
         return {n: round(self.weighted[n], 1) for n in self.order}
@@ -306,7 +397,8 @@ def run(
     which is what the 2025 replay uses to reproduce historical numbers exactly.
     """
     if not skip_validation:
-        validate(picks, results, weights, division_indices, points_guess)
+        validate(picks, results, weights, division_indices, points_guess,
+                 points_scored=points_scored, model=points_model)
 
     total_games = len(results)
     if points_scored is None:
@@ -365,6 +457,9 @@ def run(
                         "games_played": sum(1 for r in results if r != UNPLAYED),
                         "points_so_far": None}
     mean, sd = distribution["mean"], distribution["sd"]
+    # A pinned distribution (the 2025 replay) is deliberately not exact: it is
+    # asking for a specific Normal, so it keeps getting one.
+    points_are_known = bool(distribution.get("exact"))
 
     guess_by_index = [float(points_guess[name]) for name in names]
 
@@ -376,7 +471,9 @@ def run(
         key = tuple(tied)
         cached = share_cache.get(key)
         if cached is None:
-            shares = closest_shares({str(i): guess_by_index[i] for i in tied}, mean, sd)
+            labelled = {str(i): guess_by_index[i] for i in tied}
+            shares = (exact_shares(labelled, mean) if points_are_known
+                      else closest_shares(labelled, mean, sd))
             cached = [shares[str(i)] for i in tied]
             share_cache[key] = cached
         return cached
@@ -437,6 +534,12 @@ def run(
         # Tiebreaker 3: closest total-points guess, probabilistically.
         distinct = {guess_by_index[i] for i in tied}
         layer = "tb3" if len(distinct) > 1 else "split"
+        if points_are_known and layer == "tb3":
+            # With the total known, equally-distant guesses are a genuine split
+            # rather than a probabilistic edge to one of them.
+            shares_now = tb3_shares(tied)
+            if sum(1 for v in shares_now if v > 0) == len(tied):
+                layer = "split"
         shares = tb3_shares(tied)
         for position, i in enumerate(tied):
             share = shares[position]

@@ -184,6 +184,36 @@ tbody tr:hover{background:#1A1E21}
 .copy{position:absolute;top:12px;right:12px;opacity:0;transition:.12s}
 .lead:hover .copy{opacity:1}
 
+/* ---------------- narrow screens ----------------
+   The rail is a fixed 236px and the body does not scroll, so below about
+   860px the sidebar ate the content and there was no way to reach either.
+   Under that width the rail slides off-canvas and a button brings it back. */
+#navToggle{display:none}
+@media (max-width:860px){
+  aside{position:fixed;top:0;left:0;bottom:0;z-index:60;
+    transform:translateX(-100%);transition:transform .22s cubic-bezier(.4,0,.2,1)}
+  aside.on{transform:none}
+  #navToggle{display:inline-flex;align-items:center;justify-content:center;
+    width:34px;height:34px;padding:0;font-size:16px;line-height:1;flex:none;
+    order:-1}
+  /* The header is a single row built for a wide screen. On a phone it wraps,
+     and the wrapped rows have to be allowed their own height or the first
+     line clips against the top of the viewport. */
+  header{gap:8px;flex-wrap:wrap;height:auto;min-height:0;padding:10px 12px;
+    align-items:center}
+  header > div:first-of-type{flex:1 1 100%;order:1;min-width:0}
+  header h2{font-size:15px;white-space:normal}
+  header .sub{font-size:11px}
+  .pills{order:2}
+  #runBtn{order:3;margin-left:auto;font-size:11px;padding:6px 10px;
+    white-space:nowrap}
+  .grid.g3,.grid.g2{grid-template-columns:1fr}
+  .drawer{width:100%;max-width:100%}
+  /* Tables are the one thing that cannot reflow, so they scroll themselves
+     rather than pushing the page sideways. */
+  .card table{display:block;overflow-x:auto;white-space:nowrap}
+}
+
 /* ---------------- drawer ---------------- */
 .scrim{position:fixed;inset:0;background:#000a;opacity:0;pointer-events:none;transition:.18s;z-index:40}
 .scrim.on{opacity:1;pointer-events:auto}
@@ -289,7 +319,7 @@ tbody tr:hover{background:#1A1E21}
 </head>
 <body>
 
-<aside>
+<aside id="sidebar">
   <div class="brand">
     <div class="mark fallback" id="mark">FEP</div>
     <div><h1 id="brandTitle">FEP Control</h1><span id="brandSub"></span></div>
@@ -327,6 +357,8 @@ tbody tr:hover{background:#1A1E21}
       <div class="sub" id="hSub"></div>
     </div>
     <div class="pills" id="hPills"></div>
+    <button class="btn ghost" id="navToggle" aria-label="Show navigation"
+      aria-controls="sidebar" aria-expanded="false">&#9776;</button>
     <button class="btn ghost" id="runBtn" title="This page cannot run the model">Copy rebuild command</button>
   </header>
   <div class="scroll">
@@ -342,7 +374,8 @@ tbody tr:hover{background:#1A1E21}
 </main>
 
 <div class="scrim" id="scrim"></div>
-<div class="drawer" id="drawer"></div>
+<div class="drawer" id="drawer" role="dialog" aria-modal="true"
+  aria-labelledby="drawerName" tabindex="-1" hidden></div>
 <div class="toast" id="toast"></div>
 
 <script type="application/json" id="data">__DATA__</script>
@@ -365,6 +398,11 @@ const ink = n => _ratio('#0C0E10',color(n))>=_ratio('#FFFFFF',color(n)) ? '#0C0E
 const line = n => LINE[D.roster.indexOf(n) % LINE.length];
 const pct = v => (v===null||v===undefined) ? "--" : v.toFixed(1)+"%";
 const sgn = v => (v>0?"+":"")+v.toFixed(1);
+// Competitor names come from a Google Sheet and game labels from an ESPN
+// response. Neither is authored here, and both are interpolated into innerHTML
+// all over this file, so both get escaped at the point of use.
+const esc = v => String(v==null?'':v).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const el = (h) => { const t=document.createElement('template'); t.innerHTML=h.trim(); return t.content.firstChild; };
 
 /* ---------- shell ---------- */
@@ -397,14 +435,14 @@ document.getElementById('wkNum').textContent = "Week "+D.week;
 document.getElementById('wkRec').textContent = "Eagles "+rec;
 document.getElementById('wkOpp').innerHTML = PRESEASON
   ? `<span class="wl A">·</span> ${next ? 'opens '+next.label : 'season complete'}`
-  : `<span class="wl ${last.result}">${last.result}</span> ${last.label}`;
+  : `<span class="wl ${last.result}">${last.result}</span> ${esc(last.label)}`;
 document.getElementById('fOut').textContent = D.outcomes.toLocaleString();
 document.getElementById('fAlive').textContent = D.conc.alive+" of 12";
 document.getElementById('fRun').textContent = D.generated;
 document.getElementById('hTitle').textContent = `${D.year} FEP · Week ${D.week}`;
 document.getElementById('hSub').textContent = PRESEASON
   ? `Before the opener · every one of ${D.outcomes.toLocaleString()} outcomes still live`
-  : `${last.label} (${last.result}) · ${D.outcomes.toLocaleString()} outcomes remain`;
+  : `${esc(last.label)} (${last.result}) · ${D.outcomes.toLocaleString()} outcomes remain`;
 // One status, not four competing ones, and it is filled in by the Run view so
 // it can never disagree with the verdict it is summarising.
 function setStatus(n){
@@ -442,7 +480,7 @@ function spark(name,w=76,h=20){
   }</svg>`;
   const max=Math.max(...D.snapshots.flatMap(s=>Object.values(s.weighted)),1);
   const pts=vals.map((v,i)=>[i/(vals.length-1)*(w-2)+1, h-1-(v/max)*(h-2)]);
-  const dead=vals[vals.length-1]<=0;
+  const dead=(D.elim&&D.elim.eliminated.indexOf(name)>=0)||vals[vals.length-1]<=0;
   return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
     <path d="M${pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join('L')}"
       fill="none" stroke="${dead?'#69737B':line(name)}" stroke-width="1.6"
@@ -501,7 +539,7 @@ function rankAt(week,name){
   // Things that genuinely want a human. These are the only rows shown by default.
   const attention = [];
   overrides.forEach(g=>attention.push({
-    title:`Manual override on ${g.label}`,
+    title:`Manual override on ${esc(g.label)}`,
     body:`Your weight of ${g.weight==null?'—':(g.weight*100).toFixed(1)+'%'} is being used. ESPN's number was ignored, and will keep being ignored until you clear it.`,
     action:null}));
   checks.filter(c=>c[0]!=='ok').forEach(c=>attention.push({title:c[1],body:c[2],action:null}));
@@ -553,7 +591,7 @@ function rankAt(week,name){
         const manual = g.weightSource==='manual';
         return `<tr>
           <td class="muted num">${g.week}</td>
-          <td>${g.label}</td>
+          <td>${esc(g.label)}</td>
           <td><span class="wl ${g.result}">${g.result==='A'?'·':g.result}</span></td>
           <td class="r num muted">${g.points??'—'}</td>
           <td class="r num">${g.weight==null?'—':(g.weight*100).toFixed(1)+'%'}</td>
@@ -572,10 +610,13 @@ function rankAt(week,name){
 (function(){
   const rows = D.ranked.map((n,i)=>{
     const d=D.heat.deltas[n]??0, prev=rankAt(D.week-1,n), move=prev?prev-(i+1):0;
-    const dead=D.board[n]<=0;
+    // Struck through means out of the running, so it follows the mathematical
+    // list. A 0.0% competitor with a surviving path is a long shot, not a
+    // corpse, and keeps its name intact.
+    const dead=D.elim.eliminated.indexOf(n)>=0;
     return `<tr>
       <td class="num muted">${dead?'—':i+1}</td>
-      <td><span class="pillname ${dead?'out':''}" data-n="${n}" style="background:${color(n)};color:${ink(n)}">${n}</span></td>
+      <td><span class="pillname ${dead?'out':''}" data-n="${n}" style="background:${color(n)};color:${ink(n)}">${esc(n)}</span></td>
       <td class="r num oddscell" style="font-weight:700;--w:${Math.max(D.board[n],0)/Math.max(...Object.values(D.board))*100}%;--c:${dead?'#2A3035':line(n)}">${pct(D.board[n])}</td>
       <td class="r num ${d>0?'up':d<0?'down':'flat'}">${d?sgn(d):'—'}</td>
       <td class="r num muted">${move?(move>0?'▲'+move:'▼'+(-move)):'·'}</td>
@@ -666,7 +707,7 @@ function rankAt(week,name){
   </div>
   <div class="grid g2 mt">
     <div class="card"><h3>Where the field splits <span class="tag">remaining games only</span></h3>
-      <table><tbody>${D.chalk.slice(0,6).map(c=>`<tr><td>${c.label}</td>
+      <table><tbody>${D.chalk.slice(0,6).map(c=>`<tr><td>${esc(c.label)}</td>
         <td style="width:150px"><div class="split"><i style="width:${c.picked_win/12*100}%"></i>
           <span>${c.picked_win}W</span><span>${c.picked_loss}L</span></div></td>
         <td class="r num muted tiny">ESPN ${pct(c.espn_weight*100)}</td></tr>`).join('')}</tbody></table></div>
@@ -674,7 +715,7 @@ function rankAt(week,name){
       <p class="muted tiny" style="line-height:1.6">Games everyone still alive picked the same way cannot
       move the board, whatever happens. Those are already flagged as dead rubbers in Storylines.</p>
       <div class="mt">${(()=>{const dead=D.leverage.filter(l=>l.leverage<=0.05);
-        return dead.length?dead.map(l=>`<div class="kv"><span>${l.label}</span>
+        return dead.length?dead.map(l=>`<div class="kv"><span>${esc(l.label)}</span>
           <span style="color:var(--dim2)">no leverage</span></div>`).join('')
         :'<p class="tiny muted">Every remaining game still matters.</p>';})()}</div></div>
   </div>`;
@@ -688,21 +729,21 @@ function rankAt(week,name){
     return s?Object.entries(s.weighted).sort((a,b)=>b[1]-a[1])[0][0]:null;})();
 
   if(prevLeader && prevLeader!==leader) leads.push(['big','Lead change',
-    `${leader} takes over the top spot`,
-    `${leader} moves to ${pct(D.board[leader])}, displacing ${prevLeader}. That is the ${D.week===1?'first':'latest'} lead change of the season.`,98]);
+    `${esc(leader)} takes over the top spot`,
+    `${esc(leader)} moves to ${pct(D.board[leader])}, displacing ${esc(prevLeader)}. That is the ${D.week===1?'first':'latest'} lead change of the season.`,98]);
   // Week 0 has no previous week to move from, so there is no riser or faller.
   if(sorted.length){
     const [upN,upV]=sorted[0], [dnN,dnV]=sorted[sorted.length-1];
-    leads.push(['hot','Heat check',`${upN} is the week's big riser`,
-      `${upN} gains ${sgn(upV)} points to sit at ${pct(D.board[upN])}, the largest single-week rise on the board.`,90]);
-    leads.push(['cold','Heat check',`${dnN} takes the week's worst hit`,
-      `${dnN} drops ${sgn(dnV)} to ${pct(D.board[dnN])}. ${D.board[dnN]<=0?'That is elimination.':'Still alive, but the room is getting smaller.'}`,88]);
+    leads.push(['hot','Heat check',`${esc(upN)} is the week's big riser`,
+      `${esc(upN)} gains ${sgn(upV)} points to sit at ${pct(D.board[upN])}, the largest single-week rise on the board.`,90]);
+    leads.push(['cold','Heat check',`${esc(dnN)} takes the week's worst hit`,
+      `${esc(dnN)} drops ${sgn(dnV)} to ${pct(D.board[dnN])}. ${D.board[dnN]<=0?'That is elimination.':'Still alive, but the room is getting smaller.'}`,88]);
   }
   if(PRESEASON) leads.push(['big','Opening bell',
     `Twelve sheets are in and the board is wide open`,
-    `Nobody has a result yet, so every one of ${D.outcomes.toLocaleString()} outcomes is still live. ${leader} opens as the favourite at ${pct(D.board[leader])} on the strength of the sheet alone.`,99]);
+    `Nobody has a result yet, so every one of ${D.outcomes.toLocaleString()} outcomes is still live. ${esc(leader)} opens as the favourite at ${pct(D.board[leader])} on the strength of the sheet alone.`,99]);
   if(D.nextLev) leads.push(['big','Leverage index',
-    `${D.nextLev.label} is worth ${pct(D.nextLev.leverage)} of the pool`,
+    `${esc(D.nextLev.label)} is worth ${pct(D.nextLev.leverage)} of the pool`,
     `Nearly ${Math.round(D.nextLev.leverage)} percentage points of leaderboard equity change hands on this one result. ${(()=>{
       const sw=Object.fromEntries(D.roster.map(n=>[n,D.nextLev.if_win[n]-D.nextLev.if_lose[n]]));
       const h=Object.entries(sw).sort((a,b)=>b[1]-a[1])[0], l=Object.entries(sw).sort((a,b)=>a[1]-b[1])[0];
@@ -712,12 +753,12 @@ function rankAt(week,name){
     `${D.elim.eliminated.join(', ')} ${D.elim.eliminated.length===1?'is':'are'} mathematically eliminated. No remaining combination of results gets them there.`,80]);
   if(D.elim.eliminated_by_loss.length && D.nextLev) leads.push(['cold','On the brink',
     `A loss ends ${D.elim.eliminated_by_loss.join(' and ')}`,
-    `If the Eagles lose ${D.nextLev.label}, ${D.elim.eliminated_by_loss.join(' and ')} ${D.elim.eliminated_by_loss.length===1?'is':'are'} out on the spot.`,85]);
+    `If the Eagles lose ${esc(D.nextLev.label)}, ${D.elim.eliminated_by_loss.join(' and ')} ${D.elim.eliminated_by_loss.length===1?'is':'are'} out on the spot.`,85]);
   if(D.twins.length && D.twins[0].distance===0) leads.push(['','Redundancy',
     `${D.twins[0].pair[0]} and ${D.twins[0].pair[1]} have become the same person`,
     `Their remaining sheets are identical, so nothing either does from here separates them. This is decided by tiebreakers now: predicted records ${D.twins[0].predicted_wins[0]}-${17-D.twins[0].predicted_wins[0]} and ${D.twins[0].predicted_wins[1]}-${17-D.twins[0].predicted_wins[1]}, points guesses ${D.twins[0].points_guess[0]} and ${D.twins[0].points_guess[1]}.`,75]);
   const chalk=D.chalk[0];
-  if(chalk) leads.push(['','Circle this game',`The field is split on ${chalk.label}`,
+  if(chalk) leads.push(['','Circle this game',`The field is split on ${esc(chalk.label)}`,
     `${chalk.picked_win} picked the win and ${chalk.picked_loss} the loss, the most divided remaining game. ESPN has it at ${pct(chalk.espn_weight*100)}.`,70]);
   if(D.cal.games) leads.push(['','Meta',
     `ESPN's predictor is ${D.cal.beats_coinflip?'earning its keep':'worse than a coin flip'}`,
@@ -728,14 +769,14 @@ function rankAt(week,name){
   if(dead.length){
     const alive=D.roster.filter(n=>D.board[n]>0);
     leads.push(['','Dead rubber',
-      dead.length===1 ? `${dead[0].label} cannot change anything`
+      dead.length===1 ? `${esc(dead[0].label)} cannot change anything`
                       : `${dead.length} remaining games cannot change anything`,
       `${dead.map(l=>l.label).join(', ')} carr${dead.length===1?'ies':'y'} zero leverage. All ${alive.length} surviving competitors picked ${dead.length===1?'it':'them'} the same way, so the result costs or credits everyone equally and the board does not move. Whatever happens, nothing happens.`,
       68]);
   }
   const vol=Object.entries(D.vol).sort((a,b)=>b[1].total_movement-a[1].total_movement)[0];
-  if(vol) leads.push(['','Volatility',`${vol[0]} has been the season's rollercoaster`,
-    `${vol[0]} has covered ${vol[1].total_movement.toFixed(1)} points of total movement, peaking at ${pct(vol[1].peak)} in Week ${vol[1].peak_week}.`,50]);
+  if(vol) leads.push(['','Volatility',`${esc(vol[0])} has been the season's rollercoaster`,
+    `${esc(vol[0])} has covered ${vol[1].total_movement.toFixed(1)} points of total movement, peaking at ${pct(vol[1].peak)} in Week ${vol[1].peak_week}.`,50]);
 
   leads.sort((a,b)=>b[4]-a[4]);
   document.getElementById('v-story').innerHTML = `
@@ -786,7 +827,7 @@ function rankAt(week,name){
          <button data-v="L">L</button>`;
     rows.push(`<div class="wif ${done?'done':''}">
       <span class="wknum num">${w}</span>
-      <span class="lbl">${g.label}</span>
+      <span class="lbl">${esc(g.label)}</span>
       <span class="seg" data-i="${g.i}">${seg}</span>
       <span class="lev" title="${done?'what this result actually cost':'equity that swings on this result'}">${mag!==undefined?pct(mag):''}</span></div>`);
   }
@@ -816,7 +857,7 @@ function rankAt(week,name){
       .sort((a,b)=>board[b]-board[a]).map(n=>{
         const d=board[n]-D.board[n];
         return `<tr><td><span class="pillname ${board[n]<=0?'out':''}" data-n="${n}"
-          style="background:${color(n)};color:${ink(n)}">${n}</span></td>
+          style="background:${color(n)};color:${ink(n)}">${esc(n)}</span></td>
           <td class="r num" style="font-weight:700">${pct(board[n])}</td>
           <td class="r num tiny ${d>0.05?'up':d<-0.05?'down':'flat'}">${Math.abs(d)>0.05?sgn(d):''}</td></tr>`;}).join('');
   }
@@ -848,7 +889,7 @@ function rankAt(week,name){
     if(!alt||!alt[v]) return paint(D.board,'as it stands','No precomputed board for that game.');
     const done=g.result!=='A';
     paint(alt[v],
-      done ? `if ${g.label} had been a ${v}` : `if the Eagles ${v==='W'?'win':'lose'} ${g.label}`,
+      done ? `if ${esc(g.label)} had been a ${v}` : `if the Eagles ${v==='W'?'win':'lose'} ${esc(g.label)}`,
       done ? `Week ${g.week} really finished ${g.result}. This is the season that did not happen.`
            : `Week ${g.week} has not been played. This is one of the two ways it can go.`);
   });
@@ -928,10 +969,10 @@ function openDrawer(name){
   const picks=D.picks[name].map((v,i)=>{
     const g=D.games[i];
     const cls=g.result==='A'?'pend':(v===g.result?'hit':'miss');
-    return `<div class="${cls}" title="${g.label}: picked ${v}${g.result!=='A'?', actual '+g.result:''}">${v}</div>`;}).join('');
+    return `<div class="${cls}" title="${esc(g.label)}: picked ${v}${g.result!=='A'?', actual '+g.result:''}">${v}</div>`;}).join('');
   document.getElementById('drawer').innerHTML=`
-    <div class="dh"><div class="avatar" style="background:${color(name)};color:${ink(name)}">${name[0]}</div>
-      <div><div style="font-weight:700;font-size:16px">${name}</div>
+    <div class="dh"><div class="avatar" style="background:${color(name)};color:${ink(name)}">${esc(name[0])}</div>
+      <div><div id="drawerName" style="font-weight:700;font-size:16px">${esc(name)}</div>
         <div class="tiny muted">${pct(D.board[name])} to win · ${D.correct[name]} correct · rank ${D.ranked.indexOf(name)+1}</div></div>
       <button class="btn ghost sm" style="margin-left:auto" onclick="closeDrawer()">Close</button></div>
     <div class="db">
@@ -958,15 +999,57 @@ function openDrawer(name){
         D.heat.deltas[name]>0?'up':'down'} ${Math.abs(D.heat.deltas[name]||0).toFixed(1)} on the week.`
       )},"Line copied")'>Copy a ready-made line</button>
     </div>`;
-  document.getElementById('drawer').classList.add('on');
+  const dr=document.getElementById('drawer');
+  // Remember who opened it, so focus goes back there on close rather than to
+  // the top of the document.
+  drawerOpener = document.activeElement;
+  dr.hidden = false;
+  dr.classList.add('on');
   document.getElementById('scrim').classList.add('on');
+  // Focus the panel itself; the heading is read out via aria-labelledby.
+  dr.focus();
 }
-function closeDrawer(){document.getElementById('drawer').classList.remove('on');
-  document.getElementById('scrim').classList.remove('on');}
+let drawerOpener = null;
+function drawerFocusables(){
+  return [...document.getElementById('drawer')
+    .querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')]
+    .filter(e=>e.offsetParent!==null);
+}
+function closeDrawer(){
+  const dr=document.getElementById('drawer');
+  if(!dr.classList.contains('on')) return;
+  dr.classList.remove('on');
+  document.getElementById('scrim').classList.remove('on');
+  // Hidden only after the slide-out, so the transition still runs.
+  setTimeout(()=>{ if(!dr.classList.contains('on')) dr.hidden = true; }, 240);
+  if(drawerOpener && drawerOpener.focus) drawerOpener.focus();
+  drawerOpener = null;
+}
+// Tab must not walk out of a modal panel into the page behind it.
+document.getElementById('drawer').addEventListener('keydown', e=>{
+  if(e.key!=='Tab') return;
+  const f=drawerFocusables();
+  if(!f.length) return;
+  const first=f[0], last=f[f.length-1];
+  if(e.shiftKey && (document.activeElement===first || document.activeElement===e.currentTarget)){
+    e.preventDefault(); last.focus();
+  } else if(!e.shiftKey && document.activeElement===last){
+    e.preventDefault(); first.focus();
+  }
+});
 document.getElementById('scrim').onclick=closeDrawer;
 document.body.addEventListener('click',e=>{const n=e.target.closest('[data-n]');if(n)openDrawer(n.dataset.n);});
 
 // This page cannot run the model; it hands over the command that can.
+(function(){
+  const side=document.getElementById('sidebar'), tog=document.getElementById('navToggle');
+  const setNav=on=>{side.classList.toggle('on',on); tog.setAttribute('aria-expanded',String(on));};
+  tog.onclick=()=>setNav(!side.classList.contains('on'));
+  // Picking a view on a phone should get the rail out of the way again.
+  side.addEventListener('click',e=>{ if(e.target.closest('[data-v]')) setNav(false); });
+  addEventListener('keydown',e=>{ if(e.key==='Escape') setNav(false); });
+})();
+
 document.getElementById('runBtn').onclick=()=>
   copy(`python3 cli.py week && python3 cli.py dashboard`,"Rebuild command copied");
 </script>

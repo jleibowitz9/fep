@@ -141,7 +141,15 @@ def fetch_schedule(year: int, refresh: bool = False) -> List[dict]:
         cache_key="schedule_{}".format(year),
         max_age_s=0 if refresh else 6 * 3600,
     )
+    return parse_schedule(payload, year)
 
+
+def parse_schedule(payload: dict, year: Optional[int] = None) -> List[dict]:
+    """Turn an ESPN schedule payload into game dicts.
+
+    Separate from fetch_schedule so the mapping from ESPN's shape to ours can
+    be tested against a literal payload. See fetch_schedule for the fields.
+    """
     events = payload.get("events") or []
     games: List[dict] = []
 

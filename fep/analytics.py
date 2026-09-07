@@ -260,8 +260,12 @@ def deciding_layer(season: dict, board: engine.Board, week: int) -> dict:
 def elimination_watch(season: dict, board: engine.Board) -> dict:
     """Who is mathematically out, and who goes out on the next result."""
     results = season_mod.results(season)
-    out = [n for n in board.order if board.weighted[n] <= 0.0]
-    alive = [n for n in board.order if board.weighted[n] > 0.0]
+    # "Mathematically eliminated" is a statement about what the rules permit, so
+    # it counts outcomes rather than probability. Zero weighted equity with a
+    # surviving path is a different, weaker claim, and gets its own list.
+    out = board.eliminated()
+    dim = board.effectively_eliminated()
+    alive = [n for n in board.order if n not in out]
 
     next_index = engine.next_game_index(results)
     on_the_brink = {"win": [], "lose": []}
@@ -270,12 +274,12 @@ def elimination_watch(season: dict, board: engine.Board) -> dict:
             forced = list(results)
             forced[next_index] = outcome
             forced_board = _run(season, forced)
-            on_the_brink[key] = [
-                n for n in alive if forced_board.weighted[n] <= 0.0
-            ]
+            gone = set(forced_board.eliminated())
+            on_the_brink[key] = [n for n in alive if n in gone]
 
     return {
         "eliminated": out,
+        "effectively_eliminated": dim,
         "alive": alive,
         "next_game_index": next_index,
         "next_game_label": season["games"][next_index]["label"] if next_index is not None else None,

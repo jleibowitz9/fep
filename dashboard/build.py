@@ -130,11 +130,30 @@ def chart_script(data: dict) -> str:
             "}})();" % payload)
 
 
+def script_json(data: dict) -> str:
+    """JSON safe to drop between <script> tags.
+
+    A competitor name or an ESPN label is low-trust text that arrives from a
+    Google Sheet or an HTTP response, and a literal `</script>` anywhere in it
+    would close the block early and spill the rest of the payload onto the page
+    as markup. Escaping the three characters that can start a tag or an entity
+    makes that impossible, and JSON parses the escapes straight back to the
+    original string, so nothing downstream sees a difference.
+    """
+    return (json.dumps(data)
+            .replace("<", "\\u003c")
+            .replace(">", "\\u003e")
+            .replace("&", "\\u0026")
+            # Valid JSON, but a raw line separator is not valid JavaScript.
+            .replace("\u2028", "\\u2028")
+            .replace("\u2029", "\\u2029"))
+
+
 def build(data: dict, output: str = OUTPUT) -> str:
     with open(TEMPLATE) as fh:
         template = fh.read()
     page = (template
-            .replace("__DATA__", json.dumps(data))
+            .replace("__DATA__", script_json(data))
             .replace("__CHART__", chart_script(data)))
     with open(output, "w") as fh:
         fh.write(page)
