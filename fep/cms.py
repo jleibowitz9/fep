@@ -424,6 +424,10 @@ def competitor_seasons_table(season: dict) -> Table:
 EAGLES = "Eagles"
 EAGLES_ABBR = "PHI"
 
+# A bye row still needs something in the abbreviation slots, because a matchup
+# laid out from those two fields would otherwise render as a pair of blanks.
+BYE_ABBR = "BYE"
+
 GAME_COLUMNS = [
     "slug", "season", "week_ref", "nfl_week", "game_index", "event_id", "label",
     "is_bye", "home_team", "home_abbr", "away_team", "away_abbr", "venue",
@@ -458,8 +462,8 @@ def games_table(season: dict) -> Table:
         if game is None:
             rows.append(dict(base, **{
                 "game_index": "", "event_id": "", "label": "Bye",
-                "is_bye": True, "home_team": "", "home_abbr": "",
-                "away_team": "", "away_abbr": "", "venue": "",
+                "is_bye": True, "home_team": "", "home_abbr": BYE_ABBR,
+                "away_team": "", "away_abbr": BYE_ABBR, "venue": "",
                 "neutral_site": False, "is_division": False, "kickoff": "",
                 "result": "", "eagles_points": "", "opponent_points": "",
                 "espn_weight": "",

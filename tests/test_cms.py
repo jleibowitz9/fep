@@ -255,6 +255,19 @@ class MatchupColumnsTest(unittest.TestCase):
         self.assertEqual((row["home_team"], row["home_abbr"]), ("Cowboys", "DAL"))
         self.assertEqual((row["away_team"], row["away_abbr"]), (cms.EAGLES, "PHI"))
 
+    def test_a_bye_row_says_BYE_in_both_abbreviations(self):
+        season = build_season()
+        row = [r for r in cms.games_table(season).rows if r["is_bye"]][0]
+        self.assertEqual((row["home_abbr"], row["away_abbr"]), ("BYE", "BYE"))
+        self.assertEqual(row["label"], "Bye")
+
+    def test_no_real_game_uses_the_bye_abbreviation(self):
+        season = build_season()
+        for row in cms.games_table(season).rows:
+            if row["is_bye"]:
+                continue
+            self.assertNotIn("BYE", (row["home_abbr"], row["away_abbr"]))
+
     def test_the_eagles_appear_in_every_non_bye_row(self):
         season = build_season()
         for row in cms.games_table(season).rows:
@@ -662,6 +675,10 @@ class OneKeyPerWeekTest(unittest.TestCase):
         self.assertEqual(games[0]["label"], "Bye")
         self.assertEqual(games[0]["home_team"], "")
         self.assertEqual(games[0]["away_team"], "")
+        # The abbreviation slots are what a matchup is laid out from, so they
+        # say BYE rather than leaving a pair of blanks.
+        self.assertEqual(games[0]["home_abbr"], "BYE")
+        self.assertEqual(games[0]["away_abbr"], "BYE")
         self.assertEqual(
             len([r for r in tables["standings"].rows if r["week_ref"] == key]), 12)
         # Everyone gets a row, flagged as a bye and holding no pick, so a grid

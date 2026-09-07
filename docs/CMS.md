@@ -68,7 +68,10 @@ which is wrong for a neutral-site game: the 2026 Jaguars game in London reads
 is why Philadelphia is `PHI`.
 
 **Every NFL week gets a row in `games` and in `picks`, including the bye**,
-marked `is_bye`, with both teams blank and no pick. A bye is a week with no
+marked `is_bye`, with no pick and no teams. In `games` a bye carries `BYE` in
+`home_abbr` and `away_abbr`, since those two fields are what a matchup is laid
+out from and a pair of blanks renders as nothing; the team name fields stay
+empty. A bye is a week with no
 matchup rather than a week that does not exist, and leaving it out put a hole in
 any schedule or grid laid out from these tables. That is why a 17-game season
 has 18 `games` rows and 216 `picks` rows.
