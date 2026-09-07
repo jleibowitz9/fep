@@ -313,6 +313,108 @@ class SpreadsheetCoercionTest(unittest.TestCase):
         self.assertEqual(row["wins"] + row["losses"], 7)
 
 
+class FinalIsNotAGuessTest(unittest.TestCase):
+    """A season is final when the board that settles it exists, not before."""
+
+    def test_a_completed_schedule_without_the_final_board_is_not_final(self):
+        """Reproduces the reported case: every game played, latest board is
+        week 16, and the week 16 leader was crowned champion."""
+        season = build_season()
+        for week in range(0, 17):
+            board = season_mod.run(season, through_week=week)
+            season_mod.snapshot(season, week, board)
+        tables = cms.tables(season)
+        row = tables["seasons"].rows[0]
+        self.assertEqual(row["status"], "in_progress")
+        self.assertEqual(row["champion"], "")
+        self.assertEqual(row["champion_correct"], "")
+        for entry in tables["competitor_seasons"].rows:
+            self.assertFalse(entry["is_champion"], entry["name"])
+
+    def test_the_final_board_settles_it(self):
+        season = build_season()
+        walk(season, 18)
+        tables = cms.tables(season)
+        row = tables["seasons"].rows[0]
+        self.assertEqual(row["status"], "final")
+        self.assertTrue(row["champion"])
+        champions = {e["name"] for e in tables["competitor_seasons"].rows
+                     if e["is_champion"]}
+        # The two tables must name the same winner. They used to be able to
+        # disagree: one picked a single name, the other marked every rank 1.
+        named = {row["champion"]} | {n.strip() for n in
+                                     row["co_champions"].split(",") if n.strip()}
+        self.assertEqual(champions, named)
+
+    def test_an_unsettled_final_week_is_still_in_progress(self):
+        """A board covering the last week but with more than one outcome left
+        has not settled anything."""
+        season = build_season()
+        walk(season, 18)
+        season["snapshots"][-1]["remaining_outcomes"] = 4
+        self.assertEqual(cms.tables(season)["seasons"].rows[0]["status"],
+                         "in_progress")
+
+
+class EliminationTest(unittest.TestCase):
+    """Zero this week is not the same as finished."""
+
+    def _season_with(self, sequences):
+        season = build_season()
+        season["snapshots"] = []
+        for week, board in enumerate(sequences):
+            season["snapshots"].append({
+                "week": week, "weighted": board,
+                "straight": board, "current_points": {n: 0 for n in board},
+                "remaining_outcomes": 2, "results": [], "deciding": {},
+                "eliminated": sorted(n for n, v in board.items() if v == 0.0),
+            })
+        return season
+
+    def test_a_competitor_who_recovers_was_not_eliminated(self):
+        """Reproduces the reported disagreement: 0.0 one week, 5.0 the next.
+        The CMS said eliminated in week 1; the chart said still alive."""
+        season = self._season_with([
+            {"Amir": 50.0, "Andy": 50.0},
+            {"Amir": 0.0, "Andy": 100.0},
+            {"Amir": 5.0, "Andy": 95.0},
+        ])
+        self.assertIsNone(cms.eliminated_week(season, "Amir"))
+
+    def test_the_final_run_of_zeros_is_the_elimination(self):
+        season = self._season_with([
+            {"Amir": 50.0}, {"Amir": 0.0}, {"Amir": 5.0},
+            {"Amir": 0.0}, {"Amir": 0.0},
+        ])
+        self.assertEqual(cms.eliminated_week(season, "Amir"), 3)
+
+    def test_someone_still_alive_has_no_elimination_week(self):
+        season = self._season_with([{"Amir": 50.0}, {"Amir": 20.0}])
+        self.assertIsNone(cms.eliminated_week(season, "Amir"))
+
+    def test_it_agrees_with_the_chart(self):
+        season = build_season()
+        walk(season, 18)
+        boards = {s["week"]: s["weighted"] for s in season["snapshots"]}
+        out = {s["week"]: s["eliminated"] for s in season["snapshots"]}
+        weeks = sorted(boards)
+        series = chart.build_series(weeks, boards, season["roster"],
+                                    eliminated=out)
+        for entry in series:
+            self.assertEqual(
+                cms.eliminated_week(season, entry["name"]),
+                entry["eliminated_at"],
+                "{} disagrees with the chart".format(entry["name"]))
+
+    def test_rounding_does_not_bury_someone_at_a_twentieth_of_a_percent(self):
+        """0.04% rounds to 0.0 on the board but is not elimination."""
+        season = self._season_with([{"Amir": 50.0}, {"Amir": 0.0}])
+        season["snapshots"][1]["eliminated"] = []     # unrounded: still alive
+        self.assertIsNone(cms.eliminated_week(season, "Amir"))
+        season["snapshots"][1]["eliminated"] = ["Amir"]
+        self.assertEqual(cms.eliminated_week(season, "Amir"), 1)
+
+
 class SlugTest(unittest.TestCase):
 
     def test_every_slug_carries_the_year(self):

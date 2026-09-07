@@ -71,6 +71,10 @@ def collect(year: int, week: int = None) -> dict:
                    "weightSource": g.get("weight_source"), "date": g["date"]}
                   for g in view["games"]],
         "roster": season["roster"], "picks": season["picks"],
+        # Keyed by name. The dashboard used to index a twelve-colour array by
+        # roster position, which is the bug that renamed everyone's colour the
+        # moment a thirteenth competitor sorted into the middle.
+        "colors": chart_colors(season),
         "guesses": season["points_guess"],
         "board": pack["board"], "straight": pack["straight"],
         "correct": pack["current_points"], "ranked": pack["ranked"],
@@ -92,6 +96,11 @@ def collect(year: int, week: int = None) -> dict:
         "outcomes": board.remaining_outcomes,
         "champions": history.champions(),
     }
+
+
+def chart_colors(season: dict) -> dict:
+    from fep import chart
+    return chart.colors_for(season["roster"], season.get("colors"))
 
 
 def chart_script(data: dict) -> str:

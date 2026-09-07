@@ -185,12 +185,19 @@ def build_series(
     board_by_week: Dict[int, Dict[str, float]],
     roster: Sequence[str],
     colors: Optional[Dict[str, str]] = None,
+    eliminated: Optional[Dict[int, Sequence[str]]] = None,
 ) -> List[dict]:
     """Turn {week: {name: pct}} into per-competitor series with elimination info.
 
     A competitor is "eliminated" at the first week their odds hit zero and never
     recover. Trailing zeros are trimmed off the drawn line so it terminates at
     the elimination point instead of crawling along the axis.
+
+    `eliminated` is {week: [names mathematically out]}, taken from the snapshots
+    where the board is still unrounded. Without it this reads elimination off
+    the displayed percentage, and a competitor clinging on at 0.04% displays as
+    0.0 and is indistinguishable from one who is finished. Optional, because the
+    already-published files were built without it and must not change.
     """
     colors = colors_for(roster, colors)
     series = []
@@ -199,10 +206,16 @@ def build_series(
         values = [board_by_week.get(w, {}).get(name) for w in weeks]
         values = [None if v is None else float(v) for v in values]
 
-        # Find the last week with a non-zero value.
+        # Find the last week this competitor was still alive.
         last_alive = None
         for i, value in enumerate(values):
-            if value is not None and value > 0:
+            if value is None:
+                continue
+            if eliminated is not None and weeks[i] in eliminated:
+                alive = name not in eliminated[weeks[i]]
+            else:
+                alive = value > 0
+            if alive:
                 last_alive = i
 
         if last_alive is None:
@@ -254,6 +267,7 @@ def build_payload(
     year: int = 2026,
     upto_week: Optional[int] = None,
     colors: Optional[Dict[str, str]] = None,
+    eliminated: Optional[Dict[int, Sequence[str]]] = None,
 ) -> dict:
     """The data a chart needs for one week, and nothing after it.
 
@@ -268,7 +282,7 @@ def build_payload(
     if not weeks:
         raise ValueError("no weeks to chart")
 
-    series = build_series(weeks, board_by_week, roster, colors)
+    series = build_series(weeks, board_by_week, roster, colors, eliminated)
     games = games or {}
 
     return {
@@ -313,6 +327,7 @@ def render(
     title: Optional[str] = None,
     standalone: bool = True,
     colors: Optional[Dict[str, str]] = None,
+    eliminated: Optional[Dict[int, Sequence[str]]] = None,
 ) -> str:
     """Render one week as a self-contained HTML file.
 
@@ -321,7 +336,7 @@ def render(
     build_payload directly.
     """
     payload = build_payload(weeks, board_by_week, roster, games, year,
-                            upto_week, colors)
+                            upto_week, colors, eliminated)
     heading = title or "{} Family Eagles Pool | {}".format(
         payload["year"], week_label(payload["weeks"][-1])
     )
@@ -354,6 +369,9 @@ def render_from_season(season: dict, upto_week: Optional[int] = None, **kwargs) 
         year=season["year"],
         upto_week=upto_week,
         colors=season.get("colors"),
+        eliminated={s["week"]: s["eliminated"]
+                    for s in season.get("snapshots", [])
+                    if s.get("eliminated") is not None} or None,
         **kwargs
     )
 

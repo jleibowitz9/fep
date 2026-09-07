@@ -632,7 +632,7 @@
   "snapshots": [
     {
       "week": 0,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 131072,
@@ -744,6 +744,7 @@
         0.494,
         0.736
       ],
+      "eliminated": [],
       "game": null,
       "weighted_recomputed": {
         "Amir": 4.2,
@@ -763,7 +764,7 @@
     },
     {
       "week": 1,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 65536,
@@ -875,6 +876,7 @@
         0.494,
         0.736
       ],
+      "eliminated": [],
       "game": {
         "index": 0,
         "event_id": "401772510",
@@ -907,7 +909,7 @@
     },
     {
       "week": 2,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 32768,
@@ -1019,6 +1021,7 @@
         0.494,
         0.736
       ],
+      "eliminated": [],
       "game": {
         "index": 1,
         "event_id": "401772837",
@@ -1051,7 +1054,7 @@
     },
     {
       "week": 3,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 16384,
@@ -1163,6 +1166,7 @@
         0.494,
         0.736
       ],
+      "eliminated": [],
       "game": {
         "index": 2,
         "event_id": "401772839",
@@ -1195,7 +1199,7 @@
     },
     {
       "week": 4,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 8192,
@@ -1307,6 +1311,9 @@
         0.494,
         0.736
       ],
+      "eliminated": [
+        "Hanan"
+      ],
       "game": {
         "index": 3,
         "event_id": "401772845",
@@ -1339,7 +1346,7 @@
     },
     {
       "week": 5,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 4096,
@@ -1451,6 +1458,9 @@
         0.494,
         0.736
       ],
+      "eliminated": [
+        "Hanan"
+      ],
       "game": {
         "index": 4,
         "event_id": "401772745",
@@ -1483,7 +1493,7 @@
     },
     {
       "week": 6,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 2048,
@@ -1595,6 +1605,10 @@
         0.494,
         0.736
       ],
+      "eliminated": [
+        "Hanan",
+        "Jen"
+      ],
       "game": {
         "index": 5,
         "event_id": "401772940",
@@ -1627,7 +1641,7 @@
     },
     {
       "week": 7,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 1024,
@@ -1739,6 +1753,11 @@
         0.494,
         0.736
       ],
+      "eliminated": [
+        "Andy",
+        "Hanan",
+        "Jen"
+      ],
       "game": {
         "index": 6,
         "event_id": "401772862",
@@ -1771,7 +1790,7 @@
     },
     {
       "week": 8,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 512,
@@ -1883,6 +1902,12 @@
         0.494,
         0.736
       ],
+      "eliminated": [
+        "Andy",
+        "Buhduh",
+        "Hanan",
+        "Jen"
+      ],
       "game": {
         "index": 7,
         "event_id": "401772867",
@@ -1915,7 +1940,7 @@
     },
     {
       "week": 9,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": true,
       "remaining_outcomes": 512,
@@ -2027,6 +2052,12 @@
         0.494,
         0.736
       ],
+      "eliminated": [
+        "Andy",
+        "Buhduh",
+        "Hanan",
+        "Jen"
+      ],
       "game": null,
       "weighted_recomputed": {
         "Amir": 19.6,
@@ -2046,7 +2077,7 @@
     },
     {
       "week": 10,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 256,
@@ -2158,6 +2189,14 @@
         0.494,
         0.736
       ],
+      "eliminated": [
+        "Andy",
+        "Buhduh",
+        "Hanan",
+        "Jacob",
+        "Jen",
+        "Sarah"
+      ],
       "game": {
         "index": 8,
         "event_id": "401772630",
@@ -2190,7 +2229,7 @@
     },
     {
       "week": 11,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 128,
@@ -2302,6 +2341,14 @@
         0.494,
         0.736
       ],
+      "eliminated": [
+        "Andy",
+        "Buhduh",
+        "Hanan",
+        "Jacob",
+        "Jen",
+        "Sarah"
+      ],
       "game": {
         "index": 9,
         "event_id": "401772928",
@@ -2334,7 +2381,7 @@
     },
     {
       "week": 12,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 64,
@@ -2446,6 +2493,15 @@
         0.494,
         0.736
       ],
+      "eliminated": [
+        "Amir",
+        "Andy",
+        "Buhduh",
+        "Hanan",
+        "Jacob",
+        "Jen",
+        "Sarah"
+      ],
       "game": {
         "index": 10,
         "event_id": "401772890",
@@ -2478,7 +2534,7 @@
     },
     {
       "week": 13,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 32,
@@ -2590,6 +2646,15 @@
         0.494,
         0.736
       ],
+      "eliminated": [
+        "Amir",
+        "Andy",
+        "Buhduh",
+        "Hanan",
+        "Jacob",
+        "Jen",
+        "Sarah"
+      ],
       "game": {
         "index": 11,
         "event_id": "401772621",
@@ -2622,7 +2687,7 @@
     },
     {
       "week": 14,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 16,
@@ -2734,6 +2799,16 @@
         0.494,
         0.736
       ],
+      "eliminated": [
+        "Amir",
+        "Andy",
+        "Buhduh",
+        "Hanan",
+        "Jacob",
+        "Jay",
+        "Jen",
+        "Sarah"
+      ],
       "game": {
         "index": 12,
         "event_id": "401772822",
@@ -2766,7 +2841,7 @@
     },
     {
       "week": 15,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 8,
@@ -2878,6 +2953,17 @@
         0.494,
         0.736
       ],
+      "eliminated": [
+        "Amir",
+        "Andy",
+        "Buhduh",
+        "Emer",
+        "Hanan",
+        "Jacob",
+        "Jay",
+        "Jen",
+        "Sarah"
+      ],
       "game": {
         "index": 13,
         "event_id": "401772906",
@@ -2910,7 +2996,7 @@
     },
     {
       "week": 16,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 4,
@@ -3022,6 +3108,18 @@
         0.494,
         0.736
       ],
+      "eliminated": [
+        "Amir",
+        "Andy",
+        "Buhduh",
+        "Emer",
+        "Hanan",
+        "Jacob",
+        "Jay",
+        "Jen",
+        "Nathan",
+        "Sarah"
+      ],
       "game": {
         "index": 14,
         "event_id": "401772612",
@@ -3054,7 +3152,7 @@
     },
     {
       "week": 17,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 2,
@@ -3166,6 +3264,19 @@
         0.494,
         0.736
       ],
+      "eliminated": [
+        "Amir",
+        "Andy",
+        "Buhduh",
+        "Emer",
+        "Hanan",
+        "Jacob",
+        "Jay",
+        "Jen",
+        "Marsha",
+        "Nathan",
+        "Sarah"
+      ],
       "game": {
         "index": 15,
         "event_id": "401772917",
@@ -3198,7 +3309,7 @@
     },
     {
       "week": 18,
-      "taken_at": "2026-09-07T18:52:14",
+      "taken_at": "2026-09-07T19:03:30",
       "note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
       "is_bye": false,
       "remaining_outcomes": 1,
@@ -3310,6 +3421,19 @@
         0.494,
         0.736
       ],
+      "eliminated": [
+        "Amir",
+        "Andy",
+        "Buhduh",
+        "Emer",
+        "Hanan",
+        "Jacob",
+        "Jay",
+        "Jen",
+        "Marsha",
+        "Nathan",
+        "Sarah"
+      ],
       "game": {
         "index": 16,
         "event_id": "401772959",
@@ -3358,5 +3482,5 @@
   },
   "reconstructed": true,
   "reconstruction_note": "weighted boards as published; deciding and weights use the final ESPN lines because in-season lines were not kept",
-  "updated_at": "2026-09-07T18:52:14"
+  "updated_at": "2026-09-07T19:03:30"
 }

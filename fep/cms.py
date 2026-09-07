@@ -186,12 +186,79 @@ def _record(season: dict) -> dict:
 
 
 def _status(season: dict) -> str:
+    """A season is only final once the final board exists.
+
+    Every game being played is not enough. The board that decides it is a
+    separate artefact, and until it has been run and snapshotted there is no
+    champion to name. Deciding otherwise published the leader of whatever the
+    most recent board happened to be, which on a completed schedule whose last
+    snapshot was week 16 meant crowning the wrong person.
+    """
     record = _record(season)
     if record["played"] == 0:
         return "upcoming"
-    if record["played"] == len(season["games"]):
-        return "final"
-    return "in_progress"
+    if record["played"] != len(season["games"]):
+        return "in_progress"
+    return "final" if _final_snapshot(season) else "in_progress"
+
+
+def _final_snapshot(season: dict) -> Optional[dict]:
+    """The snapshot that settles the season, or None if it has not been taken.
+
+    It must cover the last scheduled week and leave a single possible outcome:
+    a board with anything still undecided has not settled anything.
+    """
+    snapshots = season.get("snapshots") or []
+    if not snapshots:
+        return None
+    weeks = [g["nfl_week"] for g in season["games"]]
+    if not weeks:
+        return None
+    latest = max(snapshots, key=lambda s: s["week"])
+    if latest["week"] < max(weeks):
+        return None
+    if latest.get("remaining_outcomes", 0) != 1:
+        return None
+    return latest
+
+
+def _champions(snapshot: dict) -> List[str]:
+    """Everyone the settling board puts first. Usually one name.
+
+    Both `seasons` and `competitor_seasons` read this, so the two cannot
+    disagree about who won, which they used to: one picked a single name
+    alphabetically and the other could mark several people champion.
+    """
+    board = snapshot["weighted"]
+    if not board:
+        return []
+    best = max(board.values())
+    return sorted(n for n, v in board.items() if v == best)
+
+
+def eliminated_week(season: dict, name: str) -> Optional[int]:
+    """The week a competitor's odds hit zero and never recovered.
+
+    The start of the final unbroken run of zeros, which is what the chart draws.
+    Taking the *first* zero instead called somebody eliminated in week 1 who was
+    back at 5% in week 2.
+    """
+    ordered = sorted(season.get("snapshots") or [], key=lambda s: s["week"])
+    if not ordered:
+        return None
+    start = None
+    for snapshot in ordered:
+        out = snapshot.get("eliminated")
+        # Fall back to the rounded board for a snapshot written before
+        # elimination was recorded structurally.
+        zero = (name in out) if out is not None else (
+            snapshot["weighted"].get(name, 1.0) == 0)
+        if zero:
+            if start is None:
+                start = snapshot["week"]
+        else:
+            start = None
+    return start
 
 
 def _ranked(board: Dict[str, float]) -> Dict[str, int]:
@@ -227,7 +294,8 @@ def _career(name: str) -> dict:
 SEASON_COLUMNS = [
     "slug", "year", "status", "current_week", "games_total", "bye_weeks",
     "roster_size", "eagles_wins", "eagles_losses", "eagles_ties",
-    "eagles_points", "champion", "champion_correct", "field_average",
+    "eagles_points", "champion", "co_champions", "champion_correct",
+    "field_average",
 ]
 
 
@@ -238,16 +306,18 @@ def seasons_table(season: dict, current_week: Optional[int] = None) -> Table:
     if current_week is None:
         current_week = max(snapshots) if snapshots else 0
 
-    champion, champion_correct, field_average = "", "", ""
-    if _status(season) == "final" and snapshots:
-        final = snapshots[max(snapshots)]
+    champion, champion_correct, field_average, co_champions = "", "", "", ""
+    final = _final_snapshot(season)
+    if final:
         correct = final.get("current_points") or {}
+        winners = _champions(final)
+        if winners:
+            champion = winners[0]
+            co_champions = ", ".join(winners[1:])
         if correct:
-            best = max(correct.values())
-            # The champion is whoever the final board actually settled on, not
-            # simply the top pick count, because the tiebreakers decide it.
-            leader = max(final["weighted"], key=lambda n: (final["weighted"][n], n))
-            champion, champion_correct = leader, best
+            # The champion is whoever the final board settled on, not simply the
+            # top pick count, because the tiebreakers decide it.
+            champion_correct = correct.get(champion, "")
             field_average = round(sum(correct.values()) / len(correct), 1)
 
     return Table("seasons", SEASON_COLUMNS, [{
@@ -263,6 +333,7 @@ def seasons_table(season: dict, current_week: Optional[int] = None) -> Table:
         "eagles_ties": record["ties"],
         "eagles_points": record["points"],
         "champion": champion,
+        "co_champions": co_champions,
         "champion_correct": champion_correct,
         "field_average": field_average,
     }])
@@ -275,7 +346,11 @@ COMPETITOR_COLUMNS = [
 
 
 def competitors_table(season: dict) -> Table:
-    colors = season.get("colors") or chart.colors_for(season["roster"])
+    # colors_for completes a partial map: a competitor recorded earlier keeps
+    # their colour, a newcomer gets the next unused hue. Reading the map
+    # directly handed a newcomer an empty string, because a map that exists is
+    # not the same as a map that is complete.
+    colors = chart.colors_for(season["roster"], season.get("colors"))
     rows = []
     for name in season["roster"]:
         record = _career(name)
@@ -312,16 +387,14 @@ def competitor_seasons_table(season: dict) -> Table:
     final = _status(season) == "final"
 
     ranks = _ranked(latest["weighted"]) if latest else {}
+    final = _final_snapshot(season)
+    winners = set(_champions(final)) if final else set()
     rows = []
     for name in _submitted(season):
         sheet = season["picks"][name]
         wins = sheet.count(engine.WIN)
         division_wins = sum(1 for i in division if sheet[i] == engine.WIN)
-        eliminated = ""
-        for week in sorted(snapshots):
-            if snapshots[week]["weighted"].get(name, 0) == 0:
-                eliminated = week
-                break
+        eliminated = _blank(eliminated_week(season, name))
         rows.append({
             "slug": "{}-{}".format(year, _slugify(name)),
             "season": str(year),
@@ -335,7 +408,7 @@ def competitor_seasons_table(season: dict) -> Table:
             "correct": latest["current_points"].get(name, "") if latest else "",
             "place": ranks.get(name, ""),
             "eliminated_week": eliminated,
-            "is_champion": bool(final and ranks.get(name) == 1),
+            "is_champion": name in winners,
         })
     return Table("competitor_seasons", COMPETITOR_SEASON_COLUMNS, rows)
 

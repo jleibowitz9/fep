@@ -362,6 +362,19 @@ def cmd_picks(argv):
     if unknown:
         sys.exit("{} is not on the roster. The roster is {}.".format(
             ", ".join(unknown), ", ".join(season["roster"])))
+
+    # Picks are made before week 1, so a sheet arriving after the season starts
+    # is a mistake. Loading it anyway would give that person picks for weeks
+    # already played and add them to collections an old newsletter had already
+    # published, changing what a past week looks like.
+    late = sorted(n for n in picks if not season["picks"].get(n))
+    played = season_mod.games_played(season)
+    if late and played and "--force" not in argv:
+        sys.exit(
+            "{} has no sheet on record and {} game(s) have been played.\n"
+            "  Adding someone mid-season backdates them into weeks that were\n"
+            "  already published. Use --force if this is a genuine late entry."
+            .format(", ".join(late), played))
     missing_guess = sorted(n for n in picks if guesses.get(n) is None)
     if missing_guess:
         sys.exit("no points guess for {}".format(", ".join(missing_guess)))

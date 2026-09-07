@@ -52,10 +52,13 @@ def publish_week(
     year: int,
     week: int,
     out_dir: Optional[str] = None,
+    colors: Optional[Dict[str, str]] = None,
+    eliminated: Optional[Dict[int, Sequence[str]]] = None,
 ) -> str:
     payload = chart.build_payload(
         weeks=weeks, board_by_week=board_by_week, roster=roster,
-        games=games, year=year, upto_week=week,
+        games=games, year=year, upto_week=week, colors=colors,
+        eliminated=eliminated,
     )
     directory = out_dir or os.path.join(CHART_DATA_DIR, str(year))
     os.makedirs(directory, exist_ok=True)
@@ -74,10 +77,13 @@ def publish_all(
     games: Optional[Dict[int, dict]],
     year: int,
     out_dir: Optional[str] = None,
+    colors: Optional[Dict[str, str]] = None,
+    eliminated: Optional[Dict[int, Sequence[str]]] = None,
 ) -> List[str]:
     """Republish every week that has data. Cheap, and keeps corrections honest."""
     return [
-        publish_week(weeks, board_by_week, roster, games, year, week, out_dir)
+        publish_week(weeks, board_by_week, roster, games, year, week, out_dir,
+                     colors, eliminated)
         for week in sorted(weeks)
     ]
 
@@ -97,6 +103,16 @@ def publish_from_season(season: dict, week: Optional[int] = None,
 
     weeks = sorted(snapshots)
     args = (weeks, snapshots, season["roster"], games, season["year"])
+    # The season's recorded colours and its unrounded elimination, so a
+    # published chart says the same thing as the CMS and the dashboard. Without
+    # these the payload fell back to deriving both, and a competitor not in the
+    # canonical twelve came out with no colour at all.
+    extra = {
+        "colors": chart.colors_for(season["roster"], season.get("colors")),
+        "eliminated": {s["week"]: s["eliminated"]
+                       for s in season.get("snapshots", [])
+                       if s.get("eliminated") is not None} or None,
+    }
     if week is None:
-        return publish_all(*args, out_dir=out_dir)
-    return [publish_week(*args, week=week, out_dir=out_dir)]
+        return publish_all(*args, out_dir=out_dir, **extra)
+    return [publish_week(*args, week=week, out_dir=out_dir, **extra)]

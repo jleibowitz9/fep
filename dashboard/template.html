@@ -355,7 +355,10 @@ const PAL = ["#972B2B","#97612B","#97972B","#61972B","#2B972B","#2B9761",
 // as given, five of the twelve fall below a 3.0 contrast ratio here.
 const LINE = ["#D46868","#D49E68","#D4D468","#9ED468","#68D468","#68D49E",
               "#68D4D4","#689ED4","#6868D4","#9E68D4","#D468D4","#D4689E"];
-const color = n => PAL[D.roster.indexOf(n) % PAL.length];
+// Keyed by name, from the season file. Indexing PAL by roster position meant
+// a newcomer sorting into the middle shifted everyone after them, and the
+// thirteenth person silently got the first person's colour.
+const color = n => (D.colors && D.colors[n]) || PAL[D.roster.indexOf(n) % PAL.length];
 // Near-black or white on a swatch, whichever actually reads. Measured, not
 // thresholded: the yellow-greens sit right on the boundary.
 const _lum = h => {const f=c=>{c/=255;return c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4)};

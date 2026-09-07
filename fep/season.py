@@ -400,6 +400,13 @@ def snapshot(season: dict, week: int, board: engine.Board, note: str = "") -> di
         "results": results_through_week(season, week),
         "points_for": points_through_week(season, week),
         "weights": weights(season),
+        # Who is mathematically out, from the unrounded board.
+        #
+        # The stored percentages are rounded to one decimal, so a competitor
+        # clinging on at 0.04% shows as 0.0 and is indistinguishable from one
+        # who is actually finished. Reading elimination off the displayed
+        # number therefore buried people who were still alive.
+        "eliminated": sorted(n for n in board.order if board.weighted[n] == 0.0),
         # The week's own matchup, frozen here rather than looked up later.
         # A label or a venue can be corrected in ESPN's data at any time, and a
         # historical row that reads today's schedule would change with it.
