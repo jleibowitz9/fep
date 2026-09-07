@@ -142,6 +142,26 @@ them together.
 The tabs do not need to exist. `writeTable` creates them, writes the header, and
 refuses to write under a header that has drifted.
 
+## Keeping the deployment in step
+
+Editing `Code.gs` in the Apps Script editor does **not** redeploy it: a web app
+serves the code from its deployed version, so the file here and the code
+actually running can differ with nothing to show for it. That happened twice,
+once silently rewriting rows that a newer guard would have refused.
+
+So `Code.gs` carries a `CODE_VERSION`, the client reads the same constant from
+its local copy, and a push refuses outright when they disagree:
+
+```
+Error: the deployment is running an older version (no version stamp)
+but this checkout is 2026.09.07-a.
+```
+
+To redeploy: paste `appsscript/Code.gs`, save, then **Deploy > Manage
+deployments > edit > Version: New version**. Editing an existing deployment
+keeps the URL; a *new* deployment gives you a different one, which then has to
+go into `credentials/appsscript.json`.
+
 ## Frozen tables, and correcting one
 
 `weeks`, `standings` and `picks` hold a record of a week that has happened. Once

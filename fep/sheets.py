@@ -464,6 +464,54 @@ TABLE_TABS = ["seasons", "competitors", "competitor_seasons", "games",
               "weeks", "picks", "standings"]
 
 
+CODE_GS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                       "appsscript", "Code.gs")
+
+
+def local_code_version(path: str = CODE_GS) -> Optional[str]:
+    """The CODE_VERSION in this checkout's Code.gs."""
+    import re
+    if not os.path.exists(path):
+        return None
+    match = re.search(r"var CODE_VERSION = '([^']+)'", open(path).read())
+    return match.group(1) if match else None
+
+
+def deployed_code_version(url: str, timeout: float = 60.0) -> Optional[str]:
+    """The CODE_VERSION the deployment is actually running."""
+    import json as _json
+    import urllib.request
+    try:
+        with urllib.request.urlopen(url + "?v=1", timeout=timeout) as response:
+            return (_json.loads(response.read().decode()) or {}).get("version")
+    except Exception:
+        return None
+
+
+def assert_deployment_current(url: str) -> None:
+    """Refuse to push against a stale deployment.
+
+    Editing Code.gs in the Apps Script editor does not redeploy it, and a web
+    app serves the code from its deployed version. So the file in this
+    repository and the code actually running can differ with no visible sign,
+    which has happened twice: once silently rewriting rows a newer guard would
+    have refused.
+    """
+    local = local_code_version()
+    if local is None:
+        return
+    live = deployed_code_version(url)
+    if live == local:
+        return
+    raise SheetError(
+        "the deployment is running {} but this checkout is {}.\n"
+        "  Editing Code.gs does not redeploy it. Paste appsscript/Code.gs into\n"
+        "  the editor, save, then Deploy > Manage deployments > edit >\n"
+        "  Version: New version.".format(
+            "an older version (no version stamp)" if live is None else live,
+            local))
+
+
 def table_config(config_path: str = APPSSCRIPT_CONFIG) -> dict:
     """Where the CMS tables are written.
 
@@ -514,6 +562,7 @@ def push_tables(season: dict, config_path: str = APPSSCRIPT_CONFIG,
         raise SheetError("no such table: {}".format(", ".join(unknown)))
 
     results = []
+    checked = False
     if dry_run:
         config = None
     else:
@@ -539,6 +588,9 @@ def push_tables(season: dict, config_path: str = APPSSCRIPT_CONFIG,
                             "columns": len(table.columns)})
             continue
         payload["token"] = config["token"]
+        if not checked:
+            assert_deployment_current(config["url"])
+            checked = True
         results.append(_call_appsscript(config["url"], payload, timeout=timeout))
     return results
 

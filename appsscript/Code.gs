@@ -33,6 +33,12 @@
  *   guard that only exists on the caller is not a guard.
  */
 
+// Bumped by hand whenever this file changes in a way the caller must know
+// about. The Python client reads the same constant out of its local copy and
+// refuses to push when the two disagree, because editing this file does not
+// redeploy it and the two have now silently diverged twice.
+var CODE_VERSION = '2026.09.07-a';
+
 // Columns B through M inclusive. 1-indexed, as the Sheets API counts them.
 var FIRST_COL = 2;   // B
 var LAST_COL = 13;   // M
@@ -325,6 +331,7 @@ function writeTable(body) {
   SpreadsheetApp.flush();
 
   return ok({
+    version: CODE_VERSION,
     tab: name,
     added: added,
     updated: updated,
@@ -388,6 +395,7 @@ function doGet() {
   });
   return ok({
     service: 'fep-sheet-writer',
+    version: CODE_VERSION,
     tableTabs: TABLE_TABS,
     tabs: sheets,
     writableColumns: colName(FIRST_COL) + '..' + colName(LAST_COL),
