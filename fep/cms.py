@@ -104,6 +104,50 @@ def _opponent_slug(label: str) -> str:
     return _slugify(split_label(label)["opponent"])
 
 
+def game_slug(year: int, nfl_week: int) -> str:
+    """A game's permanent id: the season and the week it was played in.
+
+    It used to carry the opponent, which read nicely and was wrong. A slug is an
+    identity, and identity must not be derived from a value that can be edited.
+    Correcting one team name in ESPN's data changed the slug, so the corrected
+    row was published as a *new* row and the original was left behind forever,
+    because the transport never deletes.
+
+    Season and week cannot be corrected: they are what defines the game.
+    """
+    return "{}-w{:02d}".format(year, nfl_week)
+
+
+def game_facts(season: dict, game: dict) -> dict:
+    """The structured fields, preferring what ESPN gave us over parsing.
+
+    The season file already carries opponent, home, neutral_site, venue and
+    event_id per game. Re-deriving them from the display label was not only
+    redundant, it disagreed: the London game is `home: false` with venue
+    "Tottenham Hotspur Stadium" in the data, and the label parser called it a
+    home game in "London". Parsing is kept only for a game that predates those
+    fields.
+    """
+    parsed = split_label(game["label"])
+    home = game.get("home")
+    return {
+        # The label is the better source for the *name*: the season file's
+        # `opponent` is ESPN's abbreviation ("MIN"), which is not what a page
+        # wants to show. It is kept alongside as opponent_abbr, since it is the
+        # stable identifier of the team.
+        "opponent": parsed["opponent"] or game.get("opponent") or "",
+        "opponent_abbr": game.get("opponent") or "",
+        # Everything else, the recorded fields win. The label says "vs." for a
+        # neutral-site game, and its parenthetical is a city where the data has
+        # the actual stadium.
+        "home_away": ("home" if home else "away") if home is not None
+                     else parsed["home_away"],
+        "venue": game.get("venue") or parsed["venue"],
+        "neutral_site": bool(game.get("neutral_site", parsed["neutral_site"])),
+        "event_id": game.get("event_id") or "",
+    }
+
+
 def _blank(value):
     """None becomes an empty cell, not the string 'None'."""
     return "" if value is None else value
@@ -297,9 +341,10 @@ def competitor_seasons_table(season: dict) -> Table:
 
 
 GAME_COLUMNS = [
-    "slug", "season", "week_ref", "nfl_week", "game_index", "label", "opponent",
-    "home_away", "venue", "neutral_site", "is_division", "kickoff", "result",
-    "eagles_points", "opponent_points", "espn_weight",
+    "slug", "season", "week_ref", "nfl_week", "game_index", "event_id", "label",
+    "opponent", "opponent_abbr", "home_away", "venue", "neutral_site",
+    "is_division", "kickoff", "result", "eagles_points", "opponent_points",
+    "espn_weight",
 ]
 
 
@@ -312,20 +357,20 @@ def games_table(season: dict) -> Table:
     year = season["year"]
     rows = []
     for game in season["games"]:
-        label = game["label"]
-        parts = split_label(label)
+        facts = game_facts(season, game)
         rows.append({
-            "slug": "{}-w{:02d}-{}".format(year, game["nfl_week"],
-                                           _opponent_slug(label)),
+            "slug": game_slug(year, game["nfl_week"]),
             "season": str(year),
-            "week_ref": "{}-w{:02d}".format(year, game["nfl_week"]),
+            "week_ref": game_slug(year, game["nfl_week"]),
             "nfl_week": game["nfl_week"],
             "game_index": game["index"],
-            "label": label,
-            "opponent": parts["opponent"],
-            "home_away": parts["home_away"],
-            "venue": parts["venue"],
-            "neutral_site": parts["neutral_site"],
+            "event_id": facts["event_id"],
+            "label": game["label"],
+            "opponent": facts["opponent"],
+            "opponent_abbr": facts["opponent_abbr"],
+            "home_away": facts["home_away"],
+            "venue": facts["venue"],
+            "neutral_site": facts["neutral_site"],
             "is_division": bool(game["division"]),
             "kickoff": _blank(game.get("date")),
             "result": "" if game["result"] == engine.UNPLAYED else game["result"],
@@ -337,10 +382,26 @@ def games_table(season: dict) -> Table:
 
 
 WEEK_COLUMNS = [
-    "slug", "season", "week", "label", "is_bye", "game", "game_label", "result",
-    "eagles_record", "leader", "leader_pct", "remaining_outcomes",
-    "still_alive", "decided_outright",
+    "slug", "season", "week", "label", "is_bye", "game", "game_label",
+    "opponent", "home_away", "result", "eagles_record", "leader", "leader_pct",
+    "remaining_outcomes", "still_alive", "decided_outright",
 ]
+
+
+def _game_facts_fallback(season: dict, game: dict) -> dict:
+    """For a snapshot written before snapshots froze their own matchup."""
+    facts = game_facts(season, game)
+    return {
+        "index": game["index"],
+        "event_id": facts["event_id"],
+        "label": game["label"],
+        "opponent": facts["opponent"],
+        "opponent_abbr": facts["opponent_abbr"],
+        "home": game.get("home", facts["home_away"] == "home"),
+        "neutral_site": facts["neutral_site"],
+        "venue": facts["venue"],
+        "result": game["result"],
+    }
 
 
 def weeks_table(season: dict) -> Table:
@@ -357,25 +418,38 @@ def weeks_table(season: dict) -> Table:
     for snapshot in sorted(season.get("snapshots", []), key=lambda s: s["week"]):
         week = snapshot["week"]
         results = snapshot.get("results") or []
-        game = by_week.get(week)
         played = [r for r in results if r != engine.UNPLAYED]
         board = snapshot["weighted"]
         leader = max(board, key=lambda n: (board[n], n)) if board else ""
 
-        result = ""
-        if game and game["index"] < len(results):
-            frozen = results[game["index"]]
-            result = "" if frozen == engine.UNPLAYED else frozen
+        # The matchup as recorded that week. Reading today's schedule instead
+        # would mean a corrected opponent name, venue or result silently
+        # rewriting a week that was published months ago.
+        frozen_game = snapshot.get("game")
+        if frozen_game is None and week in by_week:
+            frozen_game = _game_facts_fallback(season, by_week[week])
 
+        result = ""
+        if frozen_game:
+            index = frozen_game.get("index")
+            if index is not None and index < len(results):
+                current = results[index]
+                result = "" if current == engine.UNPLAYED else current
+
+        home = frozen_game.get("home") if frozen_game else None
         rows.append({
             "slug": "{}-w{:02d}".format(year, week),
             "season": str(year),
             "week": week,
             "label": "Preseason" if week == 0 else "Week {}".format(week),
             "is_bye": week in byes,
-            "game": ("{}-w{:02d}-{}".format(year, week, _opponent_slug(game["label"]))
-                     if game else ""),
-            "game_label": game["label"] if game else ("Bye" if week in byes else ""),
+            "game": game_slug(year, week) if frozen_game else "",
+            "game_label": (frozen_game["label"] if frozen_game
+                           else ("Bye" if week in byes else "")),
+            "opponent": ((frozen_game.get("opponent_name")
+                          or frozen_game.get("opponent") or "")
+                         if frozen_game else ""),
+            "home_away": ("" if home is None else ("home" if home else "away")),
             "result": result,
             "eagles_record": "{}-{}".format(played.count(engine.WIN),
                                             played.count(engine.LOSS)),
@@ -408,14 +482,13 @@ def picks_table(season: dict) -> Table:
     for name in _submitted(season):
         sheet = season["picks"][name]
         for game in season["games"]:
-            game_slug = "{}-w{:02d}-{}".format(year, game["nfl_week"],
-                                               _opponent_slug(game["label"]))
+            key = game_slug(year, game["nfl_week"])
             rows.append({
-                "slug": "{}-{}".format(game_slug, _slugify(name)),
+                "slug": "{}-{}".format(key, _slugify(name)),
                 "season": str(year),
-                "week_ref": "{}-w{:02d}".format(year, game["nfl_week"]),
+                "week_ref": key,
                 "nfl_week": game["nfl_week"],
-                "game": game_slug,
+                "game": key,
                 "competitor": _slugify(name),
                 "name": name,
                 "pick": sheet[game["index"]],

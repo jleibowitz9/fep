@@ -48,6 +48,16 @@ var TABLE_TABS = ['seasons', 'competitors', 'competitor_seasons', 'games',
 // where a row may be rewritten by a push for a different year.
 var CROSS_SEASON_TABS = ['competitors'];
 
+// These hold a record of a week that has already happened. Once a row here has
+// been written, the only acceptable rewrite is an identical one. Anything else
+// means a published week is changing, which is the single thing this whole
+// design exists to prevent, so it is refused rather than reconciled.
+//
+// A genuine correction goes through allowCorrection, which is deliberately
+// awkward: it must be asked for, it names every row it changes, and it shows up
+// in the response.
+var FROZEN_TABS = ['weeks', 'standings', 'picks'];
+
 
 function doPost(e) {
   try {
@@ -165,7 +175,26 @@ function writeTable(body) {
     return fail(name + ' has neither a "season" nor a "year" column, so past ' +
                 'seasons cannot be protected. Refusing to write it.');
   }
-  var pushYear = body.year === undefined ? null : String(body.year);
+  // The season being pushed is required, and every row must agree with it.
+  //
+  // It used to be optional and unchecked, which meant the protection could be
+  // stepped around two ways: omit it and no row was ever protected, or claim
+  // one season while sending rows labelled another and overwrite across the
+  // boundary. A guard that believes whatever the caller says about itself is
+  // not a guard, and this one lives here precisely so that it does not depend
+  // on the caller being correct.
+  if (body.year === undefined || body.year === null || body.year === '') {
+    return fail('year is required: it is the season being pushed, and every ' +
+                'row must belong to it');
+  }
+  var pushYear = String(body.year);
+
+  var active = PropertiesService.getScriptProperties().getProperty('ACTIVE_SEASON');
+  if (active && String(active) !== pushYear) {
+    return fail('ACTIVE_SEASON is ' + active + ', so a push for ' + pushYear +
+                ' is refused. Change the script property to publish a ' +
+                'different season.');
+  }
 
   for (var r = 0; r < rows.length; r++) {
     if (!Array.isArray(rows[r]) || rows[r].length !== columns.length) {
@@ -190,6 +219,19 @@ function writeTable(body) {
     }
     if (!rows[r][0]) {
       return fail('row ' + r + ' has an empty slug');
+    }
+  }
+
+  // Every row must belong to the season being pushed. Checked after the shape
+  // validation above, so a malformed row is reported as malformed.
+  if (!crossSeason) {
+    for (var r = 0; r < rows.length; r++) {
+      var rowYear = String(rows[r][yearColumn]);
+      if (rowYear !== pushYear) {
+        return fail('row ' + r + ' (' + rows[r][0] + ') is season ' + rowYear +
+                    ' but this is a ' + pushYear + ' push. Refusing: this is ' +
+                    'how a row crosses from one season into another.');
+      }
     }
   }
 
@@ -226,17 +268,30 @@ function writeTable(body) {
     bySlug[slug] = body_rows[i].slice(0, columns.length);
   }
 
-  var added = 0, updated = 0, protectedRows = 0;
+  var frozen = FROZEN_TABS.indexOf(name) !== -1;
+  var allowCorrection = body.allowCorrection === true;
+
+  var added = 0, updated = 0, unchanged = 0, protectedRows = 0, corrected = [];
+  var drift = [];
   for (var i = 0; i < rows.length; i++) {
     var slug = String(rows[i][0]);
     var current = bySlug[slug];
     if (current) {
       var currentYear = yearColumn === -1 ? null : String(current[yearColumn]);
-      if (!crossSeason && pushYear !== null && currentYear !== null &&
-          currentYear !== '' && currentYear !== pushYear) {
+      if (!crossSeason && currentYear !== null && currentYear !== '' &&
+          currentYear !== pushYear) {
         protectedRows++;      // a different season's row. Leave it exactly as is.
         continue;
       }
+      if (sameRow(current, rows[i], columns.length)) {
+        unchanged++;
+        continue;             // an identical replay is a no-op, not a rewrite
+      }
+      if (frozen && !allowCorrection) {
+        drift.push(slug + ' (' + describeDrift(current, rows[i], columns) + ')');
+        continue;
+      }
+      if (frozen) { corrected.push(slug); }
       bySlug[slug] = rows[i];
       updated++;
     } else {
@@ -244,6 +299,14 @@ function writeTable(body) {
       bySlug[slug] = rows[i];
       added++;
     }
+  }
+
+  if (drift.length) {
+    return fail(name + ' is a frozen table and ' + drift.length + ' row(s) ' +
+                'would change: ' + drift.slice(0, 5).join('; ') +
+                (drift.length > 5 ? ' and ' + (drift.length - 5) + ' more' : '') +
+                '. Nothing was written. If the change is deliberate, resend ' +
+                'with allowCorrection.');
   }
 
   var grid = [columns];
@@ -265,10 +328,56 @@ function writeTable(body) {
     tab: name,
     added: added,
     updated: updated,
+    unchanged: unchanged,
     protected: protectedRows,
+    corrected: corrected,
+    frozen: frozen,
     total: order.length,
     range: name + '!A1:' + colName(columns.length) + grid.length
   });
+}
+
+
+/** Compare a stored row against an incoming one, tolerating how Sheets types. */
+function sameRow(current, incoming, width) {
+  for (var i = 0; i < width; i++) {
+    if (normalizeCell(current[i]) !== normalizeCell(incoming[i])) { return false; }
+  }
+  return true;
+}
+
+
+/**
+ * A cell as a comparable string.
+ *
+ * Sheets does not hand back what you put in. A number written as 33.4 comes
+ * back as a number, a blank as an empty string, and a date-looking string may
+ * come back as a Date. Comparing raw values would report every replay as a
+ * change and make the frozen check useless.
+ */
+function normalizeCell(value) {
+  if (value === null || value === undefined) { return ''; }
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    return Utilities.formatDate(value, 'UTC', 'yyyy-MM-dd');
+  }
+  if (typeof value === 'boolean') { return value ? 'true' : 'false'; }
+  if (typeof value === 'number') { return String(value); }
+  return String(value).trim();
+}
+
+
+/** Name the columns that differ, so a refusal says what actually moved. */
+function describeDrift(current, incoming, columns) {
+  var parts = [];
+  for (var i = 0; i < columns.length && parts.length < 3; i++) {
+    var was = normalizeCell(current[i]);
+    var now = normalizeCell(incoming[i]);
+    if (was !== now) {
+      parts.push(columns[i] + ': ' + JSON.stringify(was) + ' -> ' +
+                 JSON.stringify(now));
+    }
+  }
+  return parts.join(', ');
 }
 
 

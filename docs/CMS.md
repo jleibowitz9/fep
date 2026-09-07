@@ -45,9 +45,9 @@ Two conventions, both there to stop a component being bound to the wrong thing:
 | `seasons` | `2026` | 1 | weekly |
 | `competitors` | `amir` | 12 | rarely |
 | `competitor_seasons` | `2026-amir` | 12 | weekly |
-| `games` | `2026-w01-commanders` | 17 | **weekly** |
+| `games` | `2026-w01` | 17 | **weekly** |
 | `weeks` | `2026-w03` | 19 | **frozen** |
-| `picks` | `2026-w01-commanders-amir` | 204 | **once a season** |
+| `picks` | `2026-w01-amir` | 204 | **once a season** |
 | `standings` | `2026-w07-amir` | 228 | **frozen, append only** |
 
 About 490 rows a season.
@@ -70,9 +70,15 @@ Every slug carries the year, because Framer upserts on slug: without it, 2027
 week 1 lands on top of 2026 week 1 and the old row is gone. Weeks are zero
 padded (`w07`) so a lexical sort is chronological.
 
+**A slug never contains a value that can be corrected.** It used to carry the
+opponent (`2026-w01-commanders`), which read nicely and was wrong: correcting one
+team name in ESPN's data changed the slug, so the corrected row published as a
+*new* row and the original was orphaned forever, because the transport never
+deletes. Season and week cannot be corrected, so that is all a slug holds.
+
 `competitors` is the one table whose slugs have no year, because a person spans
 seasons. It is also the one table the Apps Script allows a push to rewrite
-across years.
+across years, and so the fourth table outside the invariant.
 
 ## Two seasons in one sheet
 
@@ -115,11 +121,37 @@ newsletters still read. Nothing then shares a document with the old data.
 }
 ```
 
-If `cms_url` is absent the tables go to the same deployment as the legacy push,
-which works but puts them in the old spreadsheet.
+If `cms_url` is absent the push is refused rather than falling back to the
+legacy deployment, which would put these tables in the spreadsheet the published
+newsletters read. `--same-sheet` overrides that, for anyone who genuinely wants
+them together.
 
 The tabs do not need to exist. `writeTable` creates them, writes the header, and
 refuses to write under a header that has drifted.
+
+## Frozen tables, and correcting one
+
+`weeks`, `standings` and `picks` hold a record of a week that has happened. Once
+a row is written there, the only rewrite the script accepts is an identical one.
+Replaying a week is a no-op; a week that has *changed* is refused, and the
+refusal names the columns that moved.
+
+That means re-running a past week will fail rather than quietly republish it:
+
+```
+standings is a frozen table and 12 row(s) would change:
+2026-w03-amir (weighted: "18.6" -> "17.2"), ... Nothing was written.
+```
+
+Almost always that is the right answer, because ESPN's win probabilities move
+and a re-run of week 3 in week 8 does not reproduce week 3. If the change really
+is a correction, ask for it explicitly:
+
+```bash
+python3 cli.py cms --live --allow-correction
+```
+
+The response then lists every row it changed.
 
 ## What the script will not do
 
@@ -127,14 +159,23 @@ Even holding the URL and the token, a caller cannot:
 
 - write to any tab outside the seven above, so `Weighted - MASTER` and the
   per-week tabs are unreachable
+- push without naming the season, or send a row belonging to a season other
+  than the one named. Both were bypasses: the guard used to take the season
+  from the caller and believe it
 - modify a row belonging to a season other than the one being pushed
   (`competitors` excepted, which spans seasons by design)
+- change an already-written row in a frozen table without `allowCorrection`
 - delete a row, ever
-- write a string that looks like a formula (`=`, `+`, `-`, `@` in a *string*; a
-  negative number is a number and is fine)
+- write a string that looks like a formula (`=`, `+` or `-` leading a *string*;
+  `@` is allowed, because every away game label begins with it, and only `=`
+  actually creates a formula through the Sheets API)
 - write under a header that does not match what it sent
 
-Run `node appsscript/test_code.js` to see those enforced.
+Set an `ACTIVE_SEASON` script property to lock the sheet to one season: any push
+for a different year is then refused outright. Leave it unset for no extra
+restriction.
+
+Run `node appsscript/test_code.js` to see all of those enforced.
 
 ## Driving the home screen from one value
 

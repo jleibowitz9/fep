@@ -342,6 +342,35 @@ def run(season: dict, results_override: Optional[List[str]] = None,
 # snapshots
 # ---------------------------------------------------------------------------
 
+def _opponent_name(label: str) -> str:
+    """"@ Vikings" -> "Vikings". The season file stores ESPN's abbreviation."""
+    import re
+    cleaned = re.sub(r"\([^)]*\)", "", label)
+    return re.sub(r"^\s*(vs\.?|@|at)\s*", "", cleaned, flags=re.I).strip()
+
+
+def _game_facts(season: dict, week: int) -> Optional[dict]:
+    """What was known about this week's game, copied into the snapshot."""
+    for game in season["games"]:
+        if game["nfl_week"] != week:
+            continue
+        return {
+            "index": game["index"],
+            "event_id": game.get("event_id"),
+            "label": game["label"],
+            "opponent": game.get("opponent"),
+            "opponent_name": _opponent_name(game["label"]),
+            "home": game.get("home"),
+            "neutral_site": game.get("neutral_site"),
+            "venue": game.get("venue"),
+            "division": game.get("division"),
+            "result": game["result"],
+            "points_for": game.get("points_for"),
+            "points_against": game.get("points_against"),
+        }
+    return None
+
+
 def snapshot(season: dict, week: int, board: engine.Board, note: str = "") -> dict:
     """Record the board for a week. Re-saving the same week replaces it.
 
@@ -371,6 +400,10 @@ def snapshot(season: dict, week: int, board: engine.Board, note: str = "") -> di
         "results": results_through_week(season, week),
         "points_for": points_through_week(season, week),
         "weights": weights(season),
+        # The week's own matchup, frozen here rather than looked up later.
+        # A label or a venue can be corrected in ESPN's data at any time, and a
+        # historical row that reads today's schedule would change with it.
+        "game": _game_facts(season, week),
     }
     season["snapshots"] = [s for s in season.get("snapshots", []) if s["week"] != week]
     season["snapshots"].append(entry)

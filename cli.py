@@ -247,7 +247,8 @@ def cmd_cms(argv):
         return
 
     for result in sheets.push_tables(
-            season, only=only, same_sheet="--same-sheet" in argv):
+            season, only=only, same_sheet="--same-sheet" in argv,
+            allow_correction="--allow-correction" in argv):
         print("  {:<20} +{} new, {} updated, {} left alone ({} total)".format(
             result.get("tab", "?"), result.get("added", 0),
             result.get("updated", 0), result.get("protected", 0),

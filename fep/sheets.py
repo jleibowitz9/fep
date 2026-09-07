@@ -496,7 +496,8 @@ def shared_table_config(config_path: str = APPSSCRIPT_CONFIG) -> dict:
 
 def push_tables(season: dict, config_path: str = APPSSCRIPT_CONFIG,
                 dry_run: bool = False, only: Optional[Sequence[str]] = None,
-                timeout: float = 120.0, same_sheet: bool = False) -> List[dict]:
+                timeout: float = 120.0, same_sheet: bool = False,
+                allow_correction: bool = False) -> List[dict]:
     """Write every CMS table, one call per table.
 
     One call each rather than one big call: a table is the unit the Apps Script
@@ -528,6 +529,10 @@ def push_tables(season: dict, config_path: str = APPSSCRIPT_CONFIG,
             "columns": matrix[0],
             "rows": matrix[1:],
         }
+        if allow_correction:
+            # Only ever set by an explicit flag. A frozen table refuses a
+            # changed row without it, which is the point.
+            payload["allowCorrection"] = True
         if dry_run:
             results.append({"dry_run": True, "tab": name,
                             "rows": len(table.rows),

@@ -36,12 +36,18 @@ global.SpreadsheetApp = {
   }),
   flush: () => {},
 };
-global.PropertiesService = { getScriptProperties: () => ({ getProperty: () => 'secret' }) };
+const PROPS = { FEP_TOKEN: 'secret' };   // ACTIVE_SEASON deliberately unset
+global.PropertiesService = {
+  getScriptProperties: () => ({ getProperty: (k) => PROPS[k] || null }),
+};
 global.ContentService = {
   MimeType: { JSON: 'json' },
   createTextOutput: t => ({ setMimeType: () => JSON.parse(t) }),
 };
 global.Logger = { log: () => {} };
+global.Utilities = {
+  formatDate: (d) => d.toISOString().slice(0, 10),
+};
 // Apps Script has no modules, so the file is evaluated as-is. Node will not
 // load a .gs extension, hence the read-and-eval.
 eval(fs.readFileSync(require('path').join(__dirname, 'Code.gs'), 'utf8'));
@@ -63,20 +69,69 @@ check('creates the tab and writes both rows', r.ok && r.added===2 && r.total===2
 
 r = post({op:'writeTable', tab:'standings', year:2026, columns:COLS,
           rows:[row(2026,1,'amir',10), row(2026,1,'pop',12), row(2026,2,'amir',14)]});
-check('appends a new week, updates the old rows', r.ok && r.added===1 && r.updated===2, r);
+check('appends a new week, replays the old rows as no-ops',
+      r.ok && r.added===1 && r.unchanged===2 && r.updated===0, r);
+
+console.log('\n--- a frozen row cannot be quietly rewritten ---');
+r = post({op:'writeTable', tab:'standings', year:2026, columns:COLS,
+          rows:[row(2026,1,'amir',99)]});
+check('refuses to change an already published row',
+      !r.ok && /frozen table/.test(r.error), r);
+check('and says which column moved', !r.ok && /weighted/.test(r.error), r);
+check('the stored value is untouched',
+      SHEETS['standings'].grid.find(x=>x[0]==='2026-w01-amir')[4] === 10);
+r = post({op:'writeTable', tab:'standings', year:2026, columns:COLS,
+          rows:[row(2026,1,'amir',99)], allowCorrection:true});
+check('allowCorrection lets a deliberate correction through',
+      r.ok && r.updated===1 && r.corrected.length===1, r);
+post({op:'writeTable', tab:'standings', year:2026, columns:COLS,
+      rows:[row(2026,1,'amir',10)], allowCorrection:true});   // put it back
+r = post({op:'writeTable', tab:'seasons', year:2026,
+          columns:['slug','season','status'], rows:[['2026',2026,'final']]});
+check('a live table still updates freely', r.ok, r);
+r = post({op:'writeTable', tab:'seasons', year:2026,
+          columns:['slug','season','status'], rows:[['2026',2026,'in_progress']]});
+check('and updates again without complaint', r.ok && r.updated===1, r);
 
 console.log('\n--- the guarantee: a past season cannot be rewritten ---');
 r = post({op:'writeTable', tab:'standings', year:2027, columns:COLS,
           rows:[row(2027,1,'amir',9)]});
 check('2027 appends alongside 2026', r.ok && r.added===1 && r.total===4, r);
 
-// A caller that tries to overwrite a 2026 row while pushing 2027.
+// A caller that tries to overwrite a 2026 row while pushing 2027. This is now
+// caught by the consistency rule before it ever reaches the protection pass,
+// which is a better outcome: the whole write is refused rather than one row
+// being quietly skipped.
 r = post({op:'writeTable', tab:'standings', year:2027, columns:COLS,
           rows:[['2026-w01-amir', 2026, 1, 'amir', 99999]]});
-check('refuses to touch a 2026 row during a 2027 push', r.ok && r.protected===1 && r.updated===0, r);
-const grid = SHEETS['standings'].grid;
-const amir = grid.find(x => x[0] === '2026-w01-amir');
-check('the 2026 value is still 10, not 99999', amir && amir[4] === 10, amir);
+check('refuses the whole write when a row belongs to another season',
+      !r.ok && /crosses from one season/.test(r.error), r);
+const amir0 = SHEETS['standings'].grid.find(x => x[0] === '2026-w01-amir');
+check('the 2026 value is still 10, not 99999', amir0 && amir0[4] === 10, amir0);
+
+// Defence in depth: an honestly-labelled row whose slug already belongs to a
+// different season in the sheet. Only reachable if the sheet is already
+// inconsistent, which is exactly when a last line of defence earns its keep.
+SHEETS['standings'].grid.push(['2027-w09-ghost', 2026, 9, 'ghost', 42]);
+r = post({op:'writeTable', tab:'standings', year:2027, columns:COLS,
+          rows:[['2027-w09-ghost', 2027, 9, 'ghost', 1]]});
+check('leaves a row the sheet says belongs to another season',
+      r.ok && r.protected===1 && r.updated===0, r);
+check('and its value is untouched',
+      SHEETS['standings'].grid.find(x => x[0] === '2027-w09-ghost')[4] === 42);
+
+console.log('\n--- the guard does not believe the caller ---');
+// Both of these were reproducible bypasses before the season became required
+// and every row had to agree with it.
+r = post({op:'writeTable', tab:'standings', columns:COLS,
+          rows:[row(2026,1,'amir',77)]});
+check('refuses a push with no season at all', !r.ok && /year is required/.test(r.error), r);
+r = post({op:'writeTable', tab:'standings', year:2026, columns:COLS,
+          rows:[['2026-w01-amir', 2027, 1, 'amir', 77]]});
+check('refuses a row whose season disagrees with the push',
+      !r.ok && /crosses from one season/.test(r.error), r);
+check('neither bypass moved the stored value',
+      SHEETS['standings'].grid.find(x=>x[0]==='2026-w01-amir')[4] === 10);
 
 console.log('\n--- the other guards ---');
 r = post({op:'writeTable', tab:'Weighted - MASTER', year:2026, columns:COLS, rows:[row(2026,1,'a',1)]});
@@ -118,11 +173,25 @@ check('refuses a short row', !r.ok && /cells/.test(r.error), r);
 r = doPost({postData:{contents:JSON.stringify({token:'wrong',op:'writeTable',tab:'standings',columns:COLS,rows:[]})}});
 check('refuses a bad token', !r.ok && /bad token/.test(r.error), r);
 
+console.log('\n--- ACTIVE_SEASON, a lock only the sheet owner can set ---');
+PROPS.ACTIVE_SEASON = '2026';
+r = post({op:'writeTable', tab:'standings', year:2026, columns:COLS,
+          rows:[row(2026,4,'amir',5)]});
+check('allows the active season', r.ok, r);
+r = post({op:'writeTable', tab:'standings', year:2027, columns:COLS,
+          rows:[row(2027,1,'amir',5)]});
+check('refuses any other season', !r.ok && /ACTIVE_SEASON is 2026/.test(r.error), r);
+delete PROPS.ACTIVE_SEASON;
+r = post({op:'writeTable', tab:'standings', year:2027, columns:COLS,
+          rows:[row(2027,3,'amir',5)]});
+check('unset means no extra restriction', r.ok && r.added===1, r);
+
 console.log('\n--- nothing is ever deleted ---');
 const before = SHEETS['standings'].grid.length;
-r = post({op:'writeTable', tab:'standings', year:2026, columns:COLS, rows:[row(2026,1,'amir',11)]});
-check('a one-row push does not truncate the table',
-      r.ok && SHEETS['standings'].grid.length === before, {before, after: SHEETS['standings'].grid.length});
+r = post({op:'writeTable', tab:'standings', year:2026, columns:COLS, rows:[row(2026,1,'amir',10)]});
+check('a one-row replay does not truncate the table',
+      r.ok && r.unchanged===1 && SHEETS['standings'].grid.length === before,
+      {before, after: SHEETS['standings'].grid.length});
 
 console.log(`\n${pass} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

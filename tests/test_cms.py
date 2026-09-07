@@ -147,6 +147,93 @@ class ImmutabilityTest(unittest.TestCase):
                          sorted(self.FROZEN + self.LIVE + ("competitors",)))
 
 
+class CorrectingTheScheduleTest(unittest.TestCase):
+    """A schedule correction must not disturb anything already published.
+
+    Slugs used to carry the opponent name, so correcting one label produced a
+    whole new set of pick rows and orphaned the originals, because the transport
+    never deletes. weeks_table also read today's schedule for historical weeks,
+    so a corrected label rewrote a week published months earlier.
+    """
+
+    def _rows(self, season):
+        return {name: {r["slug"]: dict(r) for r in table.rows}
+                for name, table in cms.tables(season).items()}
+
+    def test_renaming_an_opponent_changes_no_slug(self):
+        season = build_season()
+        walk(season, 18)
+        before = self._rows(season)
+
+        season["games"][0]["label"] = "vs. Football Team"
+        season["games"][0]["opponent"] = "Football Team"
+        after = self._rows(season)
+
+        for name in before:
+            self.assertEqual(sorted(before[name]), sorted(after[name]),
+                             "{} slugs moved".format(name))
+
+    def test_renaming_an_opponent_does_not_rewrite_a_published_week(self):
+        season = build_season()
+        walk(season, 18)
+        before = self._rows(season)
+
+        season["games"][0]["label"] = "vs. Football Team"
+        season["games"][0]["opponent"] = "Football Team"
+        after = self._rows(season)
+
+        # weeks and standings and picks are frozen: not one cell may move.
+        for name in ("weeks", "standings", "picks"):
+            for slug, row in before[name].items():
+                self.assertEqual(row, after[name][slug],
+                                 "{} {} changed".format(name, slug))
+
+        # games is the live table, so it is allowed to show the correction.
+        self.assertEqual(after["games"]["2026-w01"]["opponent"], "Football Team")
+
+    def test_the_frozen_matchup_survives_the_game_disappearing(self):
+        """The strongest form: the schedule entry is gone entirely."""
+        season = build_season()
+        walk(season, 6)
+        before = self._rows(season)["weeks"]["2026-w03"]
+        season["games"] = [g for g in season["games"] if g["nfl_week"] != 3]
+        after = self._rows(season)["weeks"]["2026-w03"]
+        self.assertEqual(before, after)
+
+
+class StructuredGameFieldsTest(unittest.TestCase):
+    """Prefer what ESPN recorded over what a display string implies."""
+
+    def test_a_neutral_site_game_is_not_a_home_game(self):
+        season = build_season()
+        season["games"][4].update({
+            "label": "vs. Jaguars (London)", "opponent": "Jaguars",
+            "home": False, "neutral_site": True,
+            "venue": "Tottenham Hotspur Stadium",
+        })
+        row = {r["nfl_week"]: r for r in cms.games_table(season).rows}[5]
+        # The label says "vs.", the data says otherwise. The data wins.
+        self.assertEqual(row["home_away"], "away")
+        self.assertTrue(row["neutral_site"])
+        self.assertEqual(row["venue"], "Tottenham Hotspur Stadium")
+        self.assertEqual(row["opponent"], "Jaguars")
+
+    def test_parsing_is_still_the_fallback(self):
+        season = build_season()
+        for game in season["games"]:
+            for field in ("opponent", "home", "neutral_site", "venue"):
+                game.pop(field, None)
+        rows = cms.games_table(season).rows
+        self.assertTrue(any(r["home_away"] == "away" for r in rows))
+        self.assertTrue(any(r["home_away"] == "home" for r in rows))
+
+    def test_the_event_id_is_carried_through(self):
+        season = build_season()
+        season["games"][0]["event_id"] = "401772936"
+        row = cms.games_table(season).rows[0]
+        self.assertEqual(row["event_id"], "401772936")
+
+
 class SlugTest(unittest.TestCase):
 
     def test_every_slug_carries_the_year(self):
