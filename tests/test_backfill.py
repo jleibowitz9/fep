@@ -110,5 +110,58 @@ class TwoSeasonsTest(unittest.TestCase):
                              name)
 
 
+class RealDataPassesTheGuardsTest(unittest.TestCase):
+    """Run actual season data through the Apps Script's rules, in Python.
+
+    The formula guard rejected "@ Chiefs" on the first real push, having
+    survived every test on both sides: the Python tests never reached the
+    script, and the JavaScript tests used made-up rows that happened never to
+    start with "@". These close that gap by asserting the rules against every
+    cell of every table of both real seasons.
+
+    Mirrors appsscript/Code.gs. If that file's rules change, this must too, and
+    the duplication is the point: it is a second pair of eyes on the same rule,
+    not a shared implementation that can be wrong in one place.
+    """
+
+    import re as _re
+    FORMULA = _re.compile(r"^[=+\-]")
+
+    def seasons(self):
+        found = [s for s in (load(2025), load(2026)) if s]
+        if not found:
+            self.skipTest("no season files")
+        return found
+
+    def test_no_real_cell_looks_like_a_formula(self):
+        for season in self.seasons():
+            for name, table in cms.tables(season).items():
+                for row in table.matrix()[1:]:
+                    for column, cell in zip(table.columns, row):
+                        if isinstance(cell, str) and self.FORMULA.match(cell):
+                            self.fail("{} {}.{} would be refused: {!r}".format(
+                                season["year"], name, column, cell))
+
+    def test_away_game_labels_survive(self):
+        """The specific case that failed."""
+        for season in self.seasons():
+            labels = [r["label"] for r in cms.tables(season)["games"].rows]
+            away = [l for l in labels if l.startswith("@")]
+            self.assertTrue(away, "no away games to test")
+            for label in away:
+                self.assertIsNone(self.FORMULA.match(label), label)
+
+    def test_no_cell_is_empty_where_a_slug_belongs(self):
+        for season in self.seasons():
+            for name, table in cms.tables(season).items():
+                for row in table.rows:
+                    self.assertTrue(row["slug"], "{} {}".format(season["year"], name))
+
+    def test_column_a_is_always_the_slug(self):
+        for season in self.seasons():
+            for name, table in cms.tables(season).items():
+                self.assertEqual(table.columns[0], "slug", name)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

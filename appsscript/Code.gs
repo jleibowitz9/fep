@@ -174,9 +174,16 @@ function writeTable(body) {
     }
     for (var c = 0; c < columns.length; c++) {
       var cell = rows[r][c];
-      // Numbers and booleans are fine. Only a *string* can be a formula, and a
-      // negative number arrives as a number, not as "-5".
-      if (typeof cell === 'string' && /^[=+\-@]/.test(cell)) {
+      // Numbers and booleans are fine. Only a *string* can become a formula,
+      // and a negative number arrives as a number, not as "-5".
+      //
+      // Deliberately not blocking "@". setValues() only treats a leading "="
+      // as a formula; "+", "-" and "@" are CSV *import* injection prefixes,
+      // which is a different threat and not this path. Blocking "@" rejected
+      // every away game, because their labels read "@ Chiefs". Found by the
+      // first real push, having survived every test on both sides, because
+      // neither harness had ever fed a real game label through this check.
+      if (typeof cell === 'string' && /^[=+\-]/.test(cell)) {
         return fail('cell at row ' + r + ' col ' + c +
                     ' looks like a formula: ' + JSON.stringify(cell));
       }

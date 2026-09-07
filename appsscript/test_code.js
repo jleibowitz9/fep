@@ -89,6 +89,21 @@ check('refuses a formula string', !r.ok && /formula/.test(r.error), r);
 r = post({op:'writeTable', tab:'standings', year:2026, columns:COLS,
           rows:[['2026-w03-y', 2026, 3, 'y', -4.2]]});
 check('allows a negative NUMBER', r.ok, r);
+// Real data, not synthetic. Every away game's label starts with "@".
+r = post({op:'writeTable', tab:'games', year:2026,
+          columns:['slug','season','label','opponent','home_away'],
+          rows:[['2026-w02-chiefs', 2026, '@ Chiefs', 'Chiefs', 'away'],
+                ['2026-w01-cowboys', 2026, 'vs. Cowboys', 'Cowboys', 'home'],
+                ['2026-w05-jaguars', 2026, 'vs. Jaguars (London)', 'Jaguars', 'home']]});
+check('allows real game labels, including "@ Chiefs"', r.ok && r.added===3, r);
+r = post({op:'writeTable', tab:'games', year:2026,
+          columns:['slug','season','label','opponent','home_away'],
+          rows:[['2026-w09-x', 2026, '=IMPORTRANGE("evil")', 'x', 'home']]});
+check('still refuses a leading "="', !r.ok && /formula/.test(r.error), r);
+r = post({op:'writeTable', tab:'games', year:2026,
+          columns:['slug','season','label','opponent','home_away'],
+          rows:[['2026-w09-y', 2026, '-1+1', 'y', 'home']]});
+check('still refuses a leading "-"', !r.ok && /formula/.test(r.error), r);
 r = post({op:'writeTable', tab:'standings', year:2026, columns:['name','year'], rows:[['a',2026]]});
 check('refuses when column A is not slug', !r.ok && /slug/.test(r.error), r);
 r = post({op:'writeTable', tab:'games', year:2026, columns:['slug','week'], rows:[['2026-w1',1]]});
