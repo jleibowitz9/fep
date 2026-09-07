@@ -342,8 +342,8 @@ def render_from_season(season: dict, upto_week: Optional[int] = None, **kwargs) 
     games = {}
     for game in season["games"]:
         games[game["nfl_week"]] = {"label": game["label"], "result": game["result"]}
-    bye = season.get("bye_week")
-    if bye:
+    for bye in (season.get("bye_weeks")
+                or ([season["bye_week"]] if season.get("bye_week") else [])):
         games[bye] = {"label": "Bye", "result": None}
 
     return render(

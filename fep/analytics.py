@@ -172,6 +172,11 @@ def counterfactual(season: dict, game_index: Optional[int] = None) -> Optional[d
     actual = results[game_index]
     if actual == UNPLAYED:
         return None
+    if actual == engine.TIE:
+        # A tie has no single counterfactual: it could have gone either way, and
+        # it awarded nobody anything, so "the season that did not happen" is not
+        # one season. The What If tab covers both branches individually.
+        return None
     flipped = list(results)
     flipped[game_index] = engine.LOSS if actual == engine.WIN else engine.WIN
 
@@ -194,8 +199,8 @@ def retrospective_leverage(season: dict) -> List[dict]:
     actual_board = _run(season, results)  # same in every comparison; compute once
     rows = []
     for i, actual in enumerate(results):
-        if actual == UNPLAYED:
-            continue
+        if actual in (UNPLAYED, engine.TIE):
+            continue  # a tie moved nobody, so there is no regret to measure
         flipped = list(results)
         flipped[i] = engine.LOSS if actual == engine.WIN else engine.WIN
         other_board = _run(season, flipped)
@@ -477,19 +482,27 @@ def espn_calibration(season: dict) -> dict:
     right = 0
     for game in played:
         p = float(game["weight"])
+        # A tie scores as half a win: the predictor was neither right nor wrong,
+        # which is what a 0.5 outcome means to a Brier score. It cannot be
+        # called correct straight up either way, so it counts toward neither.
+        if game["result"] == engine.TIE:
+            errors.append((p - 0.5) ** 2)
+            continue
         actual = 1.0 if game["result"] == engine.WIN else 0.0
         errors.append((p - actual) ** 2)
         if (p >= 0.5) == (actual == 1.0):
             right += 1
 
     brier = sum(errors) / len(errors)
+    decided = [g for g in played if g["result"] != engine.TIE]
     return {
         "games": len(played),
+        "ties": len(played) - len(decided),
         "brier": round(brier, 4),
         "baseline_coinflip": 0.25,
         "beats_coinflip": brier < 0.25,
         "straight_up_correct": right,
-        "straight_up_pct": round(right / len(played) * 100, 1),
+        "straight_up_pct": round(right / len(decided) * 100, 1) if decided else None,
         "mean_predicted_wins": round(sum(float(g["weight"]) for g in played), 2),
         "actual_wins": sum(1 for g in played if g["result"] == engine.WIN),
     }

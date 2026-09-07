@@ -18,6 +18,7 @@ import contextlib
 import csv
 import importlib.util
 import io
+import json
 import os
 import sys
 import unittest
@@ -25,7 +26,8 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from fep import chart, engine, season as season_mod, sheets, statpack  # noqa: E402
+from fep import (chart, engine, espn, season as season_mod,  # noqa: E402
+                 sheets, statpack)
 
 SKILL = os.path.expanduser(
     "~/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/"
@@ -750,6 +752,110 @@ class PaletteTest(unittest.TestCase):
         for entry in series:
             if entry["name"] in chart.CANONICAL:
                 self.assertEqual(entry["color"], chart.CANONICAL[entry["name"]])
+
+
+class FutureProofTest(unittest.TestCase):
+    """The structural changes the FEP will actually meet.
+
+    None of these are hypothetical for their own sake: the NFL has openly
+    discussed an eighteenth game, which brings a second bye with it, and the
+    roster has changed size four times in ten seasons.
+    """
+
+    def _games(self, count, weeks, byes):
+        games, index = [], 0
+        for week in range(1, weeks + 1):
+            if week in byes:
+                continue
+            games.append({"index": index, "nfl_week": week, "label": "G%d" % index})
+            index += 1
+        assert len(games) == count
+        return games
+
+    def test_an_eighteen_game_season_with_two_byes(self):
+        games = self._games(18, 20, {7, 14})
+        mapping = espn.week_to_game_index(games)
+        self.assertEqual(len(mapping), 20)
+        self.assertEqual(espn.bye_weeks(games), [7, 14])
+        self.assertEqual(espn.bye_week(games), 7)   # the scalar still answers
+
+    def test_both_byes_get_labelled(self):
+        """The scalar bye_week silently dropped the second one."""
+        season = {
+            "games": [{"nfl_week": w, "label": "G", "result": "A"}
+                      for w in (1, 2, 3)],
+            "bye_week": 7, "bye_weeks": [7, 14], "year": 2031,
+            "roster": ["Amir"], "snapshots": [
+                {"week": w, "weighted": {"Amir": 100.0}} for w in (0, 1)],
+        }
+        html_out = chart.render_from_season(season)
+        self.assertIn("Bye", html_out)
+        # both bye weeks reach the payload, not just the first
+        labels = chart.build_payload(
+            [0, 1], {0: {"Amir": 100.0}, 1: {"Amir": 100.0}}, ["Amir"],
+            {7: {"label": "Bye", "result": None},
+             14: {"label": "Bye", "result": None}}, 2031)
+        self.assertTrue(labels)
+
+    def test_the_engine_scales_to_eighteen_games(self):
+        picks = {"A": ["W"] * 18, "B": ["L"] * 18}
+        board = engine.run(picks, ["A"] * 18, [0.5] * 18, [0, 6, 9],
+                           {"A": 400, "B": 420}, [None] * 18)
+        self.assertAlmostEqual(sum(board.weighted.values()), 100.0, places=6)
+
+    def test_a_shrinking_roster_still_normalises(self):
+        picks = {n: ["W"] * 17 for n in ("A", "B", "C")}
+        guesses = {"A": 400, "B": 410, "C": 420}
+        full = engine.run(picks, ["A"] * 17, [0.5] * 17, [0], guesses, [None] * 17)
+        del picks["C"], guesses["C"]
+        fewer = engine.run(picks, ["A"] * 17, [0.5] * 17, [0], guesses, [None] * 17)
+        self.assertAlmostEqual(sum(full.weighted.values()), 100.0, places=6)
+        self.assertAlmostEqual(sum(fewer.weighted.values()), 100.0, places=6)
+
+    def test_departing_competitor_leaves_everyone_elses_colour_alone(self):
+        before = chart.colors_for(["Amir", "Jay", "Sarah"])
+        after = chart.colors_for(["Amir", "Sarah"])
+        self.assertEqual(after["Amir"], before["Amir"])
+        self.assertEqual(after["Sarah"], before["Sarah"])
+
+
+class PastYearsAreImmutableTest(unittest.TestCase):
+    """The requirement: nothing we change later may alter a published week."""
+
+    def test_republishing_a_finished_season_is_byte_identical(self):
+        """Rebuild every published 2025 week from the completed season.
+
+        The season's results were unknown when week 3 was published and are
+        known now, so if any of them leaked backwards into the payload this
+        would differ. It is the same failure as a per-week tab that filters a
+        live master sheet, one layer down.
+        """
+        here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        final_path = os.path.join(here, "chart-data", "2025", "week-18.json")
+        if not os.path.exists(final_path):
+            self.skipTest("no published 2025 chart data in this checkout")
+        with open(final_path) as fh:
+            final = json.load(fh)
+
+        weeks = final["weeks"]
+        roster = [e["name"] for e in final["series"]]
+        board = {}
+        for entry in final["series"]:
+            for week, value in zip(weeks, entry["values"]):
+                board.setdefault(week, {})[entry["name"]] = value
+        games_now = {g["week"]: {"label": g["label"], "result": g["result"]}
+                     for g in final["games"]}
+
+        for week in weeks:
+            path = os.path.join(here, "chart-data", "2025",
+                                "week-{:02d}.json".format(week))
+            with open(path) as fh:
+                published = json.load(fh)
+            rebuilt = chart.build_payload(weeks, board, roster, games_now,
+                                          2025, upto_week=week)
+            self.assertEqual(json.dumps(published, sort_keys=True),
+                             json.dumps(rebuilt, sort_keys=True),
+                             "week {} changed".format(week))
 
 
 if __name__ == "__main__":

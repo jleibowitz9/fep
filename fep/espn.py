@@ -165,11 +165,17 @@ def fetch_schedule(year: int, refresh: bool = False) -> List[dict]:
 
         result = "A"
         if completed:
-            # ESPN sets `winner` on both sides once a game is final.
+            # ESPN sets `winner` on both sides once a game is final. On a tie it
+            # sets neither side true, so testing `winner is False` alone turned
+            # a real tie into an Eagles loss -- or, if ESPN omits the flag,
+            # left a finished game marked unplayed. A completed game with no
+            # winner is a tie, which the family scores as counting for nobody.
             if phi.get("winner") is True:
                 result = "W"
-            elif phi.get("winner") is False:
+            elif opp.get("winner") is True:
                 result = "L"
+            else:
+                result = "T"
 
         opp_team = opp.get("team") or {}
         opp_abbr = opp_team.get("abbreviation") or ""
@@ -243,11 +249,20 @@ def week_to_game_index(games: List[dict]) -> Dict[int, Optional[int]]:
     return {week: by_week.get(week) for week in range(1, last + 1)}
 
 
+def bye_weeks(games: List[dict]) -> List[int]:
+    """Every week with no game. Usually one; an 18-game season would have two."""
+    return [week for week, index in week_to_game_index(games).items()
+            if index is None]
+
+
 def bye_week(games: List[dict]) -> Optional[int]:
-    for week, index in week_to_game_index(games).items():
-        if index is None:
-            return week
-    return None
+    """The first bye. Kept because the season file stores a scalar.
+
+    Prefer bye_weeks() anywhere the answer is used to label rows, or the second
+    bye of an 18-game season goes unlabelled.
+    """
+    weeks = bye_weeks(games)
+    return weeks[0] if weeks else None
 
 
 # ---------------------------------------------------------------------------
@@ -323,5 +338,6 @@ def fetch_season(year: int, refresh: bool = False) -> dict:
         "division_indices": division_indices(games),
         "week_to_game_index": week_to_game_index(games),
         "bye_week": bye_week(games),
+        "bye_weeks": bye_weeks(games),
         "fetched_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
     }

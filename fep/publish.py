@@ -91,8 +91,8 @@ def publish_from_season(season: dict, week: Optional[int] = None,
 
     games = {g["nfl_week"]: {"label": g["label"], "result": g["result"]}
              for g in season["games"]}
-    bye = season.get("bye_week")
-    if bye:
+    for bye in (season.get("bye_weeks")
+                or ([season["bye_week"]] if season.get("bye_week") else [])):
         games[bye] = {"label": "Bye", "result": None}
 
     weeks = sorted(snapshots)

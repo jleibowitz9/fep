@@ -114,6 +114,7 @@ def create(year: int, roster: Optional[List[str]] = None, refresh: bool = True) 
         "division_indices": pulled["division_indices"],
         "week_to_game_index": {str(k): v for k, v in pulled["week_to_game_index"].items()},
         "bye_week": pulled["bye_week"],
+        "bye_weeks": pulled.get("bye_weeks", []),
         "snapshots": [],
         "sheet": dict(DEFAULT_SHEET),
         "model": dict(DEFAULT_MODEL),
@@ -195,6 +196,7 @@ def refresh(season: dict, force: bool = True) -> dict:
     season["division_indices"] = pulled["division_indices"]
     season["week_to_game_index"] = {str(k): v for k, v in pulled["week_to_game_index"].items()}
     season["bye_week"] = pulled["bye_week"]
+    season["bye_weeks"] = pulled.get("bye_weeks", [])
     season["last_refresh"] = time.strftime("%Y-%m-%dT%H:%M:%S")
     season["last_refresh_changes"] = changes
     return season

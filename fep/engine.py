@@ -39,6 +39,10 @@ WHAT CHANGED FROM 2025
   by each tiebreaker) falls out of the same pass, for free. This is the
   newsletter's Decision Tree segment, which previously had no implementation.
 
+TIES: a tie is result "T". It counts for nobody -- no correct picks, not a win
+for the record tiebreaker -- which is exactly how the family scored the 2020
+Bengals game. It is a settled result, so it is not enumerated.
+
 CONVENTION KEPT DELIBERATELY: games are treated as independent, and the points
 total is modelled independently of which games are won. Both are simplifications
 the family has always used. They keep the math legible and are not worth
@@ -50,7 +54,17 @@ from __future__ import annotations
 import math
 from typing import Dict, List, Optional, Sequence
 
-WIN, LOSS, UNPLAYED = "W", "L", "A"
+WIN, LOSS, TIE, UNPLAYED = "W", "L", "T", "A"
+
+# A tie is a real NFL result and the family has scored one before: 2020 Week 3
+# against the Bengals counted for nobody. Nothing below needs a special case to
+# honour that, because "counts for nobody" is what the existing arithmetic
+# already does with an unmatched result -- no pick equals "T", so nobody banks a
+# correct pick; wins_played counts "W", so the tie is not a win; and "T" is not
+# UNPLAYED, so the game is settled and drops out of the enumeration. The only
+# thing that had to change was letting it through validation. Before that, a
+# real tie was silently scored as an Eagles loss by the ESPN parser.
+PLAYED = (WIN, LOSS, TIE)
 
 # Defaults for the points model. sd_per_game is Jacob's original tunable.
 DEFAULT_SD_PER_GAME = 11.0
@@ -107,9 +121,9 @@ def validate(
         if bad:
             raise SeasonError("{}'s picks contain {}; only 'W' and 'L' allowed".format(name, bad))
 
-    bad_results = sorted({r for r in results if r not in (WIN, LOSS, UNPLAYED)})
+    bad_results = sorted({r for r in results if r not in (WIN, LOSS, TIE, UNPLAYED)})
     if bad_results:
-        raise SeasonError("results contain {}; only 'W', 'L', 'A' allowed".format(bad_results))
+        raise SeasonError("results contain {}; only 'W', 'L', 'T', 'A' allowed".format(bad_results))
 
     if len(weights) != games:
         raise SeasonError("got {} weights for {} games".format(len(weights), games))
