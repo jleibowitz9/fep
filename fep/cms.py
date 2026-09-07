@@ -416,7 +416,7 @@ def games_table(season: dict) -> Table:
 
 WEEK_COLUMNS = [
     "slug", "season", "week", "label", "is_bye", "game", "game_label",
-    "opponent", "home_away", "result", "eagles_record", "leader", "leader_pct",
+    "opponent", "home_away", "result", "wins", "losses", "leader", "leader_pct",
     "remaining_outcomes", "still_alive", "decided_outright",
 ]
 
@@ -484,8 +484,12 @@ def weeks_table(season: dict) -> Table:
                          if frozen_game else ""),
             "home_away": ("" if home is None else ("home" if home else "away")),
             "result": result,
-            "eagles_record": "{}-{}".format(played.count(engine.WIN),
-                                            played.count(engine.LOSS)),
+            # Two numbers, not the string "5-2". Sheets parses that as the 5th
+            # of February and hands back a Date, so the value written and the
+            # value stored were different things. A page composes the record
+            # from these; a spreadsheet cannot mangle an integer.
+            "wins": played.count(engine.WIN),
+            "losses": played.count(engine.LOSS),
             "leader": leader,
             "leader_pct": board.get(leader, "") if leader else "",
             "remaining_outcomes": snapshot.get("remaining_outcomes", ""),

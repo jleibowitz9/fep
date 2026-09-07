@@ -93,6 +93,17 @@ deletes. Season and week cannot be corrected, so that is all a slug holds.
 seasons. It is also the one table the Apps Script allows a push to rewrite
 across years, and so the fourth table outside the invariant.
 
+## What a spreadsheet does to a string
+
+Sheets rewrites some values on the way in. `weeks` used to carry
+`eagles_record` as `"5-2"`, which it stored as the 5th of February and handed
+back as a Date, so the value written and the value stored were different things.
+On a frozen table that also means every replay looks like a change.
+
+It is `wins` and `losses` as integers now, and a page composes the record. A
+test scans every cell of every table for anything Sheets would read as a date or
+a time, so the next one is caught here rather than on a live push.
+
 ## Two seasons in one sheet
 
 2025 was rebuilt as a season file (`scripts/backfill_2025.py`) so the tables

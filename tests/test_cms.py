@@ -136,8 +136,8 @@ class ImmutabilityTest(unittest.TestCase):
                    if g["nfl_week"] <= 3 and g["result"] == engine.WIN)
         losses = sum(1 for g in season["games"]
                      if g["nfl_week"] <= 3 and g["result"] == engine.LOSS)
-        self.assertEqual(rows["2026-w03"]["eagles_record"],
-                         "{}-{}".format(wins, losses))
+        self.assertEqual((rows["2026-w03"]["wins"], rows["2026-w03"]["losses"]),
+                         (wins, losses))
 
     def test_the_live_tables_are_the_only_ones_that_move(self):
         """Stated as a test so that a future table is a deliberate choice."""
@@ -270,6 +270,47 @@ class MatchupColumnsTest(unittest.TestCase):
         self.assertEqual(weeks, sorted(weeks))
         self.assertEqual(len(weeks), len(set(weeks)))
         self.assertEqual(weeks, list(range(1, max(weeks) + 1)))
+
+
+class SpreadsheetCoercionTest(unittest.TestCase):
+    """Google Sheets rewrites some strings on the way in.
+
+    "5-2" is stored as the 5th of February and read back as a Date, so the
+    value written and the value stored are different things. On a frozen table
+    that also means every replay looks like a change. Caught by the frozen
+    guard on a live push, which is the guard doing exactly its job.
+    """
+
+    import re as _re
+    # What Sheets will read as a date or a time rather than as text.
+    DATEISH = _re.compile(r"^\s*\d{1,4}\s*[-/.]\s*\d{1,2}(\s*[-/.]\s*\d{1,4})?\s*$")
+    TIMEISH = _re.compile(r"^\s*\d{1,2}:\d{2}")
+
+    ALLOWED = {("games", "kickoff")}          # a date column, meant to be a date
+
+    def test_no_string_cell_will_be_read_as_a_date(self):
+        season = build_season()
+        walk(season, 18)
+        for name, table in cms.tables(season).items():
+            for row in table.rows:
+                for column, value in row.items():
+                    if (name, column) in self.ALLOWED:
+                        continue
+                    if not isinstance(value, str):
+                        continue
+                    self.assertIsNone(
+                        self.DATEISH.match(value),
+                        "{}.{} = {!r} would be stored as a date".format(
+                            name, column, value))
+                    self.assertIsNone(self.TIMEISH.match(value), value)
+
+    def test_the_record_is_two_numbers(self):
+        season = build_season()
+        walk(season, 7)
+        row = {r["slug"]: r for r in cms.tables(season)["weeks"].rows}["2026-w07"]
+        self.assertIsInstance(row["wins"], int)
+        self.assertIsInstance(row["losses"], int)
+        self.assertEqual(row["wins"] + row["losses"], 7)
 
 
 class SlugTest(unittest.TestCase):

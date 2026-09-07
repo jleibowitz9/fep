@@ -249,10 +249,20 @@ def cmd_cms(argv):
     for result in sheets.push_tables(
             season, only=only, same_sheet="--same-sheet" in argv,
             allow_correction="--allow-correction" in argv):
-        print("  {:<20} +{} new, {} updated, {} left alone ({} total)".format(
-            result.get("tab", "?"), result.get("added", 0),
-            result.get("updated", 0), result.get("protected", 0),
-            result.get("total", 0)))
+        # `unchanged` is the number that matters on a frozen table: it means
+        # the rows already published were replayed and not one of them moved.
+        parts = ["+{} new".format(result.get("added", 0))]
+        if result.get("unchanged"):
+            parts.append("{} unchanged".format(result["unchanged"]))
+        if result.get("updated"):
+            parts.append("{} updated".format(result["updated"]))
+        if result.get("protected"):
+            parts.append("{} left alone".format(result["protected"]))
+        if result.get("corrected"):
+            parts.append("{} CORRECTED".format(len(result["corrected"])))
+        print("  {:<20} {}  ({} total{})".format(
+            result.get("tab", "?"), ", ".join(parts), result.get("total", 0),
+            ", frozen" if result.get("frozen") else ""))
 
 
 def cmd_dashboard(argv):
