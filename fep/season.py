@@ -44,6 +44,9 @@ DEFAULT_ROSTER = [
 DEFAULT_SHEET = {
     "spreadsheet_id": None,
     "tab": None,
+    # The straight-up board's tab, if Framer reads one. Null means only the
+    # weighted board is written.
+    "straight_tab": None,
     # Row 1 is the header, row 2 is week 0, row 20 is week 18.
     # Column A holds the week labels and columns N onward hold Jacob's placement
     # formulas. NEITHER may ever be written.

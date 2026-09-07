@@ -174,31 +174,44 @@ def cmd_push(argv):
         if arg.startswith("--tab="):
             tab = arg.split("=", 1)[1]
 
+    plan = sheets.targets(season)
+    if tab:
+        # An explicit tab means one target, whatever board it holds.
+        plan = [{"tab": tab, "board": plan[0]["board"]}]
+
     if not live:
-        result = sheets.push(season, tab=tab, dry_run=True)
         configured = ("Apps Script" if sheets.appsscript_available()
                       else ("service account" if sheets.credentials_available()
                             else "NOTHING CONFIGURED, paste the block below"))
-        print("DRY RUN via {}. Would write {} rows x {} columns to {}\n".format(
-            configured, result["rows"], result["columns"], result["range"]))
         first_week = season["sheet"].get("first_week", 0)
-        for offset, row in enumerate(result["values"]):
-            if any(cell != "" for cell in row):
-                print("  wk {:>2}  {}".format(first_week + offset,
-                                              "  ".join("{:>5}".format(c) for c in row)))
-        print("\nColumn A and everything from column N rightward are never touched,")
+        for target in plan:
+            result = sheets.push(season, tab=target["tab"],
+                                 board=target["board"], dry_run=True)
+            print("DRY RUN via {}. Would write {} rows x {} columns to {}\n".format(
+                configured, result["rows"], result["columns"], result["range"]))
+            for offset, row in enumerate(result["values"]):
+                if any(cell != "" for cell in row):
+                    print("  wk {:>2}  {}".format(
+                        first_week + offset,
+                        "  ".join("{:>5}".format(c) for c in row)))
+            print()
+        print("Column A and everything from column N rightward are never touched,")
         print("by this tool and by the Apps Script independently.")
+        print("Blank rows above are written as blanks, so a push always leaves the")
+        print("tab holding this season and nothing else.")
         if not (sheets.appsscript_available() or sheets.credentials_available()):
             print("\nNothing is configured yet, so paste this block into cell B2:\n")
             print(sheets.to_tsv_block(season))
             print("\nOr run `python3 cli.py token` and see appsscript/README.md")
             print("to set up the one-click push.")
         else:
-            print("Re-run with --live to write. Use --tab=Scratch to target a copy first.")
+            print("\nRe-run with --live to write. Use --tab=Scratch to target a copy first.")
         return
 
-    result = sheets.push(season, tab=tab)
-    print("Wrote {} cells to {}".format(result["updated_cells"], result["updated_range"]))
+    for target in plan:
+        result = sheets.push(season, tab=target["tab"], board=target["board"])
+        print("Wrote {} cells to {}".format(
+            result["updated_cells"], result["updated_range"]))
 
 
 def cmd_dashboard(argv):

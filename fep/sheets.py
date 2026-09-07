@@ -116,18 +116,26 @@ def assert_safe_range(a1: str) -> dict:
 # building the block
 # ---------------------------------------------------------------------------
 
-def as_rows(season: dict, roster: Optional[Sequence[str]] = None) -> List[List[object]]:
+def as_rows(season: dict, roster: Optional[Sequence[str]] = None,
+            board: str = "weighted") -> List[List[object]]:
     """The B2:M20 block: one row per week, one column per competitor.
 
     Weeks with no snapshot yet come out as empty strings, which leaves those
     cells blank rather than writing a misleading zero (0.0 means eliminated).
+    That also means every push rewrites the whole block, so pushing a new
+    season's week 0 clears the previous season's rows in the same call. There
+    is never a moment where half the tab is last year.
+
+    board is "weighted" or "straight", the two boards the snapshot holds.
     """
+    if board not in ("weighted", "straight"):
+        raise SheetError("board must be 'weighted' or 'straight', got {!r}".format(board))
     sheet = season.get("sheet", {})
     first_week = sheet.get("first_week", 0)
     last_week = sheet.get("last_week", 18)
     roster = list(roster or season["roster"])
 
-    snapshots = {s["week"]: s["weighted"] for s in season.get("snapshots", [])}
+    snapshots = {s["week"]: s[board] for s in season.get("snapshots", [])}
     rows = []
     for week in range(first_week, last_week + 1):
         board = snapshots.get(week)
@@ -139,7 +147,7 @@ def as_rows(season: dict, roster: Optional[Sequence[str]] = None) -> List[List[o
 
 
 def to_csv(season: dict, roster: Optional[Sequence[str]] = None,
-           include_header: bool = True) -> str:
+           include_header: bool = True, board: str = "weighted") -> str:
     """CSV of the same block, for the no-auth copy-paste path."""
     roster = list(roster or season["roster"])
     buffer = io.StringIO()
@@ -148,12 +156,13 @@ def to_csv(season: dict, roster: Optional[Sequence[str]] = None,
         writer.writerow(["week"] + roster)
     sheet = season.get("sheet", {})
     first_week = sheet.get("first_week", 0)
-    for offset, row in enumerate(as_rows(season, roster)):
+    for offset, row in enumerate(as_rows(season, roster, board)):
         writer.writerow([first_week + offset] + list(row))
     return buffer.getvalue()
 
 
-def to_tsv_block(season: dict, roster: Optional[Sequence[str]] = None) -> str:
+def to_tsv_block(season: dict, roster: Optional[Sequence[str]] = None,
+                 board: str = "weighted") -> str:
     """Tab-separated values with no week column, ready to paste straight into B2.
 
     Tabs are what Sheets expects on paste, so this lands correctly in the grid
@@ -161,7 +170,7 @@ def to_tsv_block(season: dict, roster: Optional[Sequence[str]] = None) -> str:
     """
     return "\n".join(
         "\t".join("" if cell == "" else str(cell) for cell in row)
-        for row in as_rows(season, roster)
+        for row in as_rows(season, roster, board)
     )
 
 
@@ -231,7 +240,8 @@ def verify_alignment(season: dict, key_path: str = DEFAULT_KEY_PATH) -> dict:
 
 def push_via_service_account(season: dict, key_path: str = DEFAULT_KEY_PATH,
                              tab: Optional[str] = None,
-                             dry_run: bool = False) -> dict:
+                             dry_run: bool = False,
+                             board: str = "weighted") -> dict:
     """Write the weekly percentages. Aborts on any misalignment.
 
     Pass tab= to target a scratch copy, which is how the first push should
@@ -244,7 +254,7 @@ def push_via_service_account(season: dict, key_path: str = DEFAULT_KEY_PATH,
         raise SheetError("season file has no sheet.spreadsheet_id set")
 
     bounds = assert_safe_range(sheet["range"])
-    rows = as_rows(season)
+    rows = as_rows(season, board=board)
 
     if len(rows) != bounds["height"]:
         raise SheetError(
@@ -366,7 +376,8 @@ def _call_appsscript(url: str, payload: dict, timeout: float = 60.0) -> dict:
 
 
 def push_via_appsscript(season: dict, config_path: str = APPSSCRIPT_CONFIG,
-                        tab: Optional[str] = None, dry_run: bool = False) -> dict:
+                        tab: Optional[str] = None, dry_run: bool = False,
+                        board: str = "weighted") -> dict:
     """Write the weekly percentages through the in-sheet Apps Script."""
     sheet = dict(season["sheet"])
     if tab:
@@ -375,7 +386,7 @@ def push_via_appsscript(season: dict, config_path: str = APPSSCRIPT_CONFIG,
         raise SheetError("season file has no sheet.tab set")
 
     bounds = assert_safe_range(sheet["range"])
-    rows = as_rows(season)
+    rows = as_rows(season, board=board)
     roster = list(season["roster"])
 
     if len(rows) != bounds["height"]:
@@ -393,7 +404,7 @@ def push_via_appsscript(season: dict, config_path: str = APPSSCRIPT_CONFIG,
     }
 
     if dry_run:
-        return {"dry_run": True, "transport": "appsscript",
+        return {"dry_run": True, "transport": "appsscript", "board": board,
                 "range": "{}!{}".format(sheet["tab"], sheet["range"]),
                 "rows": len(rows), "columns": bounds["width"], "values": rows}
 
@@ -407,6 +418,20 @@ def push_via_appsscript(season: dict, config_path: str = APPSSCRIPT_CONFIG,
         "updated_cells": result.get("wrote"),
         "updated_range": result.get("range"),
     }
+
+
+def targets(season: dict) -> List[dict]:
+    """Every tab this season writes, in push order.
+
+    2025 maintained a weighted MASTER tab and a straight one, and Framer reads
+    whichever a given component was mapped to. If sheet.straight_tab is set, a
+    push keeps both in step; if it is null, only the weighted board is written.
+    """
+    sheet = season.get("sheet", {})
+    out = [{"tab": sheet.get("tab"), "board": "weighted"}]
+    if sheet.get("straight_tab"):
+        out.append({"tab": sheet["straight_tab"], "board": "straight"})
+    return out
 
 
 def push(season: dict, tab: Optional[str] = None, dry_run: bool = False,

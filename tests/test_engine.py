@@ -675,5 +675,43 @@ class PickCSVTest(unittest.TestCase):
         self.assertEqual(len(season["roster"]), 12)
 
 
+class SheetHandoverTest(unittest.TestCase):
+    """Reusing one tab across seasons, and keeping both boards in step."""
+
+    def _season(self):
+        season = season_mod.create(2026, refresh=False)
+        season["sheet"]["tab"] = "Weighted - MASTER"
+        season["snapshots"] = [{
+            "week": 0,
+            "weighted": {n: 8.0 for n in season["roster"]},
+            "straight": {n: 9.0 for n in season["roster"]},
+        }]
+        return season
+
+    def test_a_push_blanks_every_week_it_has_no_snapshot_for(self):
+        """This is what clears last season out of a reused tab."""
+        rows = sheets.as_rows(self._season())
+        self.assertEqual(len(rows), 19)
+        self.assertTrue(all(cell == 8.0 for cell in rows[0]))
+        for row in rows[1:]:
+            self.assertEqual(row, [""] * 12)
+
+    def test_the_straight_board_is_a_different_block(self):
+        season = self._season()
+        self.assertEqual(sheets.as_rows(season, board="straight")[0], [9.0] * 12)
+        with self.assertRaisesRegex(sheets.SheetError, "weighted"):
+            sheets.as_rows(season, board="nonsense")
+
+    def test_targets_defaults_to_the_weighted_tab_only(self):
+        season = self._season()
+        self.assertEqual(sheets.targets(season),
+                         [{"tab": "Weighted - MASTER", "board": "weighted"}])
+        season["sheet"]["straight_tab"] = "Straight - MASTER"
+        self.assertEqual(sheets.targets(season), [
+            {"tab": "Weighted - MASTER", "board": "weighted"},
+            {"tab": "Straight - MASTER", "board": "straight"},
+        ])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
