@@ -8,6 +8,8 @@ alongside 2026 without either touching the other.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import os
 import sys
@@ -161,6 +163,84 @@ class RealDataPassesTheGuardsTest(unittest.TestCase):
         for season in self.seasons():
             for name, table in cms.tables(season).items():
                 self.assertEqual(table.columns[0], "slug", name)
+
+
+class ReproducibleTest(unittest.TestCase):
+    """2025 must be rebuildable from a clean clone.
+
+    The script reads an archive that lives outside this repository and fetches
+    a schedule from a live ESPN that will not serve a 2025 predictor line
+    forever. data/fixtures/2025_source.json is both of those written down, so
+    the committed season file is an artefact anyone can reproduce rather than
+    one that happened to exist on one laptop.
+    """
+
+    FIXTURE = os.path.join(ROOT, "data", "fixtures", "2025_source.json")
+
+    def setUp(self):
+        if not os.path.exists(self.FIXTURE):
+            self.skipTest("no fixture; run scripts/backfill_2025.py --capture")
+
+    def _module(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "backfill_2025", os.path.join(ROOT, "scripts", "backfill_2025.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_the_fixture_records_which_archive_it_came_from(self):
+        with open(self.FIXTURE) as fh:
+            fixture = json.load(fh)
+        self.assertRegex(fixture["archive_sha256"], r"^[0-9a-f]{64}$")
+        self.assertEqual(len(fixture["games"]), 17)
+        self.assertEqual(len(fixture["archive"]["picks_dict"]), 12)
+
+    def test_the_weight_map_survives_a_json_round_trip(self):
+        """JSON has no integer keys, so a weight map read back keyed by string
+        sorts 0, 1, 10, 11, ... 2, 3, which reorders every win probability and
+        moves every board. It moved the worst-case drift from 6.7 to 25.1."""
+        module = self._module()
+        weights = module.sources()["archive"]["weight"]
+        self.assertEqual(sorted(weights), list(range(17)))
+        self.assertTrue(all(isinstance(k, int) for k in weights))
+
+    def test_it_rebuilds_with_no_archive_and_no_network(self):
+        import urllib.request
+
+        module = self._module()
+        module.ARCHIVE = "/nonexistent/simulator.py"
+
+        def unavailable(*args, **kwargs):
+            raise AssertionError("reached outside the repository")
+
+        # module.espn IS fep.espn, so this patch is global and has to be put
+        # back or every later test that touches the schedule blows up.
+        real_urlopen = urllib.request.urlopen
+        real_fetch = module.espn.fetch_schedule
+        urllib.request.urlopen = unavailable
+        module.espn.fetch_schedule = unavailable
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                rebuilt = module.build(write=False)
+        finally:
+            urllib.request.urlopen = real_urlopen
+            module.espn.fetch_schedule = real_fetch
+
+        committed = load(2025)
+        if committed is None:
+            self.skipTest("no committed 2025 season file")
+
+        # Everything but the wall clock.
+        def strip(season):
+            season = json.loads(json.dumps(season))
+            season.pop("updated_at", None)
+            season.pop("created_at", None)
+            for snapshot in season.get("snapshots", []):
+                snapshot.pop("taken_at", None)
+            return season
+
+        self.assertEqual(strip(rebuilt), strip(committed))
 
 
 if __name__ == "__main__":

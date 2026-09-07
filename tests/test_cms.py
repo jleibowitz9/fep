@@ -415,6 +415,32 @@ class EliminationTest(unittest.TestCase):
         self.assertEqual(cms.eliminated_week(season, "Amir"), 1)
 
 
+class WeekOverWeekChangeTest(unittest.TestCase):
+
+    def test_change_is_blank_when_the_previous_week_is_missing(self):
+        """A gap made a two-week move look like a one-week move."""
+        season = build_season()
+        walk(season, 8)
+        season["snapshots"] = [s for s in season["snapshots"] if s["week"] != 6]
+        rows = {r["slug"]: r for r in cms.tables(season)["standings"].rows}
+        self.assertEqual(rows["2026-w07-amir"]["change"], "")
+        self.assertNotEqual(rows["2026-w08-amir"]["change"], "")
+
+    def test_the_first_week_has_no_change(self):
+        season = build_season()
+        walk(season, 2)
+        rows = {r["slug"]: r for r in cms.tables(season)["standings"].rows}
+        self.assertEqual(rows["2026-w00-amir"]["change"], "")
+        self.assertNotEqual(rows["2026-w01-amir"]["change"], "")
+
+    def test_a_bye_week_does_not_break_the_chain(self):
+        season = build_season()
+        walk(season, 12)
+        rows = {r["slug"]: r for r in cms.tables(season)["standings"].rows}
+        self.assertNotEqual(rows["2026-w10-amir"]["change"], "")   # the bye
+        self.assertNotEqual(rows["2026-w11-amir"]["change"], "")
+
+
 class SlugTest(unittest.TestCase):
 
     def test_every_slug_carries_the_year(self):

@@ -103,6 +103,54 @@ header .sub{font-size:12px;color:var(--dim)}
 .g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}
 .g21{grid-template-columns:2fr 1fr}.g12{grid-template-columns:1fr 2fr}
 @media(max-width:1180px){.g2,.g3,.g21,.g12{grid-template-columns:1fr}}
+
+/* ---------------- narrow ----------------
+   The shell is a fixed 236px rail beside the content, which at 390px left the
+   board in a 154px strip. Below 860px the rail becomes a bar across the top:
+   brand on the left, the week beside it, and the nav scrolling horizontally
+   under both. The page scrolls normally instead of the two panes scrolling
+   independently, which is what a phone expects. */
+@media(max-width:860px){
+  body{flex-direction:column;overflow:auto;height:auto;min-height:100%}
+  aside{width:100%;flex:none;flex-direction:row;flex-wrap:wrap;
+    align-items:center;gap:10px 14px;padding:10px 14px 8px;
+    border-right:none;border-bottom:1px solid var(--eagles-lo);
+    position:sticky;top:0;z-index:30}
+  .brand{padding:0;display:flex;align-items:center;gap:9px}
+  .brand .mark{height:24px;margin-bottom:0}
+  .brand h1{font-size:13px}
+  .brand .sub{display:none}
+  .weekpick{margin:0 0 0 auto;padding:0;border:none;background:none;text-align:right}
+  .weekpick .lab{display:none}
+  .weekpick .val{justify-content:flex-end;margin-top:0}
+  .weekpick .opp{display:none}
+  /* The three counters live in the sidebar foot on desktop. On a phone they
+     are below the fold of a bar that has to stay small, and every one of them
+     is repeated on the Run view, so they are dropped rather than stacked. */
+  .side-foot{display:none}
+  nav{flex-direction:row;width:100%;gap:4px;overflow-x:auto;
+    scrollbar-width:none;-webkit-overflow-scrolling:touch;
+    margin:0 -14px;padding:2px 14px 2px}
+  nav::-webkit-scrollbar{display:none}
+  nav button{white-space:nowrap;flex:none;padding:7px 11px}
+  nav .k{display:none}          /* keyboard shortcuts, on a device with none */
+  nav .sep{display:none}
+  main{width:100%;min-width:0;overflow:visible}
+  .scroll{flex:none;overflow-y:visible}
+  header{height:auto;min-height:52px;flex-wrap:wrap;gap:8px;padding:10px 14px}
+  header h2{font-size:15px}
+  header .btn{order:3}
+  .scroll{padding:14px}
+  .grid{gap:12px}
+}
+@media(max-width:520px){
+  .scroll{padding:12px}
+  header .btn{width:100%}
+  table{font-size:12px}
+  td,th{padding-left:7px;padding-right:7px}
+  /* A wide table scrolls inside its own card rather than the page sideways. */
+  .card{overflow-x:auto}
+}
 .mt{margin-top:14px}
 
 table{width:100%;border-collapse:collapse;font-size:13px}

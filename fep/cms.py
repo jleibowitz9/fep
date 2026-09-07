@@ -624,9 +624,13 @@ def standings_table(season: dict) -> Table:
     byes = set(_bye_weeks(season))
     ordered = sorted(season.get("snapshots", []), key=lambda s: s["week"])
 
-    rows, previous = [], {}
+    rows, previous, previous_week = [], {}, None
     for snapshot in ordered:
         week = snapshot["week"]
+        # Only compare against the week immediately before. If a week was never
+        # snapshotted, the difference against the one before that is a two-week
+        # move reported as one, which is worse than reporting nothing.
+        consecutive = previous_week is not None and week - previous_week == 1
         board = snapshot["weighted"]
         ranks = _ranked(board)
         for name in sorted(board):
@@ -642,11 +646,12 @@ def standings_table(season: dict) -> Table:
                 "straight": snapshot.get("straight", {}).get(name, ""),
                 "correct": snapshot.get("current_points", {}).get(name, ""),
                 "rank": ranks[name],
-                "change": "" if before is None else round(board[name] - before, 1),
+                "change": ("" if before is None or not consecutive
+                           else round(board[name] - before, 1)),
                 "is_eliminated": board[name] == 0,
                 "is_bye": week in byes,
             })
-        previous = dict(board)
+        previous, previous_week = dict(board), week
     return Table("standings", STANDING_COLUMNS, rows)
 
 

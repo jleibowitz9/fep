@@ -2,12 +2,21 @@
 """Rebuild 2025 as a season file, so the CMS tables have a real season in them.
 
     python3 scripts/backfill_2025.py [--write]
+    python3 scripts/backfill_2025.py --capture   (refresh the fixture)
 
 WHERE EACH FACT COMES FROM
 
     picks, points guesses, weights   ../2025/simulator.py, the canonical archive
     schedule, results, scores        ESPN, cross-checked against the archive
     the weekly weighted boards       chart-data/2025/week-NN.json, as published
+
+Two of those three are outside this repository: the archive lives a directory
+up, and ESPN is a live service that will not serve a 2025 predictor line
+forever. So --capture writes both into data/fixtures/2025_source.json, with a
+hash of the archive it read, and an ordinary run works offline from that. The
+result is that anyone with a clone can rebuild 2025 and get the same file,
+which is the difference between a reproducible artefact and one that happened
+to exist on one laptop.
 
 The weekly boards are taken from what was published rather than recomputed.
 That matters: they are what the family actually saw, and recomputing them today
@@ -45,6 +54,7 @@ from fep import chart, engine, espn, season as season_mod  # noqa: E402
 
 ARCHIVE = os.path.join(os.path.dirname(ROOT), "2025", "simulator.py")
 CHART_DATA = os.path.join(ROOT, "chart-data", "2025")
+FIXTURE = os.path.join(ROOT, "data", "fixtures", "2025_source.json")
 YEAR = 2025
 
 CAVEAT = ("weighted boards as published; deciding and weights use the final "
@@ -76,6 +86,53 @@ def archive_literals() -> dict:
     return found
 
 
+def capture() -> dict:
+    """Read the archive and ESPN once, and write down what they said."""
+    import hashlib
+
+    with open(ARCHIVE, "rb") as fh:
+        raw = fh.read()
+    archive = archive_literals()
+    games = espn.fetch_schedule(YEAR)
+    fixture = {
+        "note": ("Captured so 2025 can be rebuilt without the sibling archive "
+                 "or a live ESPN. Refresh with --capture."),
+        "captured_from": os.path.relpath(ARCHIVE, os.path.dirname(ROOT)),
+        "archive_sha256": hashlib.sha256(raw).hexdigest(),
+        "archive": archive,
+        "games": games,
+    }
+    directory = os.path.dirname(FIXTURE)
+    if not os.path.isdir(directory):
+        os.makedirs(directory)
+    with open(FIXTURE, "w") as fh:
+        json.dump(fixture, fh, indent=2, sort_keys=True)
+        fh.write("\n")
+    print("wrote {}".format(os.path.relpath(FIXTURE, ROOT)))
+    print("  archive sha256 {}".format(fixture["archive_sha256"][:16]))
+    print("  {} games from ESPN".format(len(games)))
+    return fixture
+
+
+def sources() -> dict:
+    """The fixture, or the live sources if there is no fixture yet."""
+    if os.path.exists(FIXTURE):
+        with open(FIXTURE) as fh:
+            fixture = json.load(fh)
+        # JSON has no integer keys, so the weight map comes back keyed by
+        # string and sorted() then orders it 0, 1, 10, 11, 12, ... 2, 3. That
+        # silently reordered the win probabilities and moved every board.
+        fixture["archive"]["weight"] = {
+            int(index): value
+            for index, value in fixture["archive"]["weight"].items()
+        }
+        print("  reading data/fixtures/2025_source.json "
+              "(archive {})".format(fixture["archive_sha256"][:12]))
+        return fixture
+    print("  no fixture; reading the archive and ESPN directly")
+    return {"archive": archive_literals(), "games": espn.fetch_schedule(YEAR)}
+
+
 def published_boards() -> dict:
     """{week: {Name: pct}} exactly as it went out."""
     final = json.load(open(os.path.join(CHART_DATA, "week-18.json")))
@@ -87,7 +144,8 @@ def published_boards() -> dict:
 
 
 def build(write: bool = False) -> dict:
-    archive = archive_literals()
+    source = sources()
+    archive = source["archive"]
     picks = {name.capitalize(): list(sheet)
              for name, sheet in archive["picks_dict"].items()}
     guesses = {name.capitalize(): value
@@ -95,7 +153,7 @@ def build(write: bool = False) -> dict:
     weights = [archive["weight"][i] for i in sorted(archive["weight"])]
     roster = sorted(picks)
 
-    games = espn.fetch_schedule(YEAR)
+    games = [dict(g) for g in source["games"]]
     if len(games) != len(archive["eagles_results"]):
         raise SystemExit("ESPN has {} games, the archive has {}".format(
             len(games), len(archive["eagles_results"])))
@@ -182,4 +240,6 @@ def build(write: bool = False) -> dict:
 
 
 if __name__ == "__main__":
+    if "--capture" in sys.argv:
+        capture()
     build(write="--write" in sys.argv)
