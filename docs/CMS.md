@@ -74,6 +74,26 @@ padded (`w07`) so a lexical sort is chronological.
 seasons. It is also the one table the Apps Script allows a push to rewrite
 across years.
 
+## Two seasons in one sheet
+
+2025 was rebuilt as a season file (`scripts/backfill_2025.py`) so the tables
+have a real season in them before 2026 starts: 19 weekly boards, 228 standings
+rows, real names, real colours, real eliminations. Push it first, then 2026.
+
+```bash
+FEP_YEAR=2025 python3 cli.py cms --live
+python3 cli.py cms --live
+```
+
+The second push is the first real test of the past-season guard: every 2025 row
+must come back reported as `left alone`, not `updated`.
+
+The weekly boards stored for 2025 are the ones that were **published**, not
+recomputed. Recomputing them today drifts by up to 6.7 points in mid-season,
+because ESPN's win probabilities moved during the year and only the final ones
+were kept. The season file is stamped `reconstructed` and every snapshot carries
+the caveat, so nothing downstream mistakes it for a contemporaneous record.
+
 ## Setup
 
 Put the tables in **their own spreadsheet**, separate from the one published
