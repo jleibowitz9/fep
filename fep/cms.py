@@ -340,11 +340,17 @@ def competitor_seasons_table(season: dict) -> Table:
     return Table("competitor_seasons", COMPETITOR_SEASON_COLUMNS, rows)
 
 
+# The Eagles' own name and abbreviation, so a row reads as a matchup rather
+# than as "us and them". PHI is ESPN's, and every other abbreviation in these
+# tables comes from ESPN, so it is the one that keeps the set consistent.
+EAGLES = "Eagles"
+EAGLES_ABBR = "PHI"
+
 GAME_COLUMNS = [
     "slug", "season", "week_ref", "nfl_week", "game_index", "event_id", "label",
-    "opponent", "opponent_abbr", "home_away", "venue", "neutral_site",
-    "is_division", "kickoff", "result", "eagles_points", "opponent_points",
-    "espn_weight",
+    "is_bye", "home_team", "home_abbr", "away_team", "away_abbr", "venue",
+    "neutral_site", "is_division", "kickoff", "result", "eagles_points",
+    "opponent_points", "espn_weight",
 ]
 
 
@@ -353,22 +359,49 @@ def games_table(season: dict) -> Table:
 
     Nothing that needs a frozen view of the past should read this table; that is
     what `weeks` and `standings` are for.
+
+    Every NFL week gets a row, including the bye. A bye is a week with no
+    matchup rather than a week that does not exist, and leaving it out meant a
+    schedule laid out from this table silently skipped a week.
     """
     year = season["year"]
+    by_week = {g["nfl_week"]: g for g in season["games"]}
+    byes = set(_bye_weeks(season))
     rows = []
-    for game in season["games"]:
-        facts = game_facts(season, game)
-        rows.append({
-            "slug": game_slug(year, game["nfl_week"]),
+
+    for week in sorted(set(by_week) | byes):
+        game = by_week.get(week)
+        base = {
+            "slug": game_slug(year, week),
             "season": str(year),
-            "week_ref": game_slug(year, game["nfl_week"]),
-            "nfl_week": game["nfl_week"],
+            "week_ref": game_slug(year, week),
+            "nfl_week": week,
+        }
+        if game is None:
+            rows.append(dict(base, **{
+                "game_index": "", "event_id": "", "label": "Bye",
+                "is_bye": True, "home_team": "", "home_abbr": "",
+                "away_team": "", "away_abbr": "", "venue": "",
+                "neutral_site": False, "is_division": False, "kickoff": "",
+                "result": "", "eagles_points": "", "opponent_points": "",
+                "espn_weight": "",
+            }))
+            continue
+
+        facts = game_facts(season, game)
+        home = facts["home_away"] == "home"
+        rows.append(dict(base, **{
             "game_index": game["index"],
             "event_id": facts["event_id"],
             "label": game["label"],
-            "opponent": facts["opponent"],
-            "opponent_abbr": facts["opponent_abbr"],
-            "home_away": facts["home_away"],
+            "is_bye": False,
+            # Stated as a matchup. Which side the Eagles are on comes from the
+            # recorded `home` flag, not from the "vs."/"@" in the label, which
+            # is wrong for a neutral-site game.
+            "home_team": EAGLES if home else facts["opponent"],
+            "home_abbr": EAGLES_ABBR if home else facts["opponent_abbr"],
+            "away_team": facts["opponent"] if home else EAGLES,
+            "away_abbr": facts["opponent_abbr"] if home else EAGLES_ABBR,
             "venue": facts["venue"],
             "neutral_site": facts["neutral_site"],
             "is_division": bool(game["division"]),
@@ -377,7 +410,7 @@ def games_table(season: dict) -> Table:
             "eagles_points": _blank(game.get("points_for")),
             "opponent_points": _blank(game.get("points_against")),
             "espn_weight": _blank(game.get("weight")),
-        })
+        }))
     return Table("games", GAME_COLUMNS, rows)
 
 

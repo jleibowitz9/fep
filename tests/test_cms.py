@@ -189,7 +189,7 @@ class CorrectingTheScheduleTest(unittest.TestCase):
                                  "{} {} changed".format(name, slug))
 
         # games is the live table, so it is allowed to show the correction.
-        self.assertEqual(after["games"]["2026-w01"]["opponent"], "Football Team")
+        self.assertEqual(after["games"]["2026-w01"]["away_team"], "Football Team")
 
     def test_the_frozen_matchup_survives_the_game_disappearing(self):
         """The strongest form: the schedule entry is gone entirely."""
@@ -212,26 +212,64 @@ class StructuredGameFieldsTest(unittest.TestCase):
             "venue": "Tottenham Hotspur Stadium",
         })
         row = {r["nfl_week"]: r for r in cms.games_table(season).rows}[5]
-        # The label says "vs.", the data says otherwise. The data wins.
-        self.assertEqual(row["home_away"], "away")
+        # The label says "vs.", the data says otherwise. The data wins, so the
+        # Eagles are the away side and the Jaguars are nominally at home.
+        self.assertEqual(row["away_team"], cms.EAGLES)
+        self.assertEqual(row["away_abbr"], "PHI")
+        self.assertEqual(row["home_team"], "Jaguars")
         self.assertTrue(row["neutral_site"])
         self.assertEqual(row["venue"], "Tottenham Hotspur Stadium")
-        self.assertEqual(row["opponent"], "Jaguars")
 
     def test_parsing_is_still_the_fallback(self):
         season = build_season()
         for game in season["games"]:
             for field in ("opponent", "home", "neutral_site", "venue"):
                 game.pop(field, None)
-        rows = cms.games_table(season).rows
-        self.assertTrue(any(r["home_away"] == "away" for r in rows))
-        self.assertTrue(any(r["home_away"] == "home" for r in rows))
+        rows = [r for r in cms.games_table(season).rows if not r["is_bye"]]
+        self.assertTrue(any(r["away_team"] == cms.EAGLES for r in rows))
+        self.assertTrue(any(r["home_team"] == cms.EAGLES for r in rows))
 
     def test_the_event_id_is_carried_through(self):
         season = build_season()
         season["games"][0]["event_id"] = "401772936"
         row = cms.games_table(season).rows[0]
         self.assertEqual(row["event_id"], "401772936")
+
+
+class MatchupColumnsTest(unittest.TestCase):
+    """games reads as a matchup: who is home, who is away, and their codes."""
+
+    def test_a_home_game_puts_the_eagles_at_home(self):
+        season = build_season()
+        season["games"][0].update({"label": "vs. Commanders", "home": True,
+                                   "opponent": "WSH", "neutral_site": False})
+        row = cms.games_table(season).rows[0]
+        self.assertEqual((row["home_team"], row["home_abbr"]), (cms.EAGLES, "PHI"))
+        self.assertEqual((row["away_team"], row["away_abbr"]), ("Commanders", "WSH"))
+
+    def test_an_away_game_flips_both_sides(self):
+        season = build_season()
+        season["games"][1].update({"label": "@ Cowboys", "home": False,
+                                   "opponent": "DAL", "neutral_site": False})
+        row = cms.games_table(season).rows[1]
+        self.assertEqual((row["home_team"], row["home_abbr"]), ("Cowboys", "DAL"))
+        self.assertEqual((row["away_team"], row["away_abbr"]), (cms.EAGLES, "PHI"))
+
+    def test_the_eagles_appear_in_every_non_bye_row(self):
+        season = build_season()
+        for row in cms.games_table(season).rows:
+            if row["is_bye"]:
+                continue
+            self.assertIn(cms.EAGLES, (row["home_team"], row["away_team"]))
+            self.assertIn("PHI", (row["home_abbr"], row["away_abbr"]))
+
+    def test_every_nfl_week_has_exactly_one_row(self):
+        season = build_season()
+        rows = cms.games_table(season).rows
+        weeks = [r["nfl_week"] for r in rows]
+        self.assertEqual(weeks, sorted(weeks))
+        self.assertEqual(len(weeks), len(set(weeks)))
+        self.assertEqual(weeks, list(range(1, max(weeks) + 1)))
 
 
 class SlugTest(unittest.TestCase):
@@ -324,7 +362,9 @@ class ShapeTest(unittest.TestCase):
         season = build_season(2031, games=18, bye_week=7)
         walk(season, 19)
         tables = cms.tables(season)
-        self.assertEqual(len(tables["games"].rows), 18)
+        # 18 games plus a row for the bye, because every NFL week gets a row.
+        self.assertEqual(len(tables["games"].rows), 19)
+        self.assertEqual(sum(1 for r in tables["games"].rows if r["is_bye"]), 1)
         self.assertEqual(len(tables["picks"].rows), 18 * 12)
         self.assertEqual(len(tables["standings"].rows), 20 * 12)
 
@@ -399,14 +439,26 @@ class OneKeyPerWeekTest(unittest.TestCase):
         self.assertEqual(len(selected["picks"]), 12)      # one pick each
         self.assertEqual(len(selected["standings"]), 12)  # one row each
 
-    def test_the_bye_week_selects_a_board_but_no_game(self):
+    def test_the_bye_week_selects_a_board_and_a_bye_row(self):
+        """A bye is a week with no matchup, not a week that does not exist.
+
+        It used to select nothing from games, so a schedule laid out from that
+        table silently skipped a week.
+        """
         season = build_season()
         walk(season, 18)
         tables = cms.tables(season)
         key = "2026-w10"                                   # the bye
-        self.assertEqual([r for r in tables["games"].rows if r["week_ref"] == key], [])
+        games = [r for r in tables["games"].rows if r["week_ref"] == key]
+        self.assertEqual(len(games), 1)
+        self.assertTrue(games[0]["is_bye"])
+        self.assertEqual(games[0]["label"], "Bye")
+        self.assertEqual(games[0]["home_team"], "")
+        self.assertEqual(games[0]["away_team"], "")
         self.assertEqual(
             len([r for r in tables["standings"].rows if r["week_ref"] == key]), 12)
+        # ...and no pick was consumed by it
+        self.assertEqual([r for r in tables["picks"].rows if r["week_ref"] == key], [])
 
 
 class LabelTest(unittest.TestCase):

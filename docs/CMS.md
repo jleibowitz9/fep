@@ -45,12 +45,25 @@ Two conventions, both there to stop a component being bound to the wrong thing:
 | `seasons` | `2026` | 1 | weekly |
 | `competitors` | `amir` | 12 | rarely |
 | `competitor_seasons` | `2026-amir` | 12 | weekly |
-| `games` | `2026-w01` | 17 | **weekly** |
+| `games` | `2026-w01` | 18 | **weekly** |
 | `weeks` | `2026-w03` | 19 | **frozen** |
 | `picks` | `2026-w01-amir` | 204 | **once a season** |
 | `standings` | `2026-w07-amir` | 228 | **frozen, append only** |
 
 About 490 rows a season.
+
+**`games` reads as a matchup.** `home_team` / `home_abbr` and `away_team` /
+`away_abbr`, rather than an opponent plus a home-or-away flag, so a row can be
+laid out without working out which side the Eagles are on. Which side that is
+comes from ESPN's recorded `home` flag, not from the "vs." or "@" in the label,
+which is wrong for a neutral-site game: the 2026 Jaguars game in London reads
+`Jaguars (JAX)` at home and `Eagles (PHI)` away. Abbreviations are ESPN's, which
+is why Philadelphia is `PHI`.
+
+**Every NFL week gets a row, including the bye**, marked `is_bye` with both
+teams blank. A bye is a week with no matchup, not a week that does not exist,
+and leaving it out meant a schedule laid out from this table silently skipped a
+week. That is why there are 18 rows for a 17-game season.
 
 **`games` holds current state on purpose.** A result genuinely becomes known
 partway through the season, so this table changes. Anything that needs the
