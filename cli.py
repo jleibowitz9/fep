@@ -244,7 +244,8 @@ def cmd_cms(argv):
         print("  --only=a,b  restrict to some tables")
         return
 
-    for result in sheets.push_tables(season, only=only):
+    for result in sheets.push_tables(
+            season, only=only, same_sheet="--same-sheet" in argv):
         print("  {:<20} +{} new, {} updated, {} left alone ({} total)".format(
             result.get("tab", "?"), result.get("added", 0),
             result.get("updated", 0), result.get("protected", 0),

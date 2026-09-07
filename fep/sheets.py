@@ -472,14 +472,31 @@ def table_config(config_path: str = APPSSCRIPT_CONFIG) -> dict:
     and token. If it does not, they go to the same deployment.
     """
     config = load_appsscript_config(config_path)
-    return {"url": config.get("cms_url") or config["url"],
+    if not config.get("cms_url"):
+        raise SheetError(
+            "no cms_url in {}.\n"
+            "  The CMS tables belong in their own spreadsheet, not the one the "
+            "published\n"
+            "  newsletters read. Without cms_url this would create seven tabs "
+            "in that\n"
+            "  spreadsheet instead. See docs/CMS.md, or pass "
+            "--same-sheet if you\n"
+            "  really do want them alongside the legacy tabs."
+            .format(os.path.relpath(config_path)))
+    return {"url": config["cms_url"],
             "token": config.get("cms_token") or config["token"],
-            "separate": bool(config.get("cms_url"))}
+            "separate": True}
+
+
+def shared_table_config(config_path: str = APPSSCRIPT_CONFIG) -> dict:
+    """Deliberately write the tables to the legacy spreadsheet. Opt in only."""
+    config = load_appsscript_config(config_path)
+    return {"url": config["url"], "token": config["token"], "separate": False}
 
 
 def push_tables(season: dict, config_path: str = APPSSCRIPT_CONFIG,
                 dry_run: bool = False, only: Optional[Sequence[str]] = None,
-                timeout: float = 120.0) -> List[dict]:
+                timeout: float = 120.0, same_sheet: bool = False) -> List[dict]:
     """Write every CMS table, one call per table.
 
     One call each rather than one big call: a table is the unit the Apps Script
@@ -496,7 +513,11 @@ def push_tables(season: dict, config_path: str = APPSSCRIPT_CONFIG,
         raise SheetError("no such table: {}".format(", ".join(unknown)))
 
     results = []
-    config = None if dry_run else table_config(config_path)
+    if dry_run:
+        config = None
+    else:
+        config = (shared_table_config(config_path) if same_sheet
+                  else table_config(config_path))
     for name in wanted:
         table = tables[name]
         matrix = table.matrix()
