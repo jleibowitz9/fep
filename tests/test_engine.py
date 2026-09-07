@@ -25,7 +25,7 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from fep import chart, engine, sheets, statpack  # noqa: E402
+from fep import chart, engine, season as season_mod, sheets, statpack  # noqa: E402
 
 SKILL = os.path.expanduser(
     "~/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/"
@@ -625,6 +625,54 @@ class TestAppsScriptPush(unittest.TestCase):
         with self.assertRaisesRegex(sheets.SheetError, "/exec"):
             sheets.load_appsscript_config(path)
         os.unlink(path)
+
+
+class PickCSVTest(unittest.TestCase):
+    """The picks arrive in two shapes, and rarely all at once."""
+
+    def setUp(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "fep_cli", os.path.join(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__))), "cli.py"))
+        self.cli = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.cli)
+
+    def _write(self, text):
+        import tempfile
+        fh = tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False)
+        fh.write(text)
+        fh.close()
+        self.addCleanup(os.unlink, fh.name)
+        return fh.name
+
+    def test_row_per_competitor(self):
+        path = self._write("Name,Points,{}\nAmir,400,{}\n".format(
+            ",".join("G{}".format(i) for i in range(1, 4)), "W,L,W"))
+        picks, guesses = self.cli._read_pick_csv(path, 3)
+        self.assertEqual(picks, {"Amir": ["W", "L", "W"]})
+        self.assertEqual(guesses, {"Amir": 400})
+
+    def test_column_per_competitor(self):
+        """What the Google Form export parses into."""
+        path = self._write("Amir,Andy\nW,L\nL,L\nW,W\n400,410\n")
+        picks, guesses = self.cli._read_pick_csv(path, 3)
+        self.assertEqual(picks, {"Amir": ["W", "L", "W"], "Andy": ["L", "L", "W"]})
+        self.assertEqual(guesses, {"Amir": 400, "Andy": 410})
+
+    def test_an_empty_column_has_not_submitted(self):
+        """A reserved column is not a half-filled pick sheet."""
+        path = self._write("Amir,Andy\nW,\nL,\nW,\n400,\n")
+        picks, guesses = self.cli._read_pick_csv(path, 3)
+        self.assertEqual(sorted(picks), ["Amir"])
+        self.assertNotIn("Andy", guesses)
+
+    def test_partial_field_keeps_the_board_locked(self):
+        season = season_mod.create(2026, refresh=False)
+        season["picks"]["Amir"] = ["W"] * len(season["games"])
+        season["points_guess"]["Amir"] = 400
+        self.assertFalse(season_mod.has_picks(season))
+        self.assertEqual(len(season["roster"]), 12)
 
 
 if __name__ == "__main__":

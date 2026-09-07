@@ -44,12 +44,19 @@ def _load():
 
 
 def _require_picks(season):
-    if not season_mod.has_picks(season):
+    if season_mod.has_picks(season):
+        return
+    missing = [n for n in season["roster"] if not season["picks"].get(n)]
+    if missing and len(missing) < len(season["roster"]):
         sys.exit(
-            "Picks are not loaded yet.\n"
-            "  Add them to data/season_{}.json under \"picks\" and \"points_guess\",\n"
-            "  or run: python3 cli.py picks <file.csv>".format(YEAR)
-        )
+            "Waiting on {} of {} pick sheets: {}.\n"
+            "  Load them with: python3 cli.py picks <file.csv>".format(
+                len(missing), len(season["roster"]), ", ".join(missing)))
+    sys.exit(
+        "Picks are not loaded yet.\n"
+        "  Add them to data/season_{}.json under \"picks\" and \"points_guess\",\n"
+        "  or run: python3 cli.py picks <file.csv>".format(YEAR)
+    )
 
 
 def cmd_init():
@@ -230,37 +237,96 @@ def cmd_token(argv):
     print("can write your weekly percentages, so treat it like a password.")
 
 
-def cmd_picks(argv):
-    """Load picks from a CSV: Competitor,PointsGuess,G1..G17 (W/L)."""
+def _read_pick_csv(path, games):
+    """Both shapes the picks ever arrive in.
+
+    A row per competitor:   Name,PointsGuess,G1..G17
+    A column per competitor (what the Google Form export parses into):
+        header row of names, then one row per game, then a row of points guesses.
+
+    A competitor with an empty column has not submitted yet and is skipped
+    rather than loaded as a half sheet.
+    """
     import csv
+    with open(path) as fh:
+        rows = [[cell.strip() for cell in row] for row in csv.reader(fh)]
+    rows = [row for row in rows if any(cell for cell in row)]
+    if not rows:
+        raise engine.SeasonError("{} is empty".format(path))
+
+    def wl(cell):
+        return cell.upper()[:1] if cell else ""
+
+    # Transposed if the first cell under the header is a pick rather than a
+    # points guess.
+    transposed = len(rows) > 1 and wl(rows[1][0]) in ("W", "L")
+
+    picks, guesses = {}, {}
+    if transposed:
+        names = rows[0]
+        body = rows[1:]
+        if len(body) < games + 1:
+            raise engine.SeasonError(
+                "expected {} game rows plus a points row, got {}".format(games, len(body)))
+        for column, name in enumerate(names):
+            if not name:
+                continue
+            sheet = [wl(row[column]) if column < len(row) else "" for row in body[:games]]
+            total = body[games][column] if column < len(body[games]) else ""
+            if not any(sheet) and not total:
+                continue  # column reserved, nothing submitted
+            picks[name] = sheet
+            guesses[name] = int(float(total)) if total else None
+    else:
+        for row in rows:
+            if row[0].lower() in ("competitor", "name"):
+                continue
+            picks[row[0]] = [wl(cell) for cell in row[2:2 + games]]
+            guesses[row[0]] = int(float(row[1])) if len(row) > 1 and row[1] else None
+    return picks, guesses
+
+
+def cmd_picks(argv):
+    """Load picks from a CSV, in either layout, and merge them into the season."""
     if not argv:
         sys.exit("usage: python3 cli.py picks <file.csv>")
     season = _load()
     games = len(season["games"])
+    picks, guesses = _read_pick_csv(argv[0], games)
 
-    picks, guesses = {}, {}
-    with open(argv[0]) as fh:
-        for row in csv.reader(fh):
-            if not row or row[0].strip().lower() in ("competitor", "name", ""):
-                continue
-            name = row[0].strip()
-            guesses[name] = int(float(row[1]))
-            sheet = [cell.strip().upper()[:1] for cell in row[2:2 + games]]
-            picks[name] = sheet
+    unknown = sorted(set(picks) - set(season["roster"]))
+    if unknown:
+        sys.exit("{} is not on the roster. The roster is {}.".format(
+            ", ".join(unknown), ", ".join(season["roster"])))
+    missing_guess = sorted(n for n in picks if guesses.get(n) is None)
+    if missing_guess:
+        sys.exit("no points guess for {}".format(", ".join(missing_guess)))
 
+    # Validate only what arrived, then merge. Partial submissions are normal in
+    # September: the roster stays twelve names long and the competitors who have
+    # not sent a sheet keep an empty one, which is what stops `board` and `week`
+    # from running on an incomplete field.
     engine.validate(picks, season_mod.results(season), season_mod.weights(season),
                     season["division_indices"], guesses)
-    season["picks"] = picks
-    season["points_guess"] = guesses
-    season["roster"] = sorted(picks)
+    season["picks"].update(picks)
+    season["points_guess"].update(guesses)
     season_mod.save(season)
-    print("Loaded {} pick sheets of {} games each.".format(len(picks), games))
+
+    outstanding = [n for n in season["roster"] if not season["picks"].get(n)]
+    print("Loaded {} pick sheet(s) of {} games each.".format(len(picks), games))
     for name in season["roster"]:
-        wins = picks[name].count("W")
-        div = sum(1 for i in season["division_indices"] if picks[name][i] == "W")
-        print("  {:<8} {}-{}   division {}-{}   {} points".format(
+        sheet = season["picks"].get(name)
+        if not sheet:
+            continue
+        wins = sheet.count("W")
+        div = sum(1 for i in season["division_indices"] if sheet[i] == "W")
+        print("  {:<8} {}-{}   division {}-{}   {} points{}".format(
             name, wins, games - wins, div, len(season["division_indices"]) - div,
-            guesses[name]))
+            season["points_guess"][name], "   (new)" if name in picks else ""))
+    if outstanding:
+        print("\nStill outstanding ({}): {}".format(
+            len(outstanding), ", ".join(outstanding)))
+        print("The board stays locked until all {} are in.".format(len(season["roster"])))
 
 
 def cmd_who(argv):
