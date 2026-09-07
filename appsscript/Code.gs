@@ -37,7 +37,7 @@
 // about. The Python client reads the same constant out of its local copy and
 // refuses to push when the two disagree, because editing this file does not
 // redeploy it and the two have now silently diverged twice.
-var CODE_VERSION = '2026.09.07-a';
+var CODE_VERSION = '2026.09.07-b';
 
 // Columns B through M inclusive. 1-indexed, as the Sheets API counts them.
 var FIRST_COL = 2;   // B
@@ -244,6 +244,18 @@ function writeTable(body) {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = spreadsheet.getSheetByName(name) || spreadsheet.insertSheet(name);
 
+  // Pin each column's number format before reading anything.
+  //
+  // Clearing a tab's contents does not clear its formatting, so a column that
+  // once held "5-2" keeps the date format Sheets inferred from it. Writing the
+  // integer 4 into that column then reads back as 1900-01-03: the value stored
+  // and the value returned are different things, which on a frozen table makes
+  // every replay look like a change and is simply wrong everywhere else.
+  //
+  // Set before the read, not just before the write, so an already-mangled
+  // column is read back as what it actually holds rather than as a date.
+  applyColumnFormats(sheet, columns, rows);
+
   var existing = sheet.getLastRow() > 0
     ? sheet.getRange(1, 1, sheet.getLastRow(),
                      Math.max(sheet.getLastColumn(), columns.length)).getValues()
@@ -342,6 +354,26 @@ function writeTable(body) {
     total: order.length,
     range: name + '!A1:' + colName(columns.length) + grid.length
   });
+}
+
+
+/**
+ * Give every column the format its data needs, and take back the one Sheets
+ * guessed. Text columns become plain text so nothing is parsed into a date;
+ * everything else becomes General so numbers stay numbers and booleans stay
+ * booleans. A blank is not evidence either way.
+ */
+function applyColumnFormats(sheet, columns, rows) {
+  var height = Math.max(sheet.getMaxRows(), 1);
+  for (var c = 0; c < columns.length; c++) {
+    var text = false;
+    for (var r = 0; r < rows.length; r++) {
+      var cell = rows[r][c];
+      if (cell === '' || cell === null || cell === undefined) { continue; }
+      if (typeof cell === 'string') { text = true; break; }
+    }
+    sheet.getRange(1, c + 1, height, 1).setNumberFormat(text ? '@' : 'General');
+  }
 }
 
 

@@ -93,16 +93,22 @@ deletes. Season and week cannot be corrected, so that is all a slug holds.
 seasons. It is also the one table the Apps Script allows a push to rewrite
 across years, and so the fourth table outside the invariant.
 
-## What a spreadsheet does to a string
+## What a spreadsheet does to a value
 
-Sheets rewrites some values on the way in. `weeks` used to carry
-`eagles_record` as `"5-2"`, which it stored as the 5th of February and handed
-back as a Date, so the value written and the value stored were different things.
-On a frozen table that also means every replay looks like a change.
+Sheets infers a format from what it sees, keeps that format when the contents
+are cleared, and then applies it to whatever is written next. Both halves of
+that bit us:
 
-It is `wins` and `losses` as integers now, and a page composes the record. A
-test scans every cell of every table for anything Sheets would read as a date or
-a time, so the next one is caught here rather than on a live push.
+- `eagles_record` as `"5-2"` was stored as the 5th of February. It is `wins`
+  and `losses` as integers now, and a test scans every cell of every table for
+  anything Sheets would read as a date or a time.
+- Clearing that column's contents left its *date format* behind, so the integer
+  `4` written into it came back as `1900-01-03`.
+
+So `writeTable` now pins each column's format before it reads: plain text where
+the data is text, General everywhere else, so numbers stay numbers and booleans
+stay booleans. It runs before the read, not just before the write, so a column
+that is already mangled is read back as what it actually holds.
 
 ## Two seasons in one sheet
 

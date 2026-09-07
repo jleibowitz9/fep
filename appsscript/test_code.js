@@ -14,8 +14,10 @@ function FakeSheet(name, grid) {
   this.getMaxRows = () => Math.max(this.grid.length, 1000);
   this.getMaxColumns = () => 40;
   this.insertRowsAfter = () => {};
+  this.formats = {};
   this.insertColumnsAfter = () => {};
   this.getRange = (r,c,nr,nc) => ({
+    setNumberFormat: (f) => { for(let j=0;j<nc;j++) this.formats[c-1+j]=f; },
     getValues: () => {
       const out=[];
       for(let i=0;i<nr;i++){const row=this.grid[r-1+i]||[];const cells=[];
@@ -185,6 +187,20 @@ delete PROPS.ACTIVE_SEASON;
 r = post({op:'writeTable', tab:'standings', year:2027, columns:COLS,
           rows:[row(2027,3,'amir',5)]});
 check('unset means no extra restriction', r.ok && r.added===1, r);
+
+console.log('\n--- column formats, so Sheets stops guessing ---');
+delete SHEETS['fmt'];
+SHEETS['fmt'] = undefined; delete SHEETS['fmt'];
+r = post({op:'writeTable', tab:'weeks', year:2026,
+          columns:['slug','season','label','wins','losses','is_bye'],
+          rows:[['2026-w01', 2026, 'Week 1', 4, 1, false],
+                ['2026-w02', 2026, 'Week 2', 5, 1, true]]});
+check('writes', r.ok, r);
+const F = SHEETS['weeks'].formats;
+check('a text column is pinned to plain text', F[0]==='@' && F[2]==='@', F);
+check('a number column is left General', F[3]==='General' && F[4]==='General', F);
+check('a boolean column is left General', F[5]==='General', F);
+check('the season column is General, not text', F[1]==='General', F);
 
 console.log('\n--- nothing is ever deleted ---');
 const before = SHEETS['standings'].grid.length;
