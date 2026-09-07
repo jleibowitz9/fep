@@ -451,3 +451,84 @@ def push(season: dict, tab: Optional[str] = None, dry_run: bool = False,
     if transport == "service_account":
         return push_via_service_account(season, tab=tab, dry_run=dry_run, **kwargs)
     raise SheetError("unknown transport {!r}".format(transport))
+
+
+# ---------------------------------------------------------------------------
+# the CMS tables
+# ---------------------------------------------------------------------------
+
+# Mirrors TABLE_TABS in appsscript/Code.gs. Duplicated deliberately: the script
+# enforces it too, because a guard that only exists on the caller is not a
+# guard. This copy is here to fail fast with a clearer message.
+TABLE_TABS = ["seasons", "competitors", "competitor_seasons", "games",
+              "weeks", "picks", "standings"]
+
+
+def table_config(config_path: str = APPSSCRIPT_CONFIG) -> dict:
+    """Where the CMS tables are written.
+
+    The tables belong in their own spreadsheet, separate from the legacy one
+    that published newsletters still read, so the config may carry a second URL
+    and token. If it does not, they go to the same deployment.
+    """
+    config = load_appsscript_config(config_path)
+    return {"url": config.get("cms_url") or config["url"],
+            "token": config.get("cms_token") or config["token"],
+            "separate": bool(config.get("cms_url"))}
+
+
+def push_tables(season: dict, config_path: str = APPSSCRIPT_CONFIG,
+                dry_run: bool = False, only: Optional[Sequence[str]] = None,
+                timeout: float = 120.0) -> List[dict]:
+    """Write every CMS table, one call per table.
+
+    One call each rather than one big call: a table is the unit the Apps Script
+    guards (allowlist, header, past-season protection), and a partial failure
+    should leave the tables that did land rather than roll everything back into
+    an unknown state.
+    """
+    from . import cms
+
+    tables = cms.tables(season)
+    wanted = list(only) if only else TABLE_TABS
+    unknown = [name for name in wanted if name not in tables]
+    if unknown:
+        raise SheetError("no such table: {}".format(", ".join(unknown)))
+
+    results = []
+    config = None if dry_run else table_config(config_path)
+    for name in wanted:
+        table = tables[name]
+        matrix = table.matrix()
+        payload = {
+            "op": "writeTable",
+            "tab": name,
+            "year": season["year"],
+            "columns": matrix[0],
+            "rows": matrix[1:],
+        }
+        if dry_run:
+            results.append({"dry_run": True, "tab": name,
+                            "rows": len(table.rows),
+                            "columns": len(table.columns)})
+            continue
+        payload["token"] = config["token"]
+        results.append(_call_appsscript(config["url"], payload, timeout=timeout))
+    return results
+
+
+def tables_to_csv(season: dict, out_dir: str) -> List[str]:
+    """Write each table as a CSV, for inspecting before anything is deployed."""
+    from . import cms
+
+    if not os.path.isdir(out_dir):
+        os.makedirs(out_dir)
+    written = []
+    for name, table in cms.tables(season).items():
+        path = os.path.join(out_dir, "{}.csv".format(name))
+        with open(path, "w", newline="") as fh:
+            writer = csv.writer(fh)
+            for row in table.matrix():
+                writer.writerow(row)
+        written.append(path)
+    return sorted(written)

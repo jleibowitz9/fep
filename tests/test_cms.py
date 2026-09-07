@@ -1,0 +1,246 @@
+"""The CMS tables, and the one rule they exist to keep.
+
+    A row published in week N must be identical in week N+1.
+
+That is the whole requirement. If it does not hold, an old newsletter silently
+changes when a later game is played, which is exactly the failure the per-week
+sheet tabs have today.
+"""
+
+from __future__ import annotations
+
+import copy
+import os
+import random
+import sys
+import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from fep import chart, cms, engine, season as season_mod  # noqa: E402
+
+
+ROSTER = ["Amir", "Andy", "Buhduh", "Emer", "Hanan", "Jacob",
+          "Jay", "Jen", "Marsha", "Nathan", "Pop", "Sarah"]
+
+
+def build_season(year=2026, games=17, bye_week=10, seed=11):
+    """A complete, plausible season with known results, built without ESPN."""
+    random.seed(seed)
+    schedule, index, week = [], 0, 1
+    while index < games:
+        if week == bye_week:
+            week += 1
+            continue
+        schedule.append({
+            "index": index,
+            "nfl_week": week,
+            "label": ("@ Team{}" if index % 2 else "vs. Team{}").format(index),
+            "result": random.choice([engine.WIN, engine.LOSS]),
+            "weight": round(random.uniform(0.35, 0.75), 4),
+            "points_for": random.randint(13, 34),
+            "points_against": random.randint(10, 31),
+            "division": index in (0, 6, 7, 8, 10, 16),
+            "date": "{}-09-{:02d}".format(year, 1 + index),
+        })
+        index += 1
+        week += 1
+
+    picks = {name: [random.choice([engine.WIN, engine.LOSS]) for _ in range(games)]
+             for name in ROSTER}
+    return {
+        "year": year,
+        "roster": list(ROSTER),
+        "picks": picks,
+        "points_guess": {n: random.randint(370, 460) for n in ROSTER},
+        "colors": chart.colors_for(ROSTER),
+        "games": schedule,
+        "division_indices": [g["index"] for g in schedule if g["division"]],
+        "week_to_game_index": {str(g["nfl_week"]): g["index"] for g in schedule},
+        "bye_week": bye_week,
+        "bye_weeks": [bye_week],
+        "snapshots": [],
+        "sheet": dict(season_mod.DEFAULT_SHEET),
+        "model": dict(season_mod.DEFAULT_MODEL),
+    }
+
+
+def walk(season, upto):
+    """Replay the season week by week, snapshotting as the real run does."""
+    weeks = []
+    for week in range(0, upto + 1):
+        board = season_mod.run(season, through_week=week)
+        season_mod.snapshot(season, week, board)
+        weeks.append(week)
+    return weeks
+
+
+class ImmutabilityTest(unittest.TestCase):
+    """The load-bearing test for the whole design."""
+
+    # games and seasons hold current state on purpose: a result becomes known,
+    # a record changes. competitor_seasons tracks a live placing. Everything
+    # else is a frozen record of a week that has already happened.
+    FROZEN = ("weeks", "standings", "picks")
+    LIVE = ("games", "seasons", "competitor_seasons")
+
+    def setUp(self):
+        self.season = build_season()
+
+    def _rows_by_slug(self, table):
+        return {row["slug"]: row for row in table.rows}
+
+    def test_a_frozen_row_never_changes_once_written(self):
+        history = {}          # table -> slug -> row, as first published
+        first_seen = {}       # table -> slug -> week it appeared
+        season = self.season
+
+        for week in range(0, 19):
+            board = season_mod.run(season, through_week=week)
+            season_mod.snapshot(season, week, board)
+            for name, table in cms.tables(season).items():
+                if name not in self.FROZEN:
+                    continue
+                seen = history.setdefault(name, {})
+                when = first_seen.setdefault(name, {})
+                for slug, row in self._rows_by_slug(table).items():
+                    if slug in seen:
+                        self.assertEqual(
+                            seen[slug], row,
+                            "{} row {!r} changed in week {} (first written in "
+                            "week {})".format(name, slug, week, when[slug]))
+                    else:
+                        seen[slug] = copy.deepcopy(row)
+                        when[slug] = week
+
+        self.assertEqual(len(history["standings"]), 19 * 12)
+        self.assertEqual(len(history["weeks"]), 19)
+        self.assertEqual(len(history["picks"]), 17 * 12)
+
+    def test_a_frozen_row_is_never_deleted(self):
+        season = self.season
+        counts = []
+        for week in range(0, 19):
+            board = season_mod.run(season, through_week=week)
+            season_mod.snapshot(season, week, board)
+            counts.append(len(cms.tables(season)["standings"].rows))
+        self.assertEqual(counts, sorted(counts))
+        self.assertEqual(counts[-1], 19 * 12)
+
+    def test_a_later_result_does_not_leak_into_an_earlier_week(self):
+        """The specific way this breaks: week 3 showing week 9's record."""
+        season = self.season
+        walk(season, 18)
+        rows = {r["slug"]: r for r in cms.tables(season)["weeks"].rows}
+        wins = sum(1 for g in season["games"]
+                   if g["nfl_week"] <= 3 and g["result"] == engine.WIN)
+        losses = sum(1 for g in season["games"]
+                     if g["nfl_week"] <= 3 and g["result"] == engine.LOSS)
+        self.assertEqual(rows["2026-w03"]["eagles_record"],
+                         "{}-{}".format(wins, losses))
+
+    def test_the_live_tables_are_the_only_ones_that_move(self):
+        """Stated as a test so that a future table is a deliberate choice."""
+        season = self.season
+        walk(season, 5)
+        self.assertEqual(sorted(cms.tables(season)),
+                         sorted(self.FROZEN + self.LIVE + ("competitors",)))
+
+
+class SlugTest(unittest.TestCase):
+
+    def test_every_slug_carries_the_year(self):
+        """Without it, 2027 week 1 upserts onto 2026 week 1."""
+        season = build_season()
+        walk(season, 3)
+        for name, table in cms.tables(season).items():
+            if name == "competitors":
+                continue          # a person spans seasons, by design
+            for row in table.rows:
+                self.assertIn("2026", row["slug"],
+                              "{} slug {!r} has no year".format(name, row["slug"]))
+
+    def test_weeks_are_zero_padded_so_they_sort(self):
+        season = build_season()
+        walk(season, 12)
+        slugs = [r["slug"] for r in cms.tables(season)["weeks"].rows]
+        self.assertEqual(slugs, sorted(slugs))
+
+    def test_slugs_are_unique_within_every_table(self):
+        season = build_season()
+        walk(season, 18)
+        for name, table in cms.tables(season).items():
+            slugs = [r["slug"] for r in table.rows]
+            self.assertEqual(len(slugs), len(set(slugs)), name)
+
+    def test_two_seasons_never_collide(self):
+        a = cms.tables(build_season(2026))
+        b = cms.tables(build_season(2027))
+        for name in a:
+            if name == "competitors":
+                continue
+            overlap = {r["slug"] for r in a[name].rows} & {r["slug"] for r in b[name].rows}
+            self.assertEqual(overlap, set(), name)
+
+
+class ShapeTest(unittest.TestCase):
+
+    def test_a_partial_field_only_publishes_who_submitted(self):
+        """September: seven sheets in, five outstanding."""
+        season = build_season()
+        for name in ("Amir", "Jay", "Jen", "Marsha", "Sarah"):
+            season["picks"][name] = []
+        tables = cms.tables(season)
+        self.assertEqual(len(tables["picks"].rows), 17 * 7)
+        self.assertEqual(len(tables["competitor_seasons"].rows), 7)
+        # the roster is still twelve: they exist, they just have not answered
+        self.assertEqual(len(tables["competitors"].rows), 12)
+
+    def test_a_rookie_is_not_an_error(self):
+        season = build_season()
+        season["roster"].append("Dave")
+        season["picks"]["Dave"] = [engine.WIN] * 17
+        season["points_guess"]["Dave"] = 400
+        season["colors"] = chart.colors_for(season["roster"])
+        rows = {r["name"]: r for r in cms.tables(season)["competitors"].rows}
+        self.assertEqual(rows["Dave"]["first_season"], 2026)
+        self.assertEqual(rows["Dave"]["titles"], 0)
+        self.assertEqual(rows["Dave"]["color"], season["colors"]["Dave"])
+
+    def test_matrix_starts_with_the_header(self):
+        table = cms.tables(build_season())["games"]
+        matrix = table.matrix()
+        self.assertEqual(matrix[0], list(table.columns))
+        self.assertEqual(len(matrix), 1 + len(table.rows))
+        for row in matrix[1:]:
+            self.assertEqual(len(row), len(table.columns))
+
+    def test_no_cell_is_the_string_None(self):
+        season = build_season()
+        walk(season, 4)
+        for name, table in cms.tables(season).items():
+            for row in table.matrix()[1:]:
+                for cell in row:
+                    self.assertIsNotNone(cell, name)
+                    self.assertNotEqual(cell, "None", name)
+
+    def test_a_bye_week_gets_a_row_with_no_game(self):
+        season = build_season()
+        walk(season, 12)
+        rows = {r["slug"]: r for r in cms.tables(season)["weeks"].rows}
+        bye = rows["2026-w10"]
+        self.assertTrue(bye["is_bye"])
+        self.assertEqual(bye["game"], "")
+        self.assertEqual(bye["game_label"], "Bye")
+
+    def test_an_eighteen_game_season_produces_the_right_shape(self):
+        season = build_season(2031, games=18, bye_week=7)
+        walk(season, 19)
+        tables = cms.tables(season)
+        self.assertEqual(len(tables["games"].rows), 18)
+        self.assertEqual(len(tables["picks"].rows), 18 * 12)
+        self.assertEqual(len(tables["standings"].rows), 20 * 12)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

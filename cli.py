@@ -9,6 +9,7 @@ The FEP weekly run, headless.
     python3 cli.py leverage        rank every remaining game by how much it matters
     python3 cli.py statpack [N]    print the stat pack for a week
     python3 cli.py push [--live]   push weekly percentages to the Google Sheet
+    python3 cli.py cms [--live]    build (and push) the seven CMS tables
     python3 cli.py token           generate a shared secret for the Apps Script
     python3 cli.py dashboard       build and open the weekly dashboard
     python3 cli.py picks <file>    load picks from a CSV
@@ -212,6 +213,42 @@ def cmd_push(argv):
         result = sheets.push(season, tab=target["tab"], board=target["board"])
         print("Wrote {} cells to {}".format(
             result["updated_cells"], result["updated_range"]))
+
+
+def cmd_cms(argv):
+    """Build the seven CMS tables, and optionally write them to the Sheet."""
+    season = _load()
+    live = "--live" in argv
+    out_dir = next((a.split("=", 1)[1] for a in argv if a.startswith("--csv=")), None)
+    only = next((a.split("=", 1)[1].split(",") for a in argv
+                 if a.startswith("--only=")), None)
+
+    if out_dir:
+        for path in sheets.tables_to_csv(season, out_dir):
+            print("  {:>7,} bytes  {}".format(os.path.getsize(path), path))
+        return
+
+    if not live:
+        from fep import cms
+        tables = cms.tables(season)
+        print("\n{} CMS tables\n".format(season["year"]))
+        for name in (only or sheets.TABLE_TABS):
+            table = tables[name]
+            print("  {:<20} {:>5} rows x {:>2} cols".format(
+                name, len(table.rows), len(table.columns)))
+            if table.rows:
+                print("      first slug  {}".format(table.rows[0]["slug"]))
+                print("      last slug   {}".format(table.rows[-1]["slug"]))
+        print("\n  --csv=DIR   write them out to look at")
+        print("  --live      push them to the Sheet")
+        print("  --only=a,b  restrict to some tables")
+        return
+
+    for result in sheets.push_tables(season, only=only):
+        print("  {:<20} +{} new, {} updated, {} left alone ({} total)".format(
+            result.get("tab", "?"), result.get("added", 0),
+            result.get("updated", 0), result.get("protected", 0),
+            result.get("total", 0)))
 
 
 def cmd_dashboard(argv):
@@ -421,6 +458,7 @@ COMMANDS = {
     "week": cmd_week,
     "statpack": cmd_statpack,
     "push": cmd_push,
+    "cms": cmd_cms,
     "picks": cmd_picks,
     "token": cmd_token,
     "dashboard": cmd_dashboard,

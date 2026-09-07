@@ -343,7 +343,19 @@ def run(season: dict, results_override: Optional[List[str]] = None,
 # ---------------------------------------------------------------------------
 
 def snapshot(season: dict, week: int, board: engine.Board, note: str = "") -> dict:
-    """Record the board for a week. Re-saving the same week replaces it."""
+    """Record the board for a week. Re-saving the same week replaces it.
+
+    The results and points stored here are masked to that week, not copied from
+    the season's current state. When a week is run live the two are the same,
+    but they are not when a week is re-run or backfilled later, and in that case
+    copying the current state would write games from the future into a past
+    week's record. Anything reading a snapshot is reading what was true then.
+
+    Weights are the exception and cannot be: ESPN only publishes the current
+    line, so a backfilled week carries today's weights rather than that week's.
+    That is exactly why they are snapshotted at all, and it is why the weekly
+    run should happen weekly.
+    """
     entry = {
         "week": week,
         "taken_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -356,7 +368,8 @@ def snapshot(season: dict, week: int, board: engine.Board, note: str = "") -> di
         "deciding": {k: round(v, 1) for k, v in board.deciding.items()},
         "points_mean": round(board.points["mean"], 1),
         "points_sd": round(board.points["sd"], 1),
-        "results": results(season),
+        "results": results_through_week(season, week),
+        "points_for": points_through_week(season, week),
         "weights": weights(season),
     }
     season["snapshots"] = [s for s in season.get("snapshots", []) if s["week"] != week]
