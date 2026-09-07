@@ -713,5 +713,44 @@ class SheetHandoverTest(unittest.TestCase):
         ])
 
 
+class PaletteTest(unittest.TestCase):
+    """A colour identifies a person, so it must not move when the roster does."""
+
+    ORIGINAL = ["Amir", "Andy", "Buhduh", "Emer", "Hanan", "Jacob",
+                "Jay", "Jen", "Marsha", "Nathan", "Pop", "Sarah"]
+
+    def test_the_canonical_twelve_follow_the_rule(self):
+        """They are a wheel, not a list, which is what makes them extensible."""
+        self.assertEqual([chart._hue_to_hex(k * 30) for k in range(12)],
+                         chart.PALETTE)
+
+    def test_a_newcomer_moves_nobody(self):
+        joined = sorted(self.ORIGINAL + ["Dave"])   # sorts into the middle
+        colors = chart.colors_for(joined)
+        for name in self.ORIGINAL:
+            self.assertEqual(colors[name], chart.CANONICAL[name], name)
+
+    def test_colours_never_collide(self):
+        roster = sorted(self.ORIGINAL + ["Dave", "Zoe", "Ari", "Sam", "Wes"])
+        colors = chart.colors_for(roster)
+        self.assertEqual(len(set(colors.values())), len(roster))
+
+    def test_a_recorded_colour_wins(self):
+        """Once written into the season file it is permanent."""
+        colors = chart.colors_for(["Dave"], {"Dave": "#123456"})
+        self.assertEqual(colors["Dave"], "#123456")
+
+    def test_a_recorded_colour_is_not_handed_out_twice(self):
+        colors = chart.colors_for(["Dave", "Zoe"], {"Dave": chart._hue_to_hex(15)})
+        self.assertNotEqual(colors["Zoe"], colors["Dave"])
+
+    def test_series_colours_come_from_the_roster_not_its_order(self):
+        roster = sorted(self.ORIGINAL + ["Dave"])
+        series = chart.build_series([0], {0: {n: 1.0 for n in roster}}, roster)
+        for entry in series:
+            if entry["name"] in chart.CANONICAL:
+                self.assertEqual(entry["color"], chart.CANONICAL[entry["name"]])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

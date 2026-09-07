@@ -41,16 +41,25 @@ def collect(year: int, week: int = None) -> dict:
     pack = analytics.full_pack(season, board, week, through_week=week,
                               leverage_limit=17)
 
-    career, personality = {}, {}
+    # Everything the page ships must describe the same week the board does. The
+    # payload used to take games, snapshots and retrospective leverage straight
+    # off the live season, so a historical build showed an old board beside
+    # today's results. `pin` is the single place that decides what "as of week
+    # N" means, and the pack is already built from it.
+    view = analytics.pin(season, week)
+
+    # A competitor with no history genuinely has no career record -- a rookie in
+    # the pool is not a defect. Anything else is, so only the lookup miss is
+    # tolerated, and it is recorded rather than swallowed.
+    career, personality, gaps = {}, {}, []
     for name in season["roster"]:
         try:
             career[name] = history.career(name)
-        except Exception:
-            pass
-        try:
             personality[name] = history.pick_personality(name)
-        except Exception:
-            pass
+        except KeyError:
+            gaps.append(name)
+    if gaps:
+        print("  note: no history for {}".format(", ".join(gaps)), file=sys.stderr)
 
     return {
         "year": year, "week": week,
@@ -60,7 +69,7 @@ def collect(year: int, week: int = None) -> dict:
                    "points": g["points_for"], "division": g["division"],
                    "resultSource": g.get("result_source"),
                    "weightSource": g.get("weight_source"), "date": g["date"]}
-                  for g in season["games"]],
+                  for g in view["games"]],
         "roster": season["roster"], "picks": season["picks"],
         "guesses": season["points_guess"],
         "board": pack["board"], "straight": pack["straight"],
@@ -73,12 +82,13 @@ def collect(year: int, week: int = None) -> dict:
         "cal": pack["calibration"], "counter": pack["counterfactual"],
         "leverage": pack["leverage_ranking"], "nextLev": pack["next_game_leverage"],
         "pointsModel": pack["points_model"],
-        "retro": analytics.retrospective_leverage(season),
+        "whatif": pack["whatif"],
+        "retro": pack["retrospective_leverage"],
         "career": career, "personality": personality,
         "snapshots": [{"week": s["week"], "weighted": s["weighted"],
                        "correct": s["current_points"], "deciding": s["deciding"],
                        "outcomes": s["remaining_outcomes"]}
-                      for s in season.get("snapshots", [])],
+                      for s in view.get("snapshots", [])],
         "outcomes": board.remaining_outcomes,
         "champions": history.champions(),
     }

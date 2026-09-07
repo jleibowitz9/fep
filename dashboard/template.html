@@ -302,7 +302,7 @@ tbody tr:hover{background:#1A1E21}
   </div>
 
   <nav id="nav">
-    <button data-v="run" class="on"><span class="ic">▶</span>Run &amp; Verify<span class="k">1</span></button>
+    <button data-v="run" class="on"><span class="ic">▣</span>This Build<span class="k">1</span></button>
     <button data-v="board"><span class="ic">▦</span>The Board<span class="k">2</span></button>
     <button data-v="picks"><span class="ic">▩</span>The Picks<span class="k">3</span></button>
     <button data-v="story"><span class="ic">✎</span>Storylines<span class="k">4</span></button>
@@ -316,7 +316,7 @@ tbody tr:hover{background:#1A1E21}
   <div class="side-foot">
     <div class="row"><span>Outcomes left</span><b id="fOut"></b></div>
     <div class="row"><span>Still alive</span><b id="fAlive"></b></div>
-    <div class="row"><span>Last run</span><b id="fRun"></b></div>
+    <div class="row"><span>Season file</span><b id="fRun"></b></div>
   </div>
 </aside>
 
@@ -327,7 +327,7 @@ tbody tr:hover{background:#1A1E21}
       <div class="sub" id="hSub"></div>
     </div>
     <div class="pills" id="hPills"></div>
-    <button class="btn" id="runBtn">Run Week 8</button>
+    <button class="btn ghost" id="runBtn" title="This page cannot run the model">Copy rebuild command</button>
   </header>
   <div class="scroll">
     <section class="view on" id="v-run"></section>
@@ -372,6 +372,14 @@ const played = D.games.filter(g=>g.result!=='A');
 const wins = played.filter(g=>g.result==='W').length;
 const rec = wins+"-"+(played.length-wins);
 const next = D.games.find(g=>g.result==='A');
+// Week 0 is a real state, not an error: every sheet is in and nothing has been
+// played yet. Everything below that describes "the last result" or "the move
+// since last week" has no referent until the opener, so it branches on this.
+const PRESEASON = played.length===0;
+const last = PRESEASON ? null : played[played.length-1];
+// Heat Check is empty in week 0 and in any week with no prior snapshot.
+const DELTAS = Object.entries((D.heat&&D.heat.deltas)||{});
+const movers = DELTAS.slice().sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));
 
 document.getElementById('brandSub').textContent = D.year+" season";
 // Use the real FEP wordmark when it is present, otherwise keep the text mark.
@@ -387,14 +395,16 @@ document.getElementById('brandSub').textContent = D.year+" season";
 })();
 document.getElementById('wkNum').textContent = "Week "+D.week;
 document.getElementById('wkRec').textContent = "Eagles "+rec;
-document.getElementById('wkOpp').innerHTML =
-  `<span class="wl ${played[played.length-1].result}">${played[played.length-1].result}</span> ${played[played.length-1].label}`;
+document.getElementById('wkOpp').innerHTML = PRESEASON
+  ? `<span class="wl A">·</span> ${next ? 'opens '+next.label : 'season complete'}`
+  : `<span class="wl ${last.result}">${last.result}</span> ${last.label}`;
 document.getElementById('fOut').textContent = D.outcomes.toLocaleString();
 document.getElementById('fAlive').textContent = D.conc.alive+" of 12";
 document.getElementById('fRun').textContent = D.generated;
 document.getElementById('hTitle').textContent = `${D.year} FEP · Week ${D.week}`;
-document.getElementById('hSub').textContent =
-  `${played[played.length-1].label} (${played[played.length-1].result}) · ${D.outcomes.toLocaleString()} outcomes remain`;
+document.getElementById('hSub').textContent = PRESEASON
+  ? `Before the opener · every one of ${D.outcomes.toLocaleString()} outcomes still live`
+  : `${last.label} (${last.result}) · ${D.outcomes.toLocaleString()} outcomes remain`;
 // One status, not four competing ones, and it is filled in by the Run view so
 // it can never disagree with the verdict it is summarising.
 function setStatus(n){
@@ -425,6 +435,11 @@ addEventListener('keydown',e=>{
 /* ---------- sparkline ---------- */
 function spark(name,w=76,h=20){
   const vals=D.snapshots.map(s=>s.weighted[name]??0);
+  // Nothing to trace before there are two points to trace between. Zero
+  // snapshots gives an empty box; one would divide by zero, so it gets a dot.
+  if(vals.length<2) return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${
+    vals.length===1?`<circle cx="${(w/2).toFixed(1)}" cy="${(h/2).toFixed(1)}" r="2" fill="${line(name)}"/>`:''
+  }</svg>`;
   const max=Math.max(...D.snapshots.flatMap(s=>Object.values(s.weighted)),1);
   const pts=vals.map((v,i)=>[i/(vals.length-1)*(w-2)+1, h-1-(v/max)*(h-2)]);
   const dead=vals[vals.length-1]<=0;
@@ -440,47 +455,55 @@ function rankAt(week,name){
   return Object.entries(s.weighted).sort((a,b)=>b[1]-a[1]).findIndex(e=>e[0]===name)+1;
 }
 
-/* ================= RUN & VERIFY ================= */
+/* ================= THIS BUILD =================
+   This page is a read-only viewer for one baked-in payload. It does not fetch,
+   compute, save or push anything, so nothing here may claim that it did. Every
+   row below is derived from D, which is the only thing this page actually
+   knows. The previous version asserted an ESPN fetch, a weight refresh, a
+   saved snapshot, a published chart, a verified Sheet range and a 0.03s
+   runtime -- none of which `cli.py dashboard` performs.
+   ============================================================= */
 (function(){
   const overrides = D.games.filter(g=>g.weightSource==='manual'||g.resultSource==='manual');
   const sum = Object.values(D.board).reduce((a,b)=>a+b,0);
-  const biggest = Object.entries(D.heat.deltas).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))[0];
+  const biggest = movers.length?movers[0]:null;
   const contiguous = D.snapshots.map(s=>s.week).every((w,i)=>w===i);
-  const last = played[played.length-1];
+  const missingWeight = D.games.filter(g=>g.weight===null||g.weight===undefined);
+  const missingPoints = played.filter(g=>g.points===null||g.points===undefined);
 
-  // Everything the run checked. Only the ones that are NOT fine get surfaced;
-  // the rest live behind a disclosure, because thirteen green ticks is not
-  // information, it is a wall.
+  // What the payload contains. Facts about D, not a narration of operations.
   const steps = [
-    ['ok','Fetched from ESPN',
-     `17 games. 1 new result (<code>${last.label} ${last.result}</code>), 9 win probabilities refreshed.`],
-    ['ok','Loaded the season',
-     `12 pick sheets, 17 games, bye in week 10, division games at <code>[0,6,7,8,10,16]</code>.`],
-    ['ok','Computed the board',
-     `${D.outcomes.toLocaleString()} remaining universes in <code>0.03s</code>.`],
-    ['ok','Compared to Week '+(D.week-1),
-     `Largest single move <code>${sgn(biggest[1])}</code> (${biggest[0]}).`],
-    ['ok','Saved snapshot',
-     `Stored with the weights that produced it, so this week can be reproduced exactly.`],
+    ['ok','Season loaded',
+     `${D.roster.length} pick sheets, ${D.games.length} games, ${played.length} played.`],
+    ['ok','Board computed',
+     `${D.outcomes.toLocaleString()} remaining universes, pinned to week ${D.week}.`],
+    ['ok','Snapshots in payload',
+     D.snapshots.length ? `Weeks ${D.snapshots.map(s=>s.week).join(', ')}.`
+                        : `None yet. Sparklines and Heat Check fill in from week 1.`],
+    ['ok','Points model',
+     `<code>${D.pointsModel.model}</code> · mean ${D.pointsModel.mean.toFixed(1)}, sd ${D.pointsModel.sd.toFixed(1)}.`],
+    ['ok','Built', `Season file last updated <code>${D.generated||'unknown'}</code>.`],
   ];
   const checks = [
     [Math.abs(sum-100)<0.5?'ok':'warn','Odds sum to 100%', sum.toFixed(1)+'% ±rounding'],
-    [Object.keys(D.board).length===12?'ok':'warn','All 12 competitors on the board','12/12'],
-    [contiguous?'ok':'warn','No week missing a snapshot','0..'+D.week],
-    [Math.abs(biggest[1])<=40?'ok':'warn','No implausible weekly swing','max '+Math.abs(biggest[1]).toFixed(1)],
-    ['ok','Sheet columns still match the roster','B..M'],
-    ['ok','Chart file holds weeks 0.. '+D.week+' only','week-0'+D.week+'.json'],
+    [Object.keys(D.board).length===D.roster.length?'ok':'warn','Every competitor on the board',
+     Object.keys(D.board).length+'/'+D.roster.length],
+    [contiguous?'ok':'warn','No week missing a snapshot',
+     D.snapshots.length?('0..'+D.week):'none yet'],
+    [!biggest||Math.abs(biggest[1])<=40?'ok':'warn','No implausible weekly swing',
+     biggest?('max '+Math.abs(biggest[1]).toFixed(1)):'no prior week'],
+    [missingWeight.length===0?'ok':'warn','Every game carries a win probability',
+     missingWeight.length?(missingWeight.length+' missing'):D.games.length+'/'+D.games.length],
+    [missingPoints.length===0?'ok':'warn','Every played game carries a score',
+     missingPoints.length?(missingPoints.length+' missing'):played.length+'/'+played.length],
   ];
 
   // Things that genuinely want a human. These are the only rows shown by default.
   const attention = [];
   overrides.forEach(g=>attention.push({
     title:`Manual override on ${g.label}`,
-    body:`Your weight of ${(g.weight*100).toFixed(1)}% is being used. ESPN's number was ignored, and will keep being ignored until you clear it.`,
+    body:`Your weight of ${g.weight==null?'—':(g.weight*100).toFixed(1)+'%'} is being used. ESPN's number was ignored, and will keep being ignored until you clear it.`,
     action:null}));
-  attention.push({title:'Sheet not pushed yet',
-    body:'The board is computed and the chart is published, but the Google Sheet still shows last week.',
-    action:'Push to Weighted - MASTER'});
   checks.filter(c=>c[0]!=='ok').forEach(c=>attention.push({title:c[1],body:c[2],action:null}));
 
   const total = steps.length + checks.length;
@@ -490,9 +513,17 @@ function rankAt(week,name){
   <div class="verdict ${clean?'ok':'warn'}">
     <div class="vmark">${clean?'✓':'!'}</div>
     <div>
-      <h2>${clean?`Week ${D.week} checks out`:`Week ${D.week} ran clean, ${attention.length} thing${attention.length===1?'':'s'} to look at`}</h2>
-      <p>${total} checks passed${clean?'':`, and ${attention.length} need${attention.length===1?'s':''} a decision from you`}.</p>
+      <h2>${clean?`Week ${D.week} payload looks consistent`:`Week ${D.week} payload, ${attention.length} thing${attention.length===1?'':'s'} to look at`}</h2>
+      <p>${total} facts and checks${clean?'':`, and ${attention.length} need${attention.length===1?'s':''} a decision from you`}.</p>
     </div>
+  </div>
+
+  <div class="attn" style="opacity:.75">
+    <div class="amark" style="background:#2A3035;color:var(--muted)">i</div>
+    <div><div class="t">This page is a viewer, not a runner</div>
+      <div class="d">It shows the data that was baked into it when it was built. Fetching
+      from ESPN, refreshing weights, saving a snapshot, publishing the chart and pushing to
+      the Sheet all happen in <code>cli.py</code>, and none of them run from this page.</div></div>
   </div>
 
   ${attention.map(a=>`<div class="attn">
@@ -501,13 +532,13 @@ function rankAt(week,name){
       ${a.action?`<button class="btn ghost sm" data-act="1">${a.action}</button>`:''}
     </div>`).join('')}
 
-  <details class="disc"><summary>What this run did<span>${steps.length} steps</span></summary>
+  <details class="disc"><summary>What is in this payload<span>${steps.length} facts</span></summary>
     <div class="steps">${steps.map(([st,t,d])=>`
       <div class="step ${st}"><div class="ic">✓</div>
         <div><div class="t">${t}</div><div class="d">${d}</div></div></div>`).join('')}</div>
   </details>
 
-  <details class="disc"><summary>Invariants<span>${checks.length} checks, all passing</span></summary>
+  <details class="disc"><summary>Invariants<span>${checks.length} checks, ${checks.filter(c=>c[0]==='ok').length} passing</span></summary>
     <div class="checks" style="grid-template-columns:1fr 1fr">${checks.map(([st,t,x])=>`
       <div class="check ${st==='ok'?'':'warn'}"><div class="s">${st==='ok'?'✓':'!'}</div>${t}
         <span class="x">${x}</span></div>`).join('')}</div>
@@ -525,7 +556,7 @@ function rankAt(week,name){
           <td>${g.label}</td>
           <td><span class="wl ${g.result}">${g.result==='A'?'·':g.result}</span></td>
           <td class="r num muted">${g.points??'—'}</td>
-          <td class="r num">${(g.weight*100).toFixed(1)}%</td>
+          <td class="r num">${g.weight==null?'—':(g.weight*100).toFixed(1)+'%'}</td>
           <td class="tiny ${manual?'':'muted'}" style="${manual?'color:var(--amber)':''}">${manual?'manual':'espn'}</td>
           <td class="r num muted">${w}/12</td></tr>`;}).join('')}
       </tbody>
@@ -559,8 +590,8 @@ function rankAt(week,name){
   <div class="grid g3">
     ${[['Leader',D.ranked[0],pct(D.board[D.ranked[0]])],
        ['Effective field',D.conc.effective_field.toFixed(1)+' of 12','how open it is'],
-       ['Biggest mover',Object.entries(D.heat.deltas).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))[0][0],
-        sgn(Object.entries(D.heat.deltas).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))[0][1])+' this week']]
+       ['Biggest mover', movers.length?movers[0][0]:'—',
+        movers.length?sgn(movers[0][1])+' this week':'nothing has moved yet']]
       .map(([l,v,s])=>`<div class="card"><div class="stat"><div class="l">${l}</div>
         <div class="v">${v}</div><div class="l">${s}</div></div></div>`).join('')}
   </div>
@@ -652,18 +683,24 @@ function rankAt(week,name){
 /* ================= STORYLINES ================= */
 (function(){
   const leads=[];
-  const sorted=Object.entries(D.heat.deltas).sort((a,b)=>b[1]-a[1]);
-  const [upN,upV]=sorted[0], [dnN,dnV]=sorted[sorted.length-1];
+  const sorted=DELTAS.slice().sort((a,b)=>b[1]-a[1]);
   const leader=D.ranked[0], prevLeader=(()=>{const s=D.snapshots.find(x=>x.week===D.week-1);
     return s?Object.entries(s.weighted).sort((a,b)=>b[1]-a[1])[0][0]:null;})();
 
   if(prevLeader && prevLeader!==leader) leads.push(['big','Lead change',
     `${leader} takes over the top spot`,
     `${leader} moves to ${pct(D.board[leader])}, displacing ${prevLeader}. That is the ${D.week===1?'first':'latest'} lead change of the season.`,98]);
-  leads.push(['hot','Heat check',`${upN} is the week's big riser`,
-    `${upN} gains ${sgn(upV)} points to sit at ${pct(D.board[upN])}, the largest single-week rise on the board.`,90]);
-  leads.push(['cold','Heat check',`${dnN} takes the week's worst hit`,
-    `${dnN} drops ${sgn(dnV)} to ${pct(D.board[dnN])}. ${D.board[dnN]<=0?'That is elimination.':'Still alive, but the room is getting smaller.'}`,88]);
+  // Week 0 has no previous week to move from, so there is no riser or faller.
+  if(sorted.length){
+    const [upN,upV]=sorted[0], [dnN,dnV]=sorted[sorted.length-1];
+    leads.push(['hot','Heat check',`${upN} is the week's big riser`,
+      `${upN} gains ${sgn(upV)} points to sit at ${pct(D.board[upN])}, the largest single-week rise on the board.`,90]);
+    leads.push(['cold','Heat check',`${dnN} takes the week's worst hit`,
+      `${dnN} drops ${sgn(dnV)} to ${pct(D.board[dnN])}. ${D.board[dnN]<=0?'That is elimination.':'Still alive, but the room is getting smaller.'}`,88]);
+  }
+  if(PRESEASON) leads.push(['big','Opening bell',
+    `Twelve sheets are in and the board is wide open`,
+    `Nobody has a result yet, so every one of ${D.outcomes.toLocaleString()} outcomes is still live. ${leader} opens as the favourite at ${pct(D.board[leader])} on the strength of the sheet alone.`,99]);
   if(D.nextLev) leads.push(['big','Leverage index',
     `${D.nextLev.label} is worth ${pct(D.nextLev.leverage)} of the pool`,
     `Nearly ${Math.round(D.nextLev.leverage)} percentage points of leaderboard equity change hands on this one result. ${(()=>{
@@ -673,7 +710,7 @@ function rankAt(week,name){
   if(D.elim.eliminated.length) leads.push(['cold','Obituary',
     `${D.elim.eliminated.length} ${D.elim.eliminated.length===1?'campaign is':'campaigns are'} over`,
     `${D.elim.eliminated.join(', ')} ${D.elim.eliminated.length===1?'is':'are'} mathematically eliminated. No remaining combination of results gets them there.`,80]);
-  if(D.elim.eliminated_by_loss.length) leads.push(['cold','On the brink',
+  if(D.elim.eliminated_by_loss.length && D.nextLev) leads.push(['cold','On the brink',
     `A loss ends ${D.elim.eliminated_by_loss.join(' and ')}`,
     `If the Eagles lose ${D.nextLev.label}, ${D.elim.eliminated_by_loss.join(' and ')} ${D.elim.eliminated_by_loss.length===1?'is':'are'} out on the spot.`,85]);
   if(D.twins.length && D.twins[0].distance===0) leads.push(['','Redundancy',
@@ -824,7 +861,7 @@ document.getElementById('v-chart').innerHTML=`
   <div class="checks mt" style="grid-template-columns:repeat(3,1fr)">
     <div class="check"><div class="s">✓</div>Contains weeks 0–${D.week} only<span class="x">immutable</span></div>
     <div class="check"><div class="s">✓</div>No network calls<span class="x">baked in</span></div>
-    <div class="check"><div class="s">✓</div>Published<span class="x">week-0${D.week}.json</span></div>
+    <div class="check"><div class="s">✓</div>Target file<span class="x">week-0${D.week}.json</span></div>
   </div></div>`;
 
 (function(){
@@ -836,12 +873,12 @@ document.getElementById('v-chart').innerHTML=`
   document.getElementById('v-publish').innerHTML=`
   <div class="grid g2">
     <div class="card"><h3>Google Sheet <span class="tag">B2:M20, nothing else</span></h3>
-      <div class="checks" style="grid-template-columns:1fr;margin-bottom:12px">
-        <div class="check"><div class="s">✓</div>Header matches roster<span class="x">B..M</span></div>
-        <div class="check"><div class="s">✓</div>Column A untouched<span class="x">week labels</span></div>
-        <div class="check"><div class="s">✓</div>Column N onward untouched<span class="x">your formulas</span></div>
-      </div>
-      <button class="btn" id="pushBtn">Push to Weighted - MASTER</button>
+      <p class="muted tiny" style="line-height:1.6;margin-bottom:12px">The push writes
+        <code>B2:M20</code> only: column A keeps the week labels and column N onward keeps
+        your formulas. This page cannot perform it or check whether it has been done &mdash;
+        copy the block below, or run <code>python3 cli.py push</code> to preview it and
+        <code>push --live</code> to write.</p>
+      <button class="btn" id="pushBtn">Copy push command</button>
       <button class="btn ghost" id="pasteBtn" style="margin-left:8px">Copy paste block</button>
       <table class="mt"><thead><tr><th>Wk</th>${D.roster.map(n=>`<th class="r tiny">${n.slice(0,3)}</th>`).join('')}</tr></thead>
         <tbody>${rows.map((r,i)=>`<tr><td class="muted num">${i}</td>${r.map(v=>`<td class="r num tiny ${v===''?'muted':''}">${v||'·'}</td>`).join('')}</tr>`).join('')}</tbody></table>
@@ -850,11 +887,11 @@ document.getElementById('v-chart').innerHTML=`
       <div class="kv"><span>File</span><span>chart-data/${D.year}/week-0${D.week}.json</span></div>
       <div class="kv"><span>Weeks inside</span><span>0–${D.week}</span></div>
       <div class="kv"><span>Framer week prop</span><span>${D.week}</span></div>
-      <div class="kv"><span>Status</span><span style="color:var(--green)">pushed</span></div>
+      <div class="kv"><span>Written by</span><span><code>cli.py publish</code></span></div>
       <p class="muted tiny" style="margin-top:12px;line-height:1.6">Each week is its own immutable file, so an old newsletter can never start showing future data.</p>
     </div>
   </div>`;
-  document.getElementById('pushBtn').onclick=()=>toast("Prototype: no write performed");
+  document.getElementById('pushBtn').onclick=()=>copy("python3 cli.py push --live","Push command copied");
   document.getElementById('pasteBtn').onclick=()=>copy(rows.map(r=>r.join('\t')).join('\n'),"Paste block copied");
 })();
 
@@ -874,10 +911,13 @@ document.getElementById('v-chart').innerHTML=`
       <div class="kv"><span>Lowest ever</span><span>${Math.min(...champs.map(c=>c.winning_score))} (${champs.find(c=>c.winning_score===Math.min(...champs.map(x=>x.winning_score))).year})</span></div>
       <div class="kv"><span>Highest ever</span><span>${Math.max(...champs.map(c=>c.winning_score))} (${champs.find(c=>c.winning_score===Math.max(...champs.map(x=>x.winning_score))).year})</span></div>
       <div class="kv"><span>Unique champions</span><span>${new Set(champs.map(c=>c.champion)).size} of 10</span></div>
-      <div class="kv"><span>Leader's pace</span><span>${(D.correct[D.ranked[0]]/played.length*17).toFixed(1)}</span></div>
-      <p class="muted tiny" style="margin-top:12px;line-height:1.6">${D.ranked[0]} is on pace for
+      <div class="kv"><span>Leader's pace</span><span>${PRESEASON?'—':(D.correct[D.ranked[0]]/played.length*17).toFixed(1)}</span></div>
+      ${PRESEASON?`<p class="muted tiny" style="margin-top:12px;line-height:1.6">No games played yet,
+        so there is no pace to project. The bar to clear: ${Math.min(...champs.map(c=>c.winning_score))}
+        correct has won it, ${Math.max(...champs.map(c=>c.winning_score))} has been needed.</p>`
+      :`<p class="muted tiny" style="margin-top:12px;line-height:1.6">${D.ranked[0]} is on pace for
         ${(D.correct[D.ranked[0]]/played.length*17).toFixed(1)} correct picks, which would have won
-        ${champs.filter(c=>D.correct[D.ranked[0]]/played.length*17>=c.winning_score).length} of the last 10 seasons.</p>
+        ${champs.filter(c=>D.correct[D.ranked[0]]/played.length*17>=c.winning_score).length} of the last 10 seasons.</p>`}
     </div>
   </div>`;
 })();
@@ -926,7 +966,9 @@ function closeDrawer(){document.getElementById('drawer').classList.remove('on');
 document.getElementById('scrim').onclick=closeDrawer;
 document.body.addEventListener('click',e=>{const n=e.target.closest('[data-n]');if(n)openDrawer(n.dataset.n);});
 
-document.getElementById('runBtn').onclick=()=>{show('run');toast("Prototype: showing last run's trace");};
+// This page cannot run the model; it hands over the command that can.
+document.getElementById('runBtn').onclick=()=>
+  copy(`python3 cli.py week && python3 cli.py dashboard`,"Rebuild command copied");
 </script>
 <script id="chartJs">__CHART__</script>
 </body>

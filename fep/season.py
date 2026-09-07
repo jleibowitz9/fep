@@ -30,7 +30,7 @@ import os
 import time
 from typing import Dict, List, Optional
 
-from . import engine, espn
+from . import chart, engine, espn
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 
@@ -105,6 +105,10 @@ def create(year: int, roster: Optional[List[str]] = None, refresh: bool = True) 
         "year": year,
         "roster": roster,
         "picks": {name: [] for name in roster},
+        # Recorded, not derived. A competitor's colour is part of their
+        # identity, so it is written down the first time they appear and never
+        # recomputed from roster position afterwards.
+        "colors": chart.colors_for(roster),
         "points_guess": {name: None for name in roster},
         "games": games,
         "division_indices": pulled["division_indices"],

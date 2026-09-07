@@ -40,6 +40,30 @@ def _run(season: dict, results: List[str]) -> engine.Board:
     return season_mod.run(season, results_override=results, skip_validation=True)
 
 
+def pin(season: dict, through_week: Optional[int]) -> dict:
+    """The season as it stood at the end of an NFL week.
+
+    Masks later games back to unplayed AND drops later snapshots. Doing only the
+    first (which is what full_pack used to do) leaves every snapshot-derived
+    statistic reading the future: a Week 1 pack reported Week 2's volatility as
+    "current". Anything that pins a board must pin through this, so the board
+    and every number beside it describe the same moment.
+    """
+    if through_week is None:
+        return season
+    pinned = dict(season)
+    pinned["games"] = [
+        dict(g, result=engine.UNPLAYED, points_for=None)
+        if g["nfl_week"] > through_week else g
+        for g in season["games"]
+    ]
+    pinned["snapshots"] = [
+        snap for snap in season.get("snapshots", [])
+        if snap.get("week", 0) <= through_week
+    ]
+    return pinned
+
+
 # ---------------------------------------------------------------------------
 # Heat Check
 # ---------------------------------------------------------------------------
@@ -91,6 +115,29 @@ def leverage_for_game(season: dict, game_index: int, results: Optional[List[str]
         "if_win": {n: round(board_win.weighted[n], 1) for n in board_win.order},
         "if_lose": {n: round(board_lose.weighted[n], 1) for n in board_lose.order},
     }
+
+
+def whatif_boards(season: dict) -> Dict[str, dict]:
+    """Every game's W and L board, keyed by game index as a string.
+
+    This is what the dashboard's What If tab reads. For an unplayed game the two
+    boards are the two ways it can still go; for a played one, the board that
+    did happen sits alongside the season that did not.
+
+    Keys are strings because this crosses into JSON, where they would become
+    strings anyway. Making that explicit here keeps the Python and the shipped
+    payload the same shape.
+    """
+    results = season_mod.results(season)
+    out: Dict[str, dict] = {}
+    for i, actual in enumerate(results):
+        pair = leverage_for_game(season, i, results=results)
+        out[str(i)] = {
+            engine.WIN: pair["if_win"],
+            engine.LOSS: pair["if_lose"],
+            "actual": actual,
+        }
+    return out
 
 
 def individual_leverage(season: dict, game_index: int) -> Dict[str, float]:
@@ -460,13 +507,7 @@ def full_pack(season: dict, board: engine.Board, week: int,
     board used, so leverage and counterfactuals cannot reference a game the
     board has not seen.
     """
-    if through_week is not None:
-        season = dict(season)
-        season["games"] = [
-            dict(g, result=engine.UNPLAYED, points_for=None)
-            if g["nfl_week"] > through_week else g
-            for g in season["games"]
-        ]
+    season = pin(season, through_week)
     results = season_mod.results(season)
     next_index = engine.next_game_index(results)
 
@@ -492,6 +533,8 @@ def full_pack(season: dict, board: engine.Board, week: int,
         "calibration": espn_calibration(season),
         "counterfactual": counterfactual(season),
         "points_model": board.points,
+        "whatif": whatif_boards(season),
+        "retrospective_leverage": retrospective_leverage(season),
     }
     pack["next_game_leverage"] = (
         leverage_for_game(season, next_index) if next_index is not None else None

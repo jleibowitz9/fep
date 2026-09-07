@@ -41,25 +41,92 @@ JavaScript disabled; JavaScript only adds interaction.
 from __future__ import annotations
 
 import html
+import colorsys
 import json
 from typing import Dict, List, Optional, Sequence
 
-# The FEP competitor colours, in roster order. These are canonical: they are
-# the colours used on the Framer site and they identify a person, not a series.
-PALETTE = [
-    "#972B2B",  # Amir
-    "#97612B",  # Andy
-    "#97972B",  # Buhduh
-    "#61972B",  # Emer
-    "#2B972B",  # Hanan
-    "#2B9761",  # Jacob
-    "#2B9797",  # Jay
-    "#2B6197",  # Jen
-    "#2B2B97",  # Marsha
-    "#612B97",  # Nathan
-    "#972B97",  # Pop
-    "#972B61",  # Sarah
-]
+# The FEP competitor colours. These are canonical: they are the colours used on
+# the Framer site, and they identify a *person*, not a position in a list.
+#
+# Keyed by name deliberately. They used to be a list indexed by roster position,
+# which meant a thirteenth competitor whose name sorted early (say "Dave")
+# shifted the colour of everyone after them and silently handed the thirteenth
+# person the first person's exact colour via the modulo. Nine of twelve
+# identities changed because one person joined.
+CANONICAL = {
+    "Amir": "#972B2B", "Andy": "#97612B", "Buhduh": "#97972B",
+    "Emer": "#61972B", "Hanan": "#2B972B", "Jacob": "#2B9761",
+    "Jay": "#2B9797", "Jen": "#2B6197", "Marsha": "#2B2B97",
+    "Nathan": "#612B97", "Pop": "#972B97", "Sarah": "#972B61",
+}
+
+# Those twelve are not an arbitrary list, they are a rule: twelve hues thirty
+# degrees apart, every one at exactly this lightness and saturation. Verified by
+# regenerating all twelve hexes from the rule and comparing.
+#
+# Which is what makes the palette safe to grow. A thirteenth competitor takes a
+# hue halfway between two existing ones, so nobody's colour ever moves and no
+# two people are ever closer than fifteen degrees apart.
+PALETTE_LIGHTNESS = 0.38
+PALETTE_SATURATION = 0.56
+
+# Roster order, so old callers and the published 2025 charts are unaffected.
+PALETTE = [CANONICAL[n] for n in (
+    "Amir", "Andy", "Buhduh", "Emer", "Hanan", "Jacob",
+    "Jay", "Jen", "Marsha", "Nathan", "Pop", "Sarah")]
+
+
+def _hue_to_hex(hue: float) -> str:
+    red, green, blue = colorsys.hls_to_rgb(
+        (hue % 360.0) / 360.0, PALETTE_LIGHTNESS, PALETTE_SATURATION)
+    return "#{:02X}{:02X}{:02X}".format(
+        *(int(round(channel * 255)) for channel in (red, green, blue)))
+
+
+def _hue_sequence():
+    """Hues in the order the palette hands them out: the wheel, then its gaps.
+
+    30 degrees apart for the first twelve, then the midpoints of those, then the
+    midpoints of those. Each pass stays as far from every earlier hue as that
+    pass allows, so the palette degrades gracefully instead of collapsing.
+    """
+    step = 30.0
+    for k in range(12):
+        yield k * step
+    while step > 1.0:
+        offset = step / 2.0
+        for k in range(int(round(360.0 / step))):
+            yield offset + k * step
+        step /= 2.0
+
+
+def colors_for(roster, assigned=None) -> Dict[str, str]:
+    """A colour per competitor, stable for life.
+
+    Precedence: a colour already recorded for that person, then the canonical
+    twelve, then the next unused hue. Recording the result (season.py does this)
+    is what makes a newcomer's colour permanent rather than a function of who
+    else happens to be on the roster.
+    """
+    colors = dict(assigned or {})
+    for name in roster:
+        if name not in colors and name in CANONICAL:
+            colors[name] = CANONICAL[name]
+
+    unclaimed = [name for name in roster if name not in colors]
+    if unclaimed:
+        taken = {value.upper() for value in colors.values()}
+        hues = _hue_sequence()
+        for name in unclaimed:
+            for hue in hues:
+                candidate = _hue_to_hex(hue)
+                if candidate.upper() not in taken:
+                    colors[name] = candidate
+                    taken.add(candidate.upper())
+                    break
+            else:  # pragma: no cover - the sequence is effectively unbounded
+                raise ValueError("ran out of distinct colours for {}".format(name))
+    return colors
 
 # The canonical colours are mid-dark by design, which is right for a filled pill
 # but not for a 3px line on a near-black chart: measured against the chart
@@ -117,6 +184,7 @@ def build_series(
     weeks: Sequence[int],
     board_by_week: Dict[int, Dict[str, float]],
     roster: Sequence[str],
+    colors: Optional[Dict[str, str]] = None,
 ) -> List[dict]:
     """Turn {week: {name: pct}} into per-competitor series with elimination info.
 
@@ -124,8 +192,10 @@ def build_series(
     recover. Trailing zeros are trimmed off the drawn line so it terminates at
     the elimination point instead of crawling along the axis.
     """
+    colors = colors_for(roster, colors)
     series = []
-    for position, name in enumerate(roster):
+    for name in roster:
+        color = colors[name]
         values = [board_by_week.get(w, {}).get(name) for w in weeks]
         values = [None if v is None else float(v) for v in values]
 
@@ -149,9 +219,9 @@ def build_series(
         series.append(
             {
                 "name": name,
-                "color": PALETTE[position % len(PALETTE)],
-                "line": _relight(PALETTE[position % len(PALETTE)], LINE_LIGHTNESS),
-                "ink": _ink_on(PALETTE[position % len(PALETTE)]),
+                "color": color,
+                "line": _relight(color, LINE_LIGHTNESS),
+                "ink": _ink_on(color),
                 "values": values,
                 "drawn": drawn,
                 "eliminated_at": eliminated_at,
@@ -183,6 +253,7 @@ def build_payload(
     games: Optional[Dict[int, dict]] = None,
     year: int = 2026,
     upto_week: Optional[int] = None,
+    colors: Optional[Dict[str, str]] = None,
 ) -> dict:
     """The data a chart needs for one week, and nothing after it.
 
@@ -197,7 +268,7 @@ def build_payload(
     if not weeks:
         raise ValueError("no weeks to chart")
 
-    series = build_series(weeks, board_by_week, roster)
+    series = build_series(weeks, board_by_week, roster, colors)
     games = games or {}
 
     return {
@@ -241,6 +312,7 @@ def render(
     upto_week: Optional[int] = None,
     title: Optional[str] = None,
     standalone: bool = True,
+    colors: Optional[Dict[str, str]] = None,
 ) -> str:
     """Render one week as a self-contained HTML file.
 
@@ -248,7 +320,8 @@ def render(
     fallback if the Framer component is ever inconvenient. The Framer path uses
     build_payload directly.
     """
-    payload = build_payload(weeks, board_by_week, roster, games, year, upto_week)
+    payload = build_payload(weeks, board_by_week, roster, games, year,
+                            upto_week, colors)
     heading = title or "{} Family Eagles Pool | {}".format(
         payload["year"], week_label(payload["weeks"][-1])
     )
@@ -280,6 +353,7 @@ def render_from_season(season: dict, upto_week: Optional[int] = None, **kwargs) 
         games=games,
         year=season["year"],
         upto_week=upto_week,
+        colors=season.get("colors"),
         **kwargs
     )
 
