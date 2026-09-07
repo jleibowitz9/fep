@@ -115,3 +115,34 @@ Even holding the URL and the token, a caller cannot:
 - write under a header that does not match what it sent
 
 Run `node appsscript/test_code.js` to see those enforced.
+
+## Driving the home screen from one value
+
+The home screen toggles between standings, the chart, and the picks table, all
+showing the same week. Framer's Dynamic Filters bind a page variable to a
+Collection List filter, so this needs exactly one thing from the data: a single
+field, with the same name and the same value, on every table involved.
+
+That field is **`week_ref`**, and it holds a `weeks` slug:
+
+```
+2026-w07
+```
+
+| List | Collection | Filter |
+|---|---|---|
+| Standings | `standings` | `week_ref` is `{week}` |
+| Picks table | `picks` | `week_ref` is `{week}` |
+| This week's game | `games` | `week_ref` is `{week}` |
+| Header, record, leader | `weeks` | `slug` is `{week}` |
+
+One variable, four lists, one string to change. `2026-w07` selects twelve
+standings rows, twelve picks, and one game. A bye week selects twelve standings
+rows and no game, which is correct rather than an error.
+
+The full-season picks grid is the same table with a different filter:
+`season is 2026` gives all 204 rows.
+
+`seasons.current_week` is there if you want the variable to default to the live
+week rather than being typed. Newsletter pages do not need any of this: a CMS
+page for a `weeks` item filters its lists by reference to the current item.

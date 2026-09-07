@@ -278,6 +278,50 @@ class SeasonColumnTest(unittest.TestCase):
                 self.assertNotIn("color", table.columns, name)
 
 
+class OneKeyPerWeekTest(unittest.TestCase):
+    """The home screen holds one value and drives three lists with it."""
+
+    HOME_SCREEN = ("games", "picks", "standings")
+
+    def test_every_home_screen_table_shares_the_key(self):
+        season = build_season()
+        walk(season, 7)
+        for name in self.HOME_SCREEN:
+            self.assertIn("week_ref", cms.tables(season)[name].columns, name)
+
+    def test_the_key_is_a_real_weeks_slug(self):
+        """A filter that matches nothing is worse than one that errors."""
+        season = build_season()
+        walk(season, 18)
+        tables = cms.tables(season)
+        known = {row["slug"] for row in tables["weeks"].rows}
+        for name in self.HOME_SCREEN:
+            for row in tables[name].rows:
+                self.assertIn(row["week_ref"], known,
+                              "{} points at {}, which is not a week".format(
+                                  name, row["week_ref"]))
+
+    def test_one_value_selects_one_week_everywhere(self):
+        season = build_season()
+        walk(season, 18)
+        tables = cms.tables(season)
+        key = "2026-w07"
+        selected = {name: [r for r in tables[name].rows if r["week_ref"] == key]
+                    for name in self.HOME_SCREEN}
+        self.assertEqual(len(selected["games"]), 1)       # one game that week
+        self.assertEqual(len(selected["picks"]), 12)      # one pick each
+        self.assertEqual(len(selected["standings"]), 12)  # one row each
+
+    def test_the_bye_week_selects_a_board_but_no_game(self):
+        season = build_season()
+        walk(season, 18)
+        tables = cms.tables(season)
+        key = "2026-w10"                                   # the bye
+        self.assertEqual([r for r in tables["games"].rows if r["week_ref"] == key], [])
+        self.assertEqual(
+            len([r for r in tables["standings"].rows if r["week_ref"] == key]), 12)
+
+
 class LabelTest(unittest.TestCase):
     """ESPN hands us one string doing three jobs."""
 

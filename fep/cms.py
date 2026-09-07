@@ -34,6 +34,15 @@ separate numeric `year` column alongside it was two names for one fact and an
 invitation to bind a component to the wrong one. `seasons` keeps `year` as its
 own attribute, because there it is the thing rather than a pointer to it.
 
+ONE KEY FOR A WEEK
+
+`week_ref` holds `2026-w07` and appears on `games`, `picks` and `standings`. It
+is the slug of the matching `weeks` row. That is what lets a single page
+variable on the home screen drive three Collection Lists at once: every list
+filters on the same field, holding the same string, and one value changes all of
+them. Without it the home screen would need a different filter expression per
+list, and they would drift.
+
 Colours live only in `competitors`, which is the mapping table. They used to be
 denormalised onto every picks and standings row, which meant changing a colour
 would have to rewrite hundreds of otherwise frozen rows to take effect. A
@@ -288,7 +297,7 @@ def competitor_seasons_table(season: dict) -> Table:
 
 
 GAME_COLUMNS = [
-    "slug", "season", "nfl_week", "game_index", "label", "opponent",
+    "slug", "season", "week_ref", "nfl_week", "game_index", "label", "opponent",
     "home_away", "venue", "neutral_site", "is_division", "kickoff", "result",
     "eagles_points", "opponent_points", "espn_weight",
 ]
@@ -309,6 +318,7 @@ def games_table(season: dict) -> Table:
             "slug": "{}-w{:02d}-{}".format(year, game["nfl_week"],
                                            _opponent_slug(label)),
             "season": str(year),
+            "week_ref": "{}-w{:02d}".format(year, game["nfl_week"]),
             "nfl_week": game["nfl_week"],
             "game_index": game["index"],
             "label": label,
@@ -380,7 +390,8 @@ def weeks_table(season: dict) -> Table:
 
 
 PICK_COLUMNS = [
-    "slug", "season", "nfl_week", "game", "competitor", "name", "pick",
+    "slug", "season", "week_ref", "nfl_week", "game", "competitor", "name",
+    "pick",
 ]
 
 
@@ -402,6 +413,7 @@ def picks_table(season: dict) -> Table:
             rows.append({
                 "slug": "{}-{}".format(game_slug, _slugify(name)),
                 "season": str(year),
+                "week_ref": "{}-w{:02d}".format(year, game["nfl_week"]),
                 "nfl_week": game["nfl_week"],
                 "game": game_slug,
                 "competitor": _slugify(name),
