@@ -10,41 +10,51 @@
 // scrollbar on the site is touched. The usual advice is a rule in Site
 // Settings, which also strips the scrollbar from long pages where it is the
 // only sign of how far through you are.
-
-import type { ComponentType } from "react"
-
-// WHAT THE INSET CAN AND CANNOT BE
 //
-// Only a fixed pixel value. Tested side by side in Chrome:
+// HOW THE RELATIVE WIDTH WORKS
 //
-//   margin: 0 40px                      inset, both ends            works
+// A scrollbar pseudo-element takes a pixel margin and nothing else. Tested side
+// by side in Chrome:
+//
+//   margin: 0 40px                      inset at both ends          works
 //   margin: 0 15%                       ignored, runs edge to edge
 //   margin: 0 calc((100% - 400px) / 2)  ignored, runs edge to edge
 //
-// A scrollbar pseudo-element does not resolve percentages or calc against
-// anything, so a relative inset or a fixed track width is not available. If the
-// row needs a proportional inset it has to come from the layout instead: make
-// the scrolling layer itself narrower than the section.
+// So a relative width cannot be written in the CSS. It can be computed: watch
+// the row and rewrite the pixel margin whenever its width changes. The bar then
+// holds the same fraction of the row at every breakpoint, and it is still the
+// browser's own scrollbar, so dragging it, clicking the track, shift-scrolling
+// and the platform's own behaviour all keep working. A hand-drawn div would
+// have to reimplement every one of those.
+
+import type { ComponentType } from "react"
+import { useEffect, useId, useState } from "react"
 
 // ---- the dial ------------------------------------------------------------
+const TRACK_WIDTH = 0.6 // fraction of the row, centred. null = fixed inset
+const TRACK_INSET = 40 // px from each end, used only when TRACK_WIDTH is null
 const TRACK_HEIGHT = 8 // the whole bar
 const PADDING = 2 // gap between track and fill, all round
 const TRACK_COLOR = "rgba(255,255,255,0.10)"
 const FILL_COLOR = "rgba(255,255,255,0.70)"
-const TRACK_INSET = 40 // px held back from each end, so it does not run
-// the full width of the scroll area
 // --------------------------------------------------------------------------
 
 // The fill is TRACK_HEIGHT minus PADDING top and bottom. Both are fully
-// rounded, so the radius is half the height rather than a number to keep in
-// step by hand.
+// rounded, so the radii are derived rather than kept in step by hand.
 const FILL_HEIGHT = TRACK_HEIGHT - PADDING * 2
 
-// Everything is !important. Framer injects its own stylesheet and the
-// override's <style> tag is not guaranteed to come after it, so without this a
-// single competing declaration wins silently and only some of the rules appear
-// to work.
-const rules = (attr: string, track: string, fill: string) => `
+const DEBUG_TRACK = "rgba(255,0,0,0.85)"
+const DEBUG_FILL = "rgba(0,220,255,0.95)"
+
+/**
+ * Everything is !important. Framer injects its own stylesheet and the
+ * override's <style> tag is not guaranteed to come after it, so without this a
+ * single competing declaration wins silently.
+ */
+const rules = (id: string, track: string, fill: string, inset: number) => {
+    const self = `[data-fep-bar="${id}"]`
+    const any = `${self}, ${self} *`
+    return `
 /* Firefox only, and it has to be fenced off.
  *
  * scrollbar-width and scrollbar-color are the standard properties, and setting
@@ -57,27 +67,20 @@ const rules = (attr: string, track: string, fill: string) => `
  * @supports asks whether the browser knows the pseudo-element at all, so
  * Firefox gets the approximation and Chrome and Safari never see these two. */
 @supports not selector(::-webkit-scrollbar) {
-  [data-${attr}], [data-${attr}] * {
-    scrollbar-width: thin;
-    scrollbar-color: ${fill} ${track};
-  }
+  ${any} { scrollbar-width: thin; scrollbar-color: ${fill} ${track}; }
 }
-[data-${attr}]::-webkit-scrollbar,
-[data-${attr}] *::-webkit-scrollbar {
+${self}::-webkit-scrollbar, ${self} *::-webkit-scrollbar {
   height: ${TRACK_HEIGHT}px !important;
   width: ${TRACK_HEIGHT}px !important;
 }
-[data-${attr}]::-webkit-scrollbar-track,
-[data-${attr}] *::-webkit-scrollbar-track {
+${self}::-webkit-scrollbar-track, ${self} *::-webkit-scrollbar-track {
   background: ${track} !important;
   border-radius: ${TRACK_HEIGHT / 2}px !important;
-  /* Holds the track back from both ends, so it reads as an element on the page
-     rather than as the edge of the window. This moves the range the thumb
+  /* Holds the track back from both ends. This moves the range the thumb
      travels as well as the painted track, which is what makes it work. */
-  margin: 0 ${TRACK_INSET}px !important;
+  margin: 0 ${inset}px !important;
 }
-[data-${attr}]::-webkit-scrollbar-thumb,
-[data-${attr}] *::-webkit-scrollbar-thumb {
+${self}::-webkit-scrollbar-thumb, ${self} *::-webkit-scrollbar-thumb {
   background-color: ${fill} !important;
   border-radius: ${FILL_HEIGHT / 2}px !important;
   /* A transparent border plus content-box clipping is how you get padding on a
@@ -85,16 +88,92 @@ const rules = (attr: string, track: string, fill: string) => `
   border: ${PADDING}px solid transparent !important;
   background-clip: content-box !important;
 }
-[data-${attr}]::-webkit-scrollbar-corner,
-[data-${attr}] *::-webkit-scrollbar-corner { background: transparent !important; }
+${self}::-webkit-scrollbar-corner, ${self} *::-webkit-scrollbar-corner {
+  background: transparent !important;
+}
 `
+}
 
-const CSS = rules("fep-bar", TRACK_COLOR, FILL_COLOR)
+/**
+ * Find the element the browser is actually drawing a scrollbar on.
+ *
+ * Usually not the layer the override is applied to: Framer renders a wrapper
+ * inside it and that wrapper is the one that scrolls. Rather than guess at the
+ * markup, look for the first thing whose content is wider than its box.
+ */
+function findScroller(root: Element | null): Element | null {
+    if (!root) return null
+    if (root.scrollWidth > root.clientWidth + 1) return root
+    const nodes = root.querySelectorAll("*")
+    for (let i = 0; i < nodes.length; i++) {
+        if (nodes[i].scrollWidth > nodes[i].clientWidth + 1) return nodes[i]
+    }
+    return null
+}
 
-// Same geometry, unmissable colours. If the track is not red, no rule is
-// reaching the scrolling element at all. If it is red but runs edge to edge,
-// the rules are landing and only the margin is being refused.
-const DEBUG_CSS = rules("fep-bar", "rgba(255,0,0,0.85)", "rgba(0,220,255,0.95)")
+function useInset(id: string): number {
+    const [inset, setInset] = useState(
+        TRACK_WIDTH == null ? TRACK_INSET : 0
+    )
+
+    useEffect(() => {
+        if (TRACK_WIDTH == null) return
+        const root = document.querySelector(`[data-fep-bar="${id}"]`)
+        const measure = () => {
+            const el = findScroller(root) || root
+            const width = el ? el.clientWidth : 0
+            if (!width) return
+            setInset(Math.max(0, Math.round((width * (1 - TRACK_WIDTH)) / 2)))
+        }
+        measure()
+        // Observe the root, not the scroller: the scroller may not exist on the
+        // first pass, and this fires again once the layout settles.
+        const observer = new ResizeObserver(measure)
+        if (root) observer.observe(root)
+        window.addEventListener("resize", measure)
+        return () => {
+            observer.disconnect()
+            window.removeEventListener("resize", measure)
+        }
+    }, [id])
+
+    return inset
+}
+
+// A unique attribute per instance, so two scrolling rows on one page do not
+// measure each other.
+const useBarId = () => "b" + useId().replace(/[^a-zA-Z0-9]/g, "")
+
+export function withStyledScrollbar(Component): ComponentType {
+    return (props) => {
+        const id = useBarId()
+        const inset = useInset(id)
+        return (
+            <>
+                <style>{rules(id, TRACK_COLOR, FILL_COLOR, inset)}</style>
+                <Component {...props} data-fep-bar={id} />
+            </>
+        )
+    }
+}
+
+/**
+ * Same geometry, unmissable colours. If the track is not red, no rule is
+ * reaching the scrolling element at all. If it is red but runs edge to edge,
+ * the rules are landing and only the margin is being refused.
+ */
+export function withScrollbarDebug(Component): ComponentType {
+    return (props) => {
+        const id = useBarId()
+        const inset = useInset(id)
+        return (
+            <>
+                <style>{rules(id, DEBUG_TRACK, DEBUG_FILL, inset)}</style>
+                <Component {...props} data-fep-bar={id} />
+            </>
+        )
+    }
+}
 
 const HIDDEN_CSS = `
 [data-fep-nobar], [data-fep-nobar] * {
@@ -103,33 +182,6 @@ const HIDDEN_CSS = `
 [data-fep-nobar]::-webkit-scrollbar,
 [data-fep-nobar] *::-webkit-scrollbar { display: none; width: 0; height: 0; }
 `
-
-/**
- * The rules cover descendants as well as the layer itself, because the element
- * that actually scrolls is usually a wrapper Framer renders inside the layer
- * you can select, and targeting only the outer one silently does nothing.
- */
-export function withStyledScrollbar(Component): ComponentType {
-    return (props) => (
-        <>
-            <style>{CSS}</style>
-            <Component {...props} data-fep-bar="" />
-        </>
-    )
-}
-
-/**
- * Temporary, for working out why the bar does not look right. Swap the override
- * on the layer to this one, look, then swap back.
- */
-export function withScrollbarDebug(Component): ComponentType {
-    return (props) => (
-        <>
-            <style>{DEBUG_CSS}</style>
-            <Component {...props} data-fep-bar="" />
-        </>
-    )
-}
 
 export function withHiddenScrollbar(Component): ComponentType {
     return (props) => (

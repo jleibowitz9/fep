@@ -15,12 +15,23 @@ const src = fs.readFileSync(path.join(here, "Scrollbar.tsx"), "utf8");
 const body = src
     .split("// ---- the dial")[1]
     .replace(/^[\s\S]*?-{10,}\n/, "")
-    .split("export function")[0]
+    .split("/**\n * Find the element")[0]
     .replace(/^import[^\n]*\n/gm, "")
-    .replace(/: string/g, "");
+    .replace(/: string|: number/g, "");
 
 const mod = {};
-new Function("exports", body + "\nexports.CSS=CSS;exports.DEBUG=DEBUG_CSS;")(mod);
+new Function("exports", body +
+    "\nexports.rules=rules;exports.W=TRACK_WIDTH;exports.I=TRACK_INSET;" +
+    "\nexports.T=TRACK_COLOR;exports.F=FILL_COLOR;" +
+    "\nexports.DT=DEBUG_TRACK;exports.DF=DEBUG_FILL;")(mod);
+
+// The preview is static HTML with no React, so it does what the hook does: work
+// out the inset for each row's width up front.
+const insetFor = (w) =>
+    mod.W == null ? mod.I : Math.max(0, Math.round((w * (1 - mod.W)) / 2));
+const ROW = 900;
+mod.CSS = mod.rules("preview", mod.T, mod.F, insetFor(ROW));
+mod.DEBUG = mod.rules("previewdbg", mod.DT, mod.DF, insetFor(ROW));
 
 for (const [name, css] of [["CSS", mod.CSS], ["DEBUG", mod.DEBUG]]) {
     const missing = ["margin: 0 ", "!important", "background-clip"]
@@ -39,23 +50,23 @@ fs.writeFileSync(path.join(here, "scrollbar-preview.html"), `<!doctype html>
 body{margin:0;background:#062b28;font-family:system-ui;color:#cfe;padding:34px 40px}
 h3{font:700 13px system-ui;letter-spacing:.08em;margin:0 0 4px;color:#8ecfc6}
 p{font:12px system-ui;color:#6d9a94;margin:0 0 12px}
-.row{display:flex;gap:12px;overflow-x:scroll;padding-bottom:16px}
+.row{display:flex;gap:12px;overflow-x:scroll;padding-bottom:16px;width:900px}
 .card{flex:none;width:150px;height:150px;border-radius:14px;display:grid;place-items:center;
   font:700 22px system-ui;color:#2c6b62;background:linear-gradient(160deg,#0e3f3a,#0a302c);
   border:1px solid #ffffff14}
 .mark{position:absolute;top:0;bottom:0;width:1px;background:#ff5c5c;opacity:.8}
 .wrap{position:relative}
 ${mod.CSS}
-${mod.DEBUG.replace(/fep-bar/g, "fep-dbg")}
+${mod.DEBUG}
 </style>
-<h3>STYLED</h3><p>The shipped values. Red lines mark where the track should start and stop.</p>
-<div class="wrap"><div class="row" data-fep-bar>${cards}</div>
-  <div class="mark" style="left:40px"></div>
-  <div class="mark" style="right:40px"></div></div>
+<h3>STYLED</h3><p>Row ${ROW}px wide. Bar is ${mod.W == null ? "a fixed " + mod.I + "px inset" : Math.round(mod.W*100) + "% of the row"}, so the inset is ${insetFor(ROW)}px. Red lines mark it.</p>
+<div class="wrap"><div class="row" data-fep-bar="preview">${cards}</div>
+  <div class="mark" style="left:${insetFor(ROW)}px"></div>
+  <div class="mark" style="right:${insetFor(ROW)}px"></div></div>
 <h3 style="margin-top:26px">DEBUG COLOURS</h3><p>Same geometry, red track and cyan fill.</p>
-<div class="wrap"><div class="row" data-fep-dbg>${cards}</div>
-  <div class="mark" style="left:40px"></div>
-  <div class="mark" style="right:40px"></div></div>
+<div class="wrap"><div class="row" data-fep-bar="previewdbg">${cards}</div>
+  <div class="mark" style="left:${insetFor(ROW)}px"></div>
+  <div class="mark" style="right:${insetFor(ROW)}px"></div></div>
 <h3 style="margin-top:26px">DEFAULT</h3><p>What Chrome draws unaided.</p>
 <div class="row">${cards}</div>`);
 console.log("scrollbar-preview.html rebuilt, !important intact");
