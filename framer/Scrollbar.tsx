@@ -55,6 +55,21 @@ const rules = (id: string, track: string, fill: string, inset: number) => {
     const self = `[data-fep-bar="${id}"]`
     const any = `${self}, ${self} *`
     return `
+/* Put the scrollbar back before styling it.
+ *
+ * A host stylesheet that hides scrollbars wins by default, because the rules
+ * below only ever set a height: nothing here contradicts display:none or
+ * scrollbar-width:none, so they stand and there is no bar to style. That is
+ * exactly what a published Framer site does, which is why this worked on the
+ * canvas and showed nothing at all on the site.
+ *
+ * scrollbar-width must be auto rather than thin: any other value disables
+ * ::-webkit-scrollbar styling outright in Chrome. The Firefox block below
+ * overrides it, and only Firefox ever sees that block. */
+${any} {
+  scrollbar-width: auto !important;
+  -ms-overflow-style: auto !important;
+}
 /* Firefox only, and it has to be fenced off.
  *
  * scrollbar-width and scrollbar-color are the standard properties, and setting
@@ -67,9 +82,15 @@ const rules = (id: string, track: string, fill: string, inset: number) => {
  * @supports asks whether the browser knows the pseudo-element at all, so
  * Firefox gets the approximation and Chrome and Safari never see these two. */
 @supports not selector(::-webkit-scrollbar) {
-  ${any} { scrollbar-width: thin; scrollbar-color: ${fill} ${track}; }
+  /* !important, and after the rule above, or the auto there wins here too. */
+  ${any} {
+    scrollbar-width: thin !important;
+    scrollbar-color: ${fill} ${track} !important;
+  }
 }
 ${self}::-webkit-scrollbar, ${self} *::-webkit-scrollbar {
+  display: block !important;
+  -webkit-appearance: none !important;
   height: ${TRACK_HEIGHT}px !important;
   width: ${TRACK_HEIGHT}px !important;
 }

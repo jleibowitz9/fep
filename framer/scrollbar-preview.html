@@ -13,6 +13,21 @@ p{font:12px system-ui;color:#6d9a94;margin:0 0 12px}
 .mark{position:absolute;top:0;bottom:0;width:1px;background:#ff5c5c;opacity:.8}
 .wrap{position:relative}
 
+/* Put the scrollbar back before styling it.
+ *
+ * A host stylesheet that hides scrollbars wins by default, because the rules
+ * below only ever set a height: nothing here contradicts display:none or
+ * scrollbar-width:none, so they stand and there is no bar to style. That is
+ * exactly what a published Framer site does, which is why this worked on the
+ * canvas and showed nothing at all on the site.
+ *
+ * scrollbar-width must be auto rather than thin: any other value disables
+ * ::-webkit-scrollbar styling outright in Chrome. The Firefox block below
+ * overrides it, and only Firefox ever sees that block. */
+[data-fep-bar="preview"], [data-fep-bar="preview"] * {
+  scrollbar-width: auto !important;
+  -ms-overflow-style: auto !important;
+}
 /* Firefox only, and it has to be fenced off.
  *
  * scrollbar-width and scrollbar-color are the standard properties, and setting
@@ -25,9 +40,15 @@ p{font:12px system-ui;color:#6d9a94;margin:0 0 12px}
  * @supports asks whether the browser knows the pseudo-element at all, so
  * Firefox gets the approximation and Chrome and Safari never see these two. */
 @supports not selector(::-webkit-scrollbar) {
-  [data-fep-bar="preview"], [data-fep-bar="preview"] * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.70) rgba(255,255,255,0.10); }
+  /* !important, and after the rule above, or the auto there wins here too. */
+  [data-fep-bar="preview"], [data-fep-bar="preview"] * {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(255,255,255,0.70) rgba(255,255,255,0.10) !important;
+  }
 }
 [data-fep-bar="preview"]::-webkit-scrollbar, [data-fep-bar="preview"] *::-webkit-scrollbar {
+  display: block !important;
+  -webkit-appearance: none !important;
   height: 8px !important;
   width: 8px !important;
 }
@@ -51,6 +72,21 @@ p{font:12px system-ui;color:#6d9a94;margin:0 0 12px}
 }
 
 
+/* Put the scrollbar back before styling it.
+ *
+ * A host stylesheet that hides scrollbars wins by default, because the rules
+ * below only ever set a height: nothing here contradicts display:none or
+ * scrollbar-width:none, so they stand and there is no bar to style. That is
+ * exactly what a published Framer site does, which is why this worked on the
+ * canvas and showed nothing at all on the site.
+ *
+ * scrollbar-width must be auto rather than thin: any other value disables
+ * ::-webkit-scrollbar styling outright in Chrome. The Firefox block below
+ * overrides it, and only Firefox ever sees that block. */
+[data-fep-bar="previewdbg"], [data-fep-bar="previewdbg"] * {
+  scrollbar-width: auto !important;
+  -ms-overflow-style: auto !important;
+}
 /* Firefox only, and it has to be fenced off.
  *
  * scrollbar-width and scrollbar-color are the standard properties, and setting
@@ -63,9 +99,15 @@ p{font:12px system-ui;color:#6d9a94;margin:0 0 12px}
  * @supports asks whether the browser knows the pseudo-element at all, so
  * Firefox gets the approximation and Chrome and Safari never see these two. */
 @supports not selector(::-webkit-scrollbar) {
-  [data-fep-bar="previewdbg"], [data-fep-bar="previewdbg"] * { scrollbar-width: thin; scrollbar-color: rgba(0,220,255,0.95) rgba(255,0,0,0.85); }
+  /* !important, and after the rule above, or the auto there wins here too. */
+  [data-fep-bar="previewdbg"], [data-fep-bar="previewdbg"] * {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(0,220,255,0.95) rgba(255,0,0,0.85) !important;
+  }
 }
 [data-fep-bar="previewdbg"]::-webkit-scrollbar, [data-fep-bar="previewdbg"] *::-webkit-scrollbar {
+  display: block !important;
+  -webkit-appearance: none !important;
   height: 8px !important;
   width: 8px !important;
 }

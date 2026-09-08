@@ -26,6 +26,22 @@ At the top of `Scrollbar.tsx`:
 | `TRACK_WIDTH` | the bar as a fraction of the row, `0.6` = 60%. `null` for a fixed inset |
 | `TRACK_INSET` | px from each end, used only when `TRACK_WIDTH` is `null` |
 
+### It has to put the scrollbar back first
+
+A published Framer site hides scrollbars. Rules that only set a height do not
+contradict `display: none` or `scrollbar-width: none`, so the host wins, there
+is no bar, and nothing gets styled. This is why it looked right on the canvas
+and showed nothing at all on the site.
+
+So the override forces the bar back into existence before styling it:
+`display: block`, `-webkit-appearance: none`, and `scrollbar-width: auto`.
+Verified against a host stylesheet using `display: none`, `scrollbar-width:
+none`, and both together at `!important`: the bar survives all three.
+
+`scrollbar-width` has to be `auto` rather than `thin`, because any value other
+than `auto` disables `::-webkit-scrollbar` styling in Chrome. The Firefox block
+overrides it, and only Firefox ever sees that block.
+
 ### The relative width is computed, not declared
 
 A scrollbar pseudo-element takes a pixel margin and nothing else. Tested in
