@@ -27,7 +27,7 @@ OUTPUT = os.path.join(HERE, "index.html")
 
 def collect(year: int, week: int = None) -> dict:
     """Everything the dashboard needs, from the live season file."""
-    from fep import analytics, history, season as season_mod
+    from fep import analytics, chart, history, season as season_mod
 
     season = season_mod.load(year)
     if not season_mod.has_picks(season):
@@ -70,7 +70,11 @@ def collect(year: int, week: int = None) -> dict:
                    "resultSource": g.get("result_source"),
                    "weightSource": g.get("weight_source"), "date": g["date"]}
                   for g in view["games"]],
-        "roster": season["roster"], "picks": season["picks"],
+        "roster": season["roster"],
+        # Competitor colour is identity, not roster position. The chart owns the
+        # palette, and every other dashboard surface consumes the same mapping.
+        "colors": chart.colors_for(season["roster"]),
+        "picks": season["picks"],
         "guesses": season["points_guess"],
         "board": pack["board"], "straight": pack["straight"],
         "correct": pack["current_points"], "ranked": pack["ranked"],
@@ -108,7 +112,7 @@ def chart_script(data: dict) -> str:
     html = chart.render(weeks=sorted(board), board_by_week=board,
                         roster=data["roster"], games=games,
                         year=data["year"], upto_week=data["week"],
-                        standalone=False)
+                        standalone=False, colors=data["colors"])
     # The chart markup contains its own <script> tags. Embedding it inside a
     # <script> without escaping the closing sequence ends the outer tag early
     # and dumps the rest of the code onto the page as text.

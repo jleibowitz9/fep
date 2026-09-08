@@ -608,6 +608,20 @@
    "year": 2025
   }
  ],
+ "colors": {
+  "Amir": "#972B2B",
+  "Andy": "#97612B",
+  "Buhduh": "#97972B",
+  "Emer": "#61972B",
+  "Hanan": "#2B972B",
+  "Jacob": "#2B9761",
+  "Jay": "#2B9797",
+  "Jen": "#2B6197",
+  "Marsha": "#2B2B97",
+  "Nathan": "#612B97",
+  "Pop": "#972B97",
+  "Sarah": "#972B61"
+ },
  "conc": {
   "alive": 10,
   "effective_field": 5.32,

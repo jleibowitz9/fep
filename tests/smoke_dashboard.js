@@ -180,8 +180,7 @@ try {
 }
 
 // A page that runs but renders nothing is the failure we actually saw.
-const views = ['v-run', 'v-board', 'v-picks', 'v-story', 'v-whatif',
-               'v-publish', 'v-history'];
+const views = ['v-board', 'v-story', 'v-picks', 'v-whatif', 'v-chart', 'v-run'];
 const empty = views.filter(v => !byId(v).innerHTML.trim());
 if (empty.length) {
     console.error('FAIL: these views rendered no markup: ' + empty.join(', '));

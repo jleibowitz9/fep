@@ -28,7 +28,7 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from fep import analytics, engine, espn, season as season_mod  # noqa: E402
+from fep import analytics, chart, engine, espn, season as season_mod  # noqa: E402
 
 DASHBOARD = os.path.join(ROOT, "dashboard")
 
@@ -335,6 +335,10 @@ class TestPayloadContract(unittest.TestCase):
             self.assertIn("L", entry)
             self.assertEqual(set(entry["W"]), set(self.live["roster"]))
 
+    def test_dashboard_colors_come_from_the_chart_palette(self):
+        self.assertEqual(self.live["colors"],
+                         chart.colors_for(self.live["roster"]))
+
     def test_the_fixture_declares_itself_synthetic(self):
         """It holds final results for games dated after its own generation
         date. That is fine, but it has to say so."""
@@ -523,6 +527,86 @@ class TestChartParity(unittest.TestCase):
         self.assertEqual(first["week"], 0)
         self.assertIsNone(first["result"])
         self.assertIsNone(first["label"])
+
+
+# ---------------------------------------------------------------------------
+# Redesign regressions: two ways a surface can disagree with the model
+# ---------------------------------------------------------------------------
+
+class TestRedesignSurfaces(unittest.TestCase):
+    """Both of these read correct data and then said the wrong thing about it.
+
+    They are the same underlying mistake in different clothes: a number shown
+    on the page has to come from the thing its label claims, and a season
+    constant has to come from the season.
+    """
+
+    def read_template(self):
+        with open(os.path.join(DASHBOARD, "template.html")) as fh:
+            return fh.read()
+
+    def read_code(self):
+        """The template with // line comments stripped.
+
+        These assertions are about what the page executes, not what it
+        explains about itself -- a comment naming the old expression is
+        documentation, not a regression.
+        """
+        out = []
+        for raw in self.read_template().split("\n"):
+            marker = raw.find("//")
+            # Leave URLs (https://) and anything inside a string alone; the
+            # only // this file uses outside those is a real line comment.
+            if marker != -1 and not raw[:marker].rstrip().endswith(":"):
+                raw = raw[:marker]
+            out.append(raw)
+        return "\n".join(out)
+
+    def test_still_alive_does_not_count_probability(self):
+        """`conc.alive` is sum(weighted > 0) -- the effectively-eliminated
+        notion. The card claiming "mathematical paths" must not source it."""
+        code = self.read_code()
+        self.assertNotIn("D.conc.alive", code)
+        self.assertIn("D.roster.length - D.elim.eliminated.length", code)
+
+    def test_still_alive_and_mathematical_elimination_agree(self):
+        """The number the card shows and the list the obituary prints are two
+        views of one fact, so they cannot disagree."""
+        board = engine.run(
+            picks={"A": ["W"], "B": ["L"]}, results=[engine.UNPLAYED],
+            weights=[1.0], division_indices=[],
+            points_guess={"A": 400, "B": 420})
+        conc = analytics.concentration(board)
+        alive = len(board.order) - len(board.eliminated())
+        self.assertEqual(alive, 2)
+        self.assertEqual(conc["alive"], 1)
+        self.assertNotEqual(alive, conc["alive"])
+
+    def test_division_games_are_not_hardcoded(self):
+        """[0,6,7,8,10,16] is 2026's schedule and nothing else. The payload
+        carries the flag per game; the division record is tiebreaker 2."""
+        code = self.read_code()
+        self.assertNotIn("[0,6,7,8,10,16]", code)
+        self.assertIn("D.games.filter(g=>g.division)", code)
+
+    def test_the_hardcoded_indices_were_wrong_for_a_real_season(self):
+        """Proof the constant could not just be left alone."""
+        season = season_mod.load(2025)
+        actual = [g["index"] for g in season["games"] if g["division"]]
+        self.assertNotEqual(actual, [0, 6, 7, 8, 10, 16])
+
+    def test_the_payload_carries_a_division_flag_per_game(self):
+        build = load_build()
+        season = season_mod.load(2025)
+        original = season_mod.load
+        season_mod.load = lambda year: season
+        try:
+            data = build.collect(2025, 5)
+        finally:
+            season_mod.load = original
+        flagged = [g["i"] for g in data["games"] if g["division"]]
+        self.assertEqual(flagged,
+                         [g["index"] for g in season["games"] if g["division"]])
 
 
 if __name__ == "__main__":
