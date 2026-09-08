@@ -23,7 +23,25 @@ At the top of `Scrollbar.tsx`:
 | `PADDING` | gap between track and fill, 2px all round, so the fill is 4px |
 | `TRACK_COLOR` | 10% white |
 | `FILL_COLOR` | 70% white |
-| `TRACK_INSET` | held back 40px from each end |
+| `TRACK_WIDTH` | the bar as a fraction of the row, `0.6` = 60%. `null` for a fixed inset |
+| `TRACK_INSET` | px from each end, used only when `TRACK_WIDTH` is `null` |
+
+### The relative width is computed, not declared
+
+A scrollbar pseudo-element takes a pixel margin and nothing else. Tested in
+Chrome: `margin: 0 40px` insets both ends, `margin: 0 15%` is ignored, and
+`margin: 0 calc((100% - 400px) / 2)` is ignored. So the override measures the
+row and rewrites the pixel margin whenever its width changes.
+
+| row | inset | bar |
+|---|---|---|
+| 420px | 84px | 252px, 60% |
+| 980px | 196px | 588px, 60% |
+| 1400px | 280px | 840px, 60% |
+
+It is still the browser's own scrollbar, so dragging it, clicking the track and
+shift-scrolling keep working. A hand-drawn bar would have to reimplement each of
+those.
 
 ### Two things worth knowing
 
