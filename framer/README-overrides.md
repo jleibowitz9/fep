@@ -37,6 +37,14 @@ wrapper Framer renders inside the layer you can select, so a rule aimed only at
 the outer element silently does nothing. That is the usual reason this appears
 not to work.
 
-**Firefox gets an approximation.** It only exposes `scrollbar-width` and
-`scrollbar-color`, so it gets `thin` and the two colours: no radius, no padding,
-no inset. Chrome and Safari get the full treatment.
+**Firefox gets an approximation, and it has to be fenced off.**
+`scrollbar-width` and `scrollbar-color` are the standard properties, and setting
+either to anything but `auto` **disables `::-webkit-scrollbar` styling outright
+in Chrome**. Declared unconditionally as a fallback they threw away every other
+rule: the bar kept roughly the right colours, because `scrollbar-color` was
+doing that part, while the height, radius, padding and inset were silently
+ignored. They now sit inside `@supports not selector(::-webkit-scrollbar)`, so
+Firefox gets `thin` plus the two colours and Chrome never sees them.
+
+That is worth remembering generally: a well-meant standard-properties fallback
+next to `::-webkit-scrollbar` rules does not degrade gracefully, it takes over.

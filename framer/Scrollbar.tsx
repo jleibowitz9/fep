@@ -45,9 +45,22 @@ const FILL_HEIGHT = TRACK_HEIGHT - PADDING * 2
 // single competing declaration wins silently and only some of the rules appear
 // to work.
 const rules = (attr: string, track: string, fill: string) => `
-[data-${attr}], [data-${attr}] * {
-  scrollbar-width: thin !important;                        /* Firefox */
-  scrollbar-color: ${fill} ${track} !important;
+/* Firefox only, and it has to be fenced off.
+ *
+ * scrollbar-width and scrollbar-color are the standard properties, and setting
+ * either to anything other than auto DISABLES ::-webkit-scrollbar styling
+ * outright in current Chrome. Declared unconditionally, as a well-meant
+ * fallback, they silently threw away every rule below: the bar kept roughly the
+ * right colours, because scrollbar-color was doing that part, while the height,
+ * the radius, the padding and the inset were all quietly ignored.
+ *
+ * @supports asks whether the browser knows the pseudo-element at all, so
+ * Firefox gets the approximation and Chrome and Safari never see these two. */
+@supports not selector(::-webkit-scrollbar) {
+  [data-${attr}], [data-${attr}] * {
+    scrollbar-width: thin;
+    scrollbar-color: ${fill} ${track};
+  }
 }
 [data-${attr}]::-webkit-scrollbar,
 [data-${attr}] *::-webkit-scrollbar {

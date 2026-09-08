@@ -13,9 +13,22 @@ p{font:12px system-ui;color:#6d9a94;margin:0 0 12px}
 .mark{position:absolute;top:0;bottom:0;width:1px;background:#ff5c5c;opacity:.8}
 .wrap{position:relative}
 
-[data-fep-bar], [data-fep-bar] * {
-  scrollbar-width: thin !important;                        /* Firefox */
-  scrollbar-color: rgba(255,255,255,0.70) rgba(255,255,255,0.10) !important;
+/* Firefox only, and it has to be fenced off.
+ *
+ * scrollbar-width and scrollbar-color are the standard properties, and setting
+ * either to anything other than auto DISABLES ::-webkit-scrollbar styling
+ * outright in current Chrome. Declared unconditionally, as a well-meant
+ * fallback, they silently threw away every rule below: the bar kept roughly the
+ * right colours, because scrollbar-color was doing that part, while the height,
+ * the radius, the padding and the inset were all quietly ignored.
+ *
+ * @supports asks whether the browser knows the pseudo-element at all, so
+ * Firefox gets the approximation and Chrome and Safari never see these two. */
+@supports not selector(::-webkit-scrollbar) {
+  [data-fep-bar], [data-fep-bar] * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.70) rgba(255,255,255,0.10);
+  }
 }
 [data-fep-bar]::-webkit-scrollbar,
 [data-fep-bar] *::-webkit-scrollbar {
@@ -44,9 +57,22 @@ p{font:12px system-ui;color:#6d9a94;margin:0 0 12px}
 [data-fep-bar] *::-webkit-scrollbar-corner { background: transparent !important; }
 
 
-[data-fep-dbg], [data-fep-dbg] * {
-  scrollbar-width: thin !important;                        /* Firefox */
-  scrollbar-color: rgba(0,220,255,0.95) rgba(255,0,0,0.85) !important;
+/* Firefox only, and it has to be fenced off.
+ *
+ * scrollbar-width and scrollbar-color are the standard properties, and setting
+ * either to anything other than auto DISABLES ::-webkit-scrollbar styling
+ * outright in current Chrome. Declared unconditionally, as a well-meant
+ * fallback, they silently threw away every rule below: the bar kept roughly the
+ * right colours, because scrollbar-color was doing that part, while the height,
+ * the radius, the padding and the inset were all quietly ignored.
+ *
+ * @supports asks whether the browser knows the pseudo-element at all, so
+ * Firefox gets the approximation and Chrome and Safari never see these two. */
+@supports not selector(::-webkit-scrollbar) {
+  [data-fep-dbg], [data-fep-dbg] * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,220,255,0.95) rgba(255,0,0,0.85);
+  }
 }
 [data-fep-dbg]::-webkit-scrollbar,
 [data-fep-dbg] *::-webkit-scrollbar {
