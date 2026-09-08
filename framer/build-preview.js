@@ -23,7 +23,7 @@ const mod = {};
 new Function("exports", body + "\nexports.CSS=CSS;exports.DEBUG=DEBUG_CSS;")(mod);
 
 for (const [name, css] of [["CSS", mod.CSS], ["DEBUG", mod.DEBUG]]) {
-    const missing = ["margin-left", "margin-right", "!important"]
+    const missing = ["margin: 0 ", "!important", "background-clip"]
         .filter((t) => !css.includes(t));
     if (missing.length) {
         throw new Error(name + " lost: " + missing.join(", "));
