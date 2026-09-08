@@ -13,6 +13,19 @@
 
 import type { ComponentType } from "react"
 
+// WHAT THE INSET CAN AND CANNOT BE
+//
+// Only a fixed pixel value. Tested side by side in Chrome:
+//
+//   margin: 0 40px                      inset, both ends            works
+//   margin: 0 15%                       ignored, runs edge to edge
+//   margin: 0 calc((100% - 400px) / 2)  ignored, runs edge to edge
+//
+// A scrollbar pseudo-element does not resolve percentages or calc against
+// anything, so a relative inset or a fixed track width is not available. If the
+// row needs a proportional inset it has to come from the layout instead: make
+// the scrolling layer itself narrower than the section.
+
 // ---- the dial ------------------------------------------------------------
 const TRACK_HEIGHT = 8 // the whole bar
 const PADDING = 2 // gap between track and fill, all round
@@ -27,40 +40,48 @@ const TRACK_INSET = 40 // px held back from each end, so it does not run
 // step by hand.
 const FILL_HEIGHT = TRACK_HEIGHT - PADDING * 2
 
-const CSS = `
-[data-fep-bar], [data-fep-bar] * {
-  scrollbar-width: thin;                                   /* Firefox */
-  scrollbar-color: ${FILL_COLOR} ${TRACK_COLOR};
+// Everything is !important. Framer injects its own stylesheet and the
+// override's <style> tag is not guaranteed to come after it, so without this a
+// single competing declaration wins silently and only some of the rules appear
+// to work.
+const rules = (attr: string, track: string, fill: string) => `
+[data-${attr}], [data-${attr}] * {
+  scrollbar-width: thin !important;                        /* Firefox */
+  scrollbar-color: ${fill} ${track} !important;
 }
-[data-fep-bar]::-webkit-scrollbar,
-[data-fep-bar] *::-webkit-scrollbar {
-  height: ${TRACK_HEIGHT}px;
-  width: ${TRACK_HEIGHT}px;
+[data-${attr}]::-webkit-scrollbar,
+[data-${attr}] *::-webkit-scrollbar {
+  height: ${TRACK_HEIGHT}px !important;
+  width: ${TRACK_HEIGHT}px !important;
 }
-[data-fep-bar]::-webkit-scrollbar-track,
-[data-fep-bar] *::-webkit-scrollbar-track {
-  background: ${TRACK_COLOR};
-  border-radius: ${TRACK_HEIGHT / 2}px;
-  /* Holds the track back from both ends, so it reads as an element on the
-     page rather than as the edge of the window. */
-  margin: 0 ${TRACK_INSET}px;
+[data-${attr}]::-webkit-scrollbar-track,
+[data-${attr}] *::-webkit-scrollbar-track {
+  background: ${track} !important;
+  border-radius: ${TRACK_HEIGHT / 2}px !important;
+  /* Holds the track back from both ends, so it reads as an element on the page
+     rather than as the edge of the window. This moves the range the thumb
+     travels as well as the painted track, which is what makes it work. */
+  margin: 0 ${TRACK_INSET}px !important;
 }
-[data-fep-bar]::-webkit-scrollbar-thumb,
-[data-fep-bar] *::-webkit-scrollbar-thumb {
-  background-color: ${FILL_COLOR};
-  border-radius: ${FILL_HEIGHT / 2}px;
-  /* A transparent border plus content-box clipping is how you get padding on
-     a scrollbar thumb: there is no padding property on this pseudo-element. */
-  border: ${PADDING}px solid transparent;
-  background-clip: content-box;
+[data-${attr}]::-webkit-scrollbar-thumb,
+[data-${attr}] *::-webkit-scrollbar-thumb {
+  background-color: ${fill} !important;
+  border-radius: ${FILL_HEIGHT / 2}px !important;
+  /* A transparent border plus content-box clipping is how you get padding on a
+     scrollbar thumb: there is no padding property on this pseudo-element. */
+  border: ${PADDING}px solid transparent !important;
+  background-clip: content-box !important;
 }
-[data-fep-bar]::-webkit-scrollbar-thumb:hover,
-[data-fep-bar] *::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255,255,255,0.85);
-}
-[data-fep-bar]::-webkit-scrollbar-corner,
-[data-fep-bar] *::-webkit-scrollbar-corner { background: transparent; }
+[data-${attr}]::-webkit-scrollbar-corner,
+[data-${attr}] *::-webkit-scrollbar-corner { background: transparent !important; }
 `
+
+const CSS = rules("fep-bar", TRACK_COLOR, FILL_COLOR)
+
+// Same geometry, unmissable colours. If the track is not red, no rule is
+// reaching the scrolling element at all. If it is red but runs edge to edge,
+// the rules are landing and only the margin is being refused.
+const DEBUG_CSS = rules("fep-bar", "rgba(255,0,0,0.85)", "rgba(0,220,255,0.95)")
 
 const HIDDEN_CSS = `
 [data-fep-nobar], [data-fep-nobar] * {
@@ -79,6 +100,19 @@ export function withStyledScrollbar(Component): ComponentType {
     return (props) => (
         <>
             <style>{CSS}</style>
+            <Component {...props} data-fep-bar="" />
+        </>
+    )
+}
+
+/**
+ * Temporary, for working out why the bar does not look right. Swap the override
+ * on the layer to this one, look, then swap back.
+ */
+export function withScrollbarDebug(Component): ComponentType {
+    return (props) => (
+        <>
+            <style>{DEBUG_CSS}</style>
             <Component {...props} data-fep-bar="" />
         </>
     )
