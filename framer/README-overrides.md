@@ -1,26 +1,42 @@
 # Code overrides
 
-## HideScrollbar
+## Scrollbar
 
-Hides the scrollbar on a scrolling layer without stopping it scrolling.
+Styles a scroll section's scrollbar, or hides it. Two overrides in one file:
+`withStyledScrollbar` and `withHiddenScrollbar`.
 
-1. **Assets > Code > New File**, name it `HideScrollbar`, paste
-   `HideScrollbar.tsx`.
+1. **Assets > Code > New File**, name it `Scrollbar`, paste `Scrollbar.tsx`.
 2. Select the scrolling layer.
-3. **Properties > Code Overrides**: File `HideScrollbar`, Override
-   `withHiddenScrollbar`.
+3. **Properties > Code Overrides**: File `Scrollbar`, Override
+   `withStyledScrollbar`.
 
-Scoped to that layer and its contents, so every other scrollbar on the site is
-left alone. The common alternative, a `::-webkit-scrollbar { display: none }`
-rule in Site Settings, also strips the scrollbar from long pages where people
-use it to see how far through they are.
+Open `scrollbar-preview.html` in a browser first to see it. That file is
+generated from the same constants the override uses, so it is what you will get.
 
-**Check Framer's own setting first.** Select the scroll section and look for a
-scrollbar toggle in the properties panel. If it is there, use it and skip this.
+### The dial
 
-### Worth knowing before you hide it
+At the top of `Scrollbar.tsx`:
 
-A scrollbar is the main signal that a row scrolls at all. Once it is gone,
-something else has to say so. The leaderboard row already does the right thing
-by letting the next card peek in at the edge; a fade or a pair of arrows works
-too. A row that looks like it ends at the sixth card is a row nobody scrolls.
+| | |
+|---|---|
+| `TRACK_HEIGHT` | the whole bar, 8px |
+| `PADDING` | gap between track and fill, 2px all round, so the fill is 4px |
+| `TRACK_COLOR` | 10% white |
+| `FILL_COLOR` | 70% white |
+| `TRACK_INSET` | held back 40px from each end |
+
+### Two things worth knowing
+
+**The inset works on the track, and the thumb respects it.** `margin` on
+`::-webkit-scrollbar-track` moves both the painted track and the range the thumb
+travels, so the bar reads as an element on the page rather than as the edge of
+the window. Verified by rendering it against markers at the inset positions.
+
+**The rules cover descendants.** The element that actually scrolls is usually a
+wrapper Framer renders inside the layer you can select, so a rule aimed only at
+the outer element silently does nothing. That is the usual reason this appears
+not to work.
+
+**Firefox gets an approximation.** It only exposes `scrollbar-width` and
+`scrollbar-color`, so it gets `thin` and the two colours: no radius, no padding,
+no inset. Chrome and Safari get the full treatment.
