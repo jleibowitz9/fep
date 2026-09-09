@@ -1,0 +1,22 @@
+#!/bin/bash
+#
+# The Dock icon. All it does is find its own repo and hand the weekly run to
+# Terminal, so the run happens in a window you can actually read. An app bundle
+# whose executable is a shell script gets no terminal of its own, which would
+# make both the ESPN pull and any error invisible.
+#
+# $0 is .../2026/scripts/FEP Week.app/Contents/MacOS/fep-week, so the repo is
+# four levels up from this file's folder.
+
+REPO="$(cd "$(dirname "$0")/../../../.." && pwd)"
+RUN="$REPO/scripts/fep-week.command"
+
+if [ ! -x "$RUN" ]; then
+  osascript -e "display alert \"FEP Week\" message \"Cannot find the weekly run at:
+$RUN
+
+The app has to stay inside the repo's scripts folder. Put it back, or drag a new copy to the Dock from there.\" as critical"
+  exit 1
+fi
+
+open -a Terminal "$RUN"
