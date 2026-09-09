@@ -15,7 +15,25 @@
     "Sarah"
   ],
   "picks": {
-    "Amir": [],
+    "Amir": [
+      "W",
+      "W",
+      "W",
+      "L",
+      "W",
+      "W",
+      "W",
+      "W",
+      "L",
+      "W",
+      "L",
+      "W",
+      "W",
+      "W",
+      "W",
+      "L",
+      "W"
+    ],
     "Andy": [
       "W",
       "W",
@@ -111,9 +129,63 @@
       "W",
       "L"
     ],
-    "Jay": [],
-    "Jen": [],
-    "Marsha": [],
+    "Jay": [
+      "W",
+      "W",
+      "L",
+      "W",
+      "W",
+      "W",
+      "W",
+      "W",
+      "W",
+      "W",
+      "L",
+      "W",
+      "W",
+      "L",
+      "W",
+      "L",
+      "L"
+    ],
+    "Jen": [
+      "W",
+      "W",
+      "L",
+      "W",
+      "W",
+      "L",
+      "W",
+      "W",
+      "W",
+      "W",
+      "L",
+      "W",
+      "W",
+      "W",
+      "W",
+      "L",
+      "L"
+    ],
+    "Marsha": [
+      "W",
+      "W",
+      "W",
+      "W",
+      "W",
+      "W",
+      "W",
+      "L",
+      "W",
+      "W",
+      "L",
+      "W",
+      "W",
+      "W",
+      "W",
+      "L",
+      "W"
+    ],
     "Nathan": [
       "W",
       "W",
@@ -152,21 +224,39 @@
       "W",
       "W"
     ],
-    "Sarah": []
+    "Sarah": [
+      "W",
+      "W",
+      "W",
+      "L",
+      "W",
+      "W",
+      "W",
+      "L",
+      "W",
+      "W",
+      "L",
+      "W",
+      "W",
+      "W",
+      "L",
+      "L",
+      "W"
+    ]
   },
   "points_guess": {
-    "Amir": null,
+    "Amir": 430,
     "Andy": 430,
     "Buhduh": 429,
     "Emer": 407,
     "Hanan": 380,
     "Jacob": 407,
-    "Jay": null,
-    "Jen": null,
-    "Marsha": null,
+    "Jay": 396,
+    "Jen": 409,
+    "Marsha": 463,
     "Nathan": 421,
     "Pop": 425,
-    "Sarah": null
+    "Sarah": 312
   },
   "colors": {
     "Amir": "#972B2B",
@@ -553,5 +643,5 @@
     "points_model": "shrunk"
   },
   "created_at": "2026-09-02T22:02:30",
-  "updated_at": "2026-09-07T14:05:46"
+  "updated_at": "2026-09-09T19:33:35"
 }
