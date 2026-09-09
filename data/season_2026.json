@@ -626,7 +626,125 @@
     "18": 16
   },
   "bye_week": 10,
-  "snapshots": [],
+  "snapshots": [
+    {
+      "week": 0,
+      "taken_at": "2026-09-09T19:51:16",
+      "note": "",
+      "is_bye": false,
+      "remaining_outcomes": 131072,
+      "weighted": {
+        "Amir": 10.3,
+        "Andy": 12.0,
+        "Buhduh": 9.0,
+        "Emer": 8.0,
+        "Hanan": 7.1,
+        "Jacob": 11.8,
+        "Jay": 6.8,
+        "Jen": 6.1,
+        "Marsha": 3.9,
+        "Nathan": 10.4,
+        "Pop": 7.7,
+        "Sarah": 6.8
+      },
+      "straight": {
+        "Amir": 8.3,
+        "Andy": 10.6,
+        "Buhduh": 7.6,
+        "Emer": 8.1,
+        "Hanan": 3.5,
+        "Jacob": 16.0,
+        "Jay": 5.5,
+        "Jen": 8.6,
+        "Marsha": 2.6,
+        "Nathan": 10.5,
+        "Pop": 13.4,
+        "Sarah": 5.4
+      },
+      "current_points": {
+        "Amir": 0,
+        "Andy": 0,
+        "Buhduh": 0,
+        "Emer": 0,
+        "Hanan": 0,
+        "Jacob": 0,
+        "Jay": 0,
+        "Jen": 0,
+        "Marsha": 0,
+        "Nathan": 0,
+        "Pop": 0,
+        "Sarah": 0
+      },
+      "deciding": {
+        "outright": 61.9,
+        "tb1": 16.3,
+        "tb2": 9.3,
+        "tb3": 12.5,
+        "split": 0.0
+      },
+      "points_mean": 391.0,
+      "points_sd": 117.1,
+      "results": [
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A"
+      ],
+      "points_for": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "weights": [
+        0.6647,
+        0.673,
+        0.4994,
+        0.4119,
+        0.5307,
+        0.6999,
+        0.5546,
+        0.5698,
+        0.6566,
+        0.6265,
+        0.4669,
+        0.7102,
+        0.6223,
+        0.5036,
+        0.5642,
+        0.4322,
+        0.5796
+      ],
+      "eliminated": [],
+      "game": null
+    }
+  ],
   "sheet": {
     "spreadsheet_id": null,
     "tab": "Weighted - MASTER",
@@ -643,5 +761,10 @@
     "points_model": "shrunk"
   },
   "created_at": "2026-09-02T22:02:30",
-  "updated_at": "2026-09-09T19:33:35"
+  "updated_at": "2026-09-09T19:51:16",
+  "bye_weeks": [
+    10
+  ],
+  "last_refresh": "2026-09-09T19:51:16",
+  "last_refresh_changes": []
 }
