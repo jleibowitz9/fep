@@ -140,7 +140,7 @@ than filtered out of a master sheet.
 python3 tests/test_engine.py
 ```
 
-44 tests. The ones that matter:
+116 tests. The ones that matter:
 
 - **the 2025 replay** must match Jacob's published boards exactly, or ten years
   of family history quietly changes

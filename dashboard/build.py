@@ -27,7 +27,7 @@ OUTPUT = os.path.join(HERE, "index.html")
 
 def collect(year: int, week: int = None) -> dict:
     """Everything the dashboard needs, from the live season file."""
-    from fep import analytics, history, season as season_mod
+    from fep import analytics, chart, history, season as season_mod
 
     season = season_mod.load(year)
     if not season_mod.has_picks(season):
@@ -70,11 +70,11 @@ def collect(year: int, week: int = None) -> dict:
                    "resultSource": g.get("result_source"),
                    "weightSource": g.get("weight_source"), "date": g["date"]}
                   for g in view["games"]],
-        "roster": season["roster"], "picks": season["picks"],
-        # Keyed by name. The dashboard used to index a twelve-colour array by
-        # roster position, which is the bug that renamed everyone's colour the
-        # moment a thirteenth competitor sorted into the middle.
-        "colors": chart_colors(season),
+        "roster": season["roster"],
+        # Competitor colour is identity, not roster position. The chart owns the
+        # palette, and every other dashboard surface consumes the same mapping.
+        "colors": chart.colors_for(season["roster"]),
+        "picks": season["picks"],
         "guesses": season["points_guess"],
         "board": pack["board"], "straight": pack["straight"],
         "correct": pack["current_points"], "ranked": pack["ranked"],
@@ -98,11 +98,6 @@ def collect(year: int, week: int = None) -> dict:
     }
 
 
-def chart_colors(season: dict) -> dict:
-    from fep import chart
-    return chart.colors_for(season["roster"], season.get("colors"))
-
-
 def chart_script(data: dict) -> str:
     """The real chart renderer, mounted inside the dashboard's Chart tab."""
     try:
@@ -117,7 +112,7 @@ def chart_script(data: dict) -> str:
     html = chart.render(weeks=sorted(board), board_by_week=board,
                         roster=data["roster"], games=games,
                         year=data["year"], upto_week=data["week"],
-                        standalone=False)
+                        standalone=False, colors=data["colors"])
     # The chart markup contains its own <script> tags. Embedding it inside a
     # <script> without escaping the closing sequence ends the outer tag early
     # and dumps the rest of the code onto the page as text.
@@ -139,11 +134,30 @@ def chart_script(data: dict) -> str:
             "}})();" % payload)
 
 
+def script_json(data: dict) -> str:
+    """JSON safe to drop between <script> tags.
+
+    A competitor name or an ESPN label is low-trust text that arrives from a
+    Google Sheet or an HTTP response, and a literal `</script>` anywhere in it
+    would close the block early and spill the rest of the payload onto the page
+    as markup. Escaping the three characters that can start a tag or an entity
+    makes that impossible, and JSON parses the escapes straight back to the
+    original string, so nothing downstream sees a difference.
+    """
+    return (json.dumps(data)
+            .replace("<", "\\u003c")
+            .replace(">", "\\u003e")
+            .replace("&", "\\u0026")
+            # Valid JSON, but a raw line separator is not valid JavaScript.
+            .replace("\u2028", "\\u2028")
+            .replace("\u2029", "\\u2029"))
+
+
 def build(data: dict, output: str = OUTPUT) -> str:
     with open(TEMPLATE) as fh:
         template = fh.read()
     page = (template
-            .replace("__DATA__", json.dumps(data))
+            .replace("__DATA__", script_json(data))
             .replace("__CHART__", chart_script(data)))
     with open(output, "w") as fh:
         fh.write(page)

@@ -382,7 +382,14 @@ export default function FEPChart({
                 {showResults &&
                     data.games.map((gm, i) => {
                         if (i % every !== 0 && i !== lastIndex) return null
-                        const bye = !gm.result
+                        // Only a game LABELLED "Bye" is a bye. A missing result
+                        // otherwise just means the game has not been played, and
+                        // gets no badge at all -- which is what chart.py does.
+                        // Treating every empty result as a bye put a bye marker
+                        // under P in the published week-00 file, where the
+                        // preseason entry is a null game.
+                        const bye = gm.label === "Bye"
+                        if (!gm.result && !bye) return null
                         const win = gm.result === "W"
                         const x = geo.x(i)
                         const y = H - geo.bottom + 24

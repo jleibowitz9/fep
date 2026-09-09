@@ -34,8 +34,9 @@ WHAT IT FIXES ABOUT THE OLD CHART
   result that caused it.
 
 Output is one HTML file with inline SVG and a small amount of vanilla
-JavaScript. No libraries, no network. It renders as a static chart with
-JavaScript disabled; JavaScript only adds interaction.
+JavaScript. No libraries, no network. The SVG and the roster strip are drawn by
+that script from the embedded data block, so JavaScript is required to see the
+chart at all -- it is not progressive enhancement over static markup.
 """
 
 from __future__ import annotations

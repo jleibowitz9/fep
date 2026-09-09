@@ -153,6 +153,11 @@ def render(season: dict, board: engine.Board, week: int,
         add("- Already out: {}".format(", ".join(elim["eliminated"])))
     else:
         add("- Nobody is eliminated yet.")
+    # Distinct from the line above: still possible, just not probable.
+    if elim.get("effectively_eliminated"):
+        add("- Alive only on paper: {}. Every winning outcome survives, but "
+            "the model gives them no measurable chance.".format(
+                ", ".join(elim["effectively_eliminated"])))
     if elim["next_game_label"]:
         add("- A **{}** win eliminates: {}".format(
             elim["next_game_label"],

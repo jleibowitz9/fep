@@ -1,1 +1,3003 @@
-{"year": 2026, "week": 7, "generated": "2026-09-03", "games": [{"i": 0, "week": 1, "label": "vs. Commanders", "result": "L", "weight": 0.6647, "points": 17, "division": true, "resultSource": "espn", "weightSource": "espn", "date": "2026-09-13"}, {"i": 1, "week": 2, "label": "@ Titans", "result": "L", "weight": 0.673, "points": 20, "division": false, "resultSource": "espn", "weightSource": "espn", "date": "2026-09-20"}, {"i": 2, "week": 3, "label": "@ Bears", "result": "L", "weight": 0.4994, "points": 21, "division": false, "resultSource": "espn", "weightSource": "espn", "date": "2026-09-29"}, {"i": 3, "week": 4, "label": "vs. Rams", "result": "W", "weight": 0.4119, "points": 31, "division": false, "resultSource": "espn", "weightSource": "espn", "date": "2026-10-04"}, {"i": 4, "week": 5, "label": "vs. Jaguars (London)", "result": "L", "weight": 0.545, "points": 16, "division": false, "resultSource": "espn", "weightSource": "manual", "date": "2026-10-11"}, {"i": 5, "week": 6, "label": "vs. Panthers", "result": "W", "weight": 0.6999, "points": 27, "division": false, "resultSource": "espn", "weightSource": "espn", "date": "2026-10-18"}, {"i": 6, "week": 7, "label": "vs. Cowboys", "result": "W", "weight": 0.5546, "points": 24, "division": true, "resultSource": "espn", "weightSource": "espn", "date": "2026-10-27"}, {"i": 7, "week": 8, "label": "@ Commanders", "result": "A", "weight": 0.5698, "points": null, "division": true, "resultSource": "espn", "weightSource": "espn", "date": "2026-11-02"}, {"i": 8, "week": 9, "label": "vs. Giants", "result": "A", "weight": 0.6566, "points": null, "division": true, "resultSource": "espn", "weightSource": "espn", "date": "2026-11-08"}, {"i": 9, "week": 11, "label": "vs. Steelers", "result": "A", "weight": 0.6265, "points": null, "division": false, "resultSource": "espn", "weightSource": "espn", "date": "2026-11-22"}, {"i": 10, "week": 12, "label": "@ Cowboys", "result": "A", "weight": 0.4669, "points": null, "division": true, "resultSource": "espn", "weightSource": "espn", "date": "2026-11-26"}, {"i": 11, "week": 13, "label": "@ Cardinals", "result": "A", "weight": 0.7102, "points": null, "division": false, "resultSource": "espn", "weightSource": "espn", "date": "2026-12-06"}, {"i": 12, "week": 14, "label": "vs. Colts", "result": "A", "weight": 0.6223, "points": null, "division": false, "resultSource": "espn", "weightSource": "espn", "date": "2026-12-13"}, {"i": 13, "week": 15, "label": "vs. Seahawks", "result": "A", "weight": 0.5036, "points": null, "division": false, "resultSource": "espn", "weightSource": "espn", "date": "2026-12-19"}, {"i": 14, "week": 16, "label": "vs. Texans", "result": "A", "weight": 0.5642, "points": null, "division": false, "resultSource": "espn", "weightSource": "espn", "date": "2026-12-25"}, {"i": 15, "week": 17, "label": "@ 49ers", "result": "A", "weight": 0.4322, "points": null, "division": false, "resultSource": "espn", "weightSource": "espn", "date": "2027-01-04"}, {"i": 16, "week": 18, "label": "@ Giants", "result": "A", "weight": 0.5796, "points": null, "division": true, "resultSource": "espn", "weightSource": "espn", "date": "2027-01-10"}], "roster": ["Amir", "Andy", "Buhduh", "Emer", "Hanan", "Jacob", "Jay", "Jen", "Marsha", "Nathan", "Pop", "Sarah"], "picks": {"Amir": ["W", "W", "W", "W", "W", "W", "W", "W", "W", "L", "W", "W", "L", "W", "L", "L", "W"], "Andy": ["W", "L", "W", "L", "W", "W", "L", "W", "L", "W", "W", "W", "W", "W", "L", "L", "W"], "Buhduh": ["W", "W", "L", "L", "W", "W", "W", "L", "W", "W", "L", "W", "W", "W", "W", "L", "L"], "Emer": ["W", "L", "W", "W", "W", "W", "W", "W", "W", "W", "L", "W", "W", "L", "W", "L", "W"], "Hanan": ["W", "L", "W", "L", "W", "W", "W", "W", "W", "L", "W", "W", "W", "W", "L", "W", "W"], "Jacob": ["W", "W", "L", "W", "W", "W", "L", "W", "L", "W", "W", "W", "W", "W", "L", "W", "W"], "Jay": ["W", "W", "W", "W", "W", "W", "W", "W", "W", "L", "W", "W", "W", "W", "L", "W", "W"], "Jen": ["W", "L", "W", "W", "W", "W", "W", "W", "W", "L", "W", "W", "L", "W", "W", "L", "W"], "Marsha": ["W", "L", "W", "W", "W", "L", "W", "W", "L", "W", "L", "W", "W", "W", "W", "L", "W"], "Nathan": ["W", "L", "W", "W", "W", "W", "W", "W", "W", "L", "L", "W", "L", "W", "L", "L", "W"], "Pop": ["W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W", "W"], "Sarah": ["W", "W", "W", "W", "W", "W", "L", "W", "L", "L", "W", "W", "W", "W", "L", "W", "W"]}, "guesses": {"Amir": 470, "Andy": 418, "Buhduh": 357, "Emer": 455, "Hanan": 450, "Jacob": 422, "Jay": 486, "Jen": 455, "Marsha": 476, "Nathan": 433, "Pop": 340, "Sarah": 432}, "board": {"Amir": 0.0, "Andy": 3.5, "Buhduh": 22.2, "Emer": 25.0, "Hanan": 2.1, "Jacob": 7.6, "Jay": 0.0, "Jen": 7.4, "Marsha": 5.2, "Nathan": 25.6, "Pop": 1.2, "Sarah": 0.3}, "straight": {"Amir": 0.0, "Andy": 3.9, "Buhduh": 22.3, "Emer": 15.4, "Hanan": 2.1, "Jacob": 9.8, "Jay": 0.0, "Jen": 9.2, "Marsha": 4.7, "Nathan": 31.4, "Pop": 0.6, "Sarah": 0.5}, "correct": {"Amir": 3, "Andy": 2, "Buhduh": 3, "Emer": 4, "Hanan": 3, "Jacob": 3, "Jay": 3, "Jen": 4, "Marsha": 3, "Nathan": 4, "Pop": 3, "Sarah": 2}, "ranked": ["Nathan", "Emer", "Buhduh", "Jacob", "Jen", "Marsha", "Andy", "Hanan", "Pop", "Sarah", "Amir", "Jay"], "heat": {"baseline_week": 6, "deltas": {"Amir": 0.0, "Andy": -6.2, "Buhduh": 1.4, "Emer": 4.7, "Hanan": 1.0, "Jacob": -7.6, "Jay": 0.0, "Jen": 1.0, "Marsha": 1.4, "Nathan": 4.3, "Pop": 0.5, "Sarah": -0.4}, "up": ["Emer", "Nathan", "Buhduh", "Marsha", "Hanan", "Jen", "Pop"], "down": ["Jacob", "Andy", "Sarah"], "flat": ["Amir", "Jay"]}, "deciding": {"rows": [{"key": "outright", "layer": "Correct Picks", "share": 43.7, "delta": 2.0}, {"key": "tb1", "layer": "Tiebreaker 1 - Season Record", "share": 34.7, "delta": 1.2}, {"key": "tb2", "layer": "Tiebreaker 2 - Division Record", "share": 19.0, "delta": -1.3}, {"key": "tb3", "layer": "Tiebreaker 3 - Points Total", "share": 2.5, "delta": -2.0}], "baseline_week": 6}, "elim": {"eliminated": ["Amir", "Jay"], "alive": ["Andy", "Buhduh", "Emer", "Hanan", "Jacob", "Jen", "Marsha", "Nathan", "Pop", "Sarah"], "next_game_index": 7, "next_game_label": "@ Commanders", "eliminated_by_win": [], "eliminated_by_loss": []}, "diff": {"Amir": {"mean_distance": 3.27, "nearest": "Jen", "nearest_distance": 1, "nearest_shared": 9, "remaining_games": 10}, "Andy": {"mean_distance": 3.09, "nearest": "Jacob", "nearest_distance": 1, "nearest_shared": 9, "remaining_games": 10}, "Buhduh": {"mean_distance": 5.09, "nearest": "Emer", "nearest_distance": 3, "nearest_shared": 7, "remaining_games": 10}, "Emer": {"mean_distance": 4.18, "nearest": "Marsha", "nearest_distance": 2, "nearest_shared": 8, "remaining_games": 10}, "Hanan": {"mean_distance": 2.91, "nearest": "Jay", "nearest_distance": 0, "nearest_shared": 10, "remaining_games": 10}, "Jacob": {"mean_distance": 3.27, "nearest": "Andy", "nearest_distance": 1, "nearest_shared": 9, "remaining_games": 10}, "Jay": {"mean_distance": 2.91, "nearest": "Hanan", "nearest_distance": 0, "nearest_shared": 10, "remaining_games": 10}, "Jen": {"mean_distance": 3.45, "nearest": "Amir", "nearest_distance": 1, "nearest_shared": 9, "remaining_games": 10}, "Marsha": {"mean_distance": 3.64, "nearest": "Andy", "nearest_distance": 2, "nearest_shared": 8, "remaining_games": 10}, "Nathan": {"mean_distance": 3.64, "nearest": "Amir", "nearest_distance": 1, "nearest_shared": 9, "remaining_games": 10}, "Pop": {"mean_distance": 3.09, "nearest": "Hanan", "nearest_distance": 2, "nearest_shared": 8, "remaining_games": 10}, "Sarah": {"mean_distance": 3.27, "nearest": "Hanan", "nearest_distance": 1, "nearest_shared": 9, "remaining_games": 10}}, "twins": [{"pair": ["Hanan", "Jay"], "distance": 0, "predicted_wins": [13, 15], "points_guess": [450, 486]}, {"pair": ["Amir", "Jen"], "distance": 1, "predicted_wins": [13, 13], "points_guess": [470, 455]}, {"pair": ["Amir", "Nathan"], "distance": 1, "predicted_wins": [13, 11], "points_guess": [470, 433]}, {"pair": ["Andy", "Jacob"], "distance": 1, "predicted_wins": [11, 13], "points_guess": [418, 422]}, {"pair": ["Hanan", "Sarah"], "distance": 1, "predicted_wins": [13, 13], "points_guess": [450, 432]}, {"pair": ["Jacob", "Sarah"], "distance": 1, "predicted_wins": [13, 13], "points_guess": [422, 432]}, {"pair": ["Jay", "Sarah"], "distance": 1, "predicted_wins": [15, 13], "points_guess": [486, 432]}], "expected": {"Amir": 8.24, "Andy": 7.43, "Buhduh": 8.63, "Emer": 9.93, "Hanan": 8.35, "Jacob": 8.29, "Jay": 8.35, "Jen": 9.37, "Marsha": 8.62, "Nathan": 9.31, "Pop": 8.73, "Sarah": 7.04}, "span": {"Amir": {"current": 3, "worst": 3, "best": 13}, "Andy": {"current": 2, "worst": 2, "best": 12}, "Buhduh": {"current": 3, "worst": 3, "best": 13}, "Emer": {"current": 4, "worst": 4, "best": 14}, "Hanan": {"current": 3, "worst": 3, "best": 13}, "Jacob": {"current": 3, "worst": 3, "best": 13}, "Jay": {"current": 3, "worst": 3, "best": 13}, "Jen": {"current": 4, "worst": 4, "best": 14}, "Marsha": {"current": 3, "worst": 3, "best": 13}, "Nathan": {"current": 4, "worst": 4, "best": 14}, "Pop": {"current": 3, "worst": 3, "best": 13}, "Sarah": {"current": 2, "worst": 2, "best": 12}}, "chalk": [{"game_index": 9, "label": "vs. Steelers", "picked_win": 6, "picked_loss": 6, "consensus": 0.5, "espn_weight": 0.6265, "field_vs_espn": -0.13}, {"game_index": 14, "label": "vs. Texans", "picked_win": 5, "picked_loss": 7, "consensus": 0.58, "espn_weight": 0.5642, "field_vs_espn": -0.15}, {"game_index": 15, "label": "@ 49ers", "picked_win": 5, "picked_loss": 7, "consensus": 0.58, "espn_weight": 0.4322, "field_vs_espn": -0.02}, {"game_index": 8, "label": "vs. Giants", "picked_win": 8, "picked_loss": 4, "consensus": 0.67, "espn_weight": 0.6566, "field_vs_espn": 0.01}, {"game_index": 10, "label": "@ Cowboys", "picked_win": 8, "picked_loss": 4, "consensus": 0.67, "espn_weight": 0.4669, "field_vs_espn": 0.2}, {"game_index": 12, "label": "vs. Colts", "picked_win": 9, "picked_loss": 3, "consensus": 0.75, "espn_weight": 0.6223, "field_vs_espn": 0.13}, {"game_index": 7, "label": "@ Commanders", "picked_win": 11, "picked_loss": 1, "consensus": 0.92, "espn_weight": 0.5698, "field_vs_espn": 0.35}, {"game_index": 13, "label": "vs. Seahawks", "picked_win": 11, "picked_loss": 1, "consensus": 0.92, "espn_weight": 0.5036, "field_vs_espn": 0.41}, {"game_index": 16, "label": "@ Giants", "picked_win": 11, "picked_loss": 1, "consensus": 0.92, "espn_weight": 0.5796, "field_vs_espn": 0.34}, {"game_index": 11, "label": "@ Cardinals", "picked_win": 12, "picked_loss": 0, "consensus": 1.0, "espn_weight": 0.7102, "field_vs_espn": 0.29}], "conc": {"hhi": 0.1929, "effective_field": 5.19, "alive": 10, "leader_share": 25.6}, "vol": {"Amir": {"peak": 3.1, "peak_week": 0, "low": 0.0, "total_movement": 3.1, "biggest_single_move": 2.5, "current": 0.0}, "Andy": {"peak": 23.0, "peak_week": 2, "low": 3.5, "total_movement": 32.8, "biggest_single_move": 9.8, "current": 3.5}, "Buhduh": {"peak": 37.1, "peak_week": 1, "low": 17.6, "total_movement": 53.1, "biggest_single_move": 16.9, "current": 22.2}, "Emer": {"peak": 25.0, "peak_week": 7, "low": 8.6, "total_movement": 25.8, "biggest_single_move": 8.0, "current": 25.0}, "Hanan": {"peak": 8.0, "peak_week": 2, "low": 1.1, "total_movement": 12.2, "biggest_single_move": 5.8, "current": 2.1}, "Jacob": {"peak": 15.2, "peak_week": 6, "low": 2.9, "total_movement": 25.7, "biggest_single_move": 8.0, "current": 7.6}, "Jay": {"peak": 1.2, "peak_week": 0, "low": 0.0, "total_movement": 1.2, "biggest_single_move": 1.0, "current": 0.0}, "Jen": {"peak": 7.4, "peak_week": 7, "low": 2.5, "total_movement": 6.1, "biggest_single_move": 2.6, "current": 7.4}, "Marsha": {"peak": 13.3, "peak_week": 4, "low": 3.8, "total_movement": 21.0, "biggest_single_move": 9.5, "current": 5.2}, "Nathan": {"peak": 25.6, "peak_week": 7, "low": 8.0, "total_movement": 22.4, "biggest_single_move": 8.4, "current": 25.6}, "Pop": {"peak": 3.6, "peak_week": 0, "low": 0.3, "total_movement": 4.2, "biggest_single_move": 3.0, "current": 1.2}, "Sarah": {"peak": 4.8, "peak_week": 0, "low": 0.3, "total_movement": 5.9, "biggest_single_move": 3.4, "current": 0.3}}, "cal": {"games": 7, "brier": 0.2965, "baseline_coinflip": 0.25, "beats_coinflip": false, "straight_up_correct": 3, "straight_up_pct": 42.9, "mean_predicted_wins": 4.05, "actual_wins": 3}, "counter": {"game_index": 6, "label": "vs. Cowboys", "actual": "W", "hypothetical": "L", "board": {"Amir": 0.0, "Andy": 17.3, "Buhduh": 19.1, "Emer": 14.5, "Hanan": 0.0, "Jacob": 24.7, "Jay": 0.0, "Jen": 5.1, "Marsha": 2.1, "Nathan": 16.0, "Pop": 0.0, "Sarah": 1.2}}, "leverage": [{"game_index": 14, "label": "vs. Texans", "leverage": 55.3, "if_win": {"Amir": 0.0, "Andy": 0.0, "Buhduh": 26.0, "Emer": 35.9, "Hanan": 1.2, "Jacob": 4.8, "Jay": 0.0, "Jen": 13.0, "Marsha": 8.0, "Nathan": 8.9, "Pop": 2.1, "Sarah": 0.1}, "if_lose": {"Amir": 0.0, "Andy": 8.1, "Buhduh": 17.3, "Emer": 10.8, "Hanan": 3.1, "Jacob": 11.7, "Jay": 0.0, "Jen": 0.0, "Marsha": 1.7, "Nathan": 47.2, "Pop": 0.0, "Sarah": 0.1}}, {"game_index": 12, "label": "vs. Colts", "leverage": 46.6, "if_win": {"Amir": 0.0, "Andy": 4.4, "Buhduh": 25.9, "Emer": 32.0, "Hanan": 3.3, "Jacob": 10.2, "Jay": 0.0, "Jen": 2.3, "Marsha": 6.8, "Nathan": 13.0, "Pop": 1.9, "Sarah": 0.2}, "if_lose": {"Amir": 0.0, "Andy": 2.0, "Buhduh": 16.1, "Emer": 13.4, "Hanan": 0.0, "Jacob": 3.9, "Jay": 0.0, "Jen": 15.6, "Marsha": 2.7, "Nathan": 46.3, "Pop": 0.0, "Sarah": 0.0}}, {"game_index": 9, "label": "vs. Steelers", "leverage": 44.6, "if_win": {"Amir": 0.0, "Andy": 4.4, "Buhduh": 26.2, "Emer": 31.9, "Hanan": 0.0, "Jacob": 10.3, "Jay": 0.0, "Jen": 3.5, "Marsha": 6.7, "Nathan": 14.9, "Pop": 1.9, "Sarah": 0.0}, "if_lose": {"Amir": 0.0, "Andy": 2.0, "Buhduh": 15.3, "Emer": 13.3, "Hanan": 5.5, "Jacob": 3.6, "Jay": 0.0, "Jen": 13.8, "Marsha": 2.7, "Nathan": 43.5, "Pop": 0.0, "Sarah": 0.3}}, {"game_index": 10, "label": "@ Cowboys", "leverage": 42.8, "if_win": {"Amir": 0.0, "Andy": 7.5, "Buhduh": 16.0, "Emer": 21.5, "Hanan": 4.4, "Jacob": 14.4, "Jay": 0.0, "Jen": 15.8, "Marsha": 1.8, "Nathan": 15.8, "Pop": 2.6, "Sarah": 0.2}, "if_lose": {"Amir": 0.0, "Andy": 0.0, "Buhduh": 27.6, "Emer": 28.0, "Hanan": 0.0, "Jacob": 2.1, "Jay": 0.0, "Jen": 0.0, "Marsha": 8.2, "Nathan": 34.2, "Pop": 0.0, "Sarah": 0.0}}, {"game_index": 13, "label": "vs. Seahawks", "leverage": 42.6, "if_win": {"Amir": 0.0, "Andy": 4.2, "Buhduh": 28.7, "Emer": 3.8, "Hanan": 2.8, "Jacob": 8.2, "Jay": 0.0, "Jen": 10.9, "Marsha": 10.4, "Nathan": 28.6, "Pop": 2.4, "Sarah": 0.1}, "if_lose": {"Amir": 0.0, "Andy": 2.8, "Buhduh": 15.6, "Emer": 46.4, "Hanan": 1.3, "Jacob": 7.5, "Jay": 0.0, "Jen": 3.7, "Marsha": 0.0, "Nathan": 22.6, "Pop": 0.0, "Sarah": 0.1}}, {"game_index": 16, "label": "@ Giants", "leverage": 39.0, "if_win": {"Amir": 0.0, "Andy": 4.0, "Buhduh": 5.8, "Emer": 31.6, "Hanan": 2.2, "Jacob": 8.8, "Jay": 0.0, "Jen": 8.2, "Marsha": 6.4, "Nathan": 31.4, "Pop": 1.5, "Sarah": 0.1}, "if_lose": {"Amir": 0.0, "Andy": 2.8, "Buhduh": 44.8, "Emer": 15.8, "Hanan": 1.8, "Jacob": 6.5, "Jay": 0.0, "Jen": 6.2, "Marsha": 3.6, "Nathan": 17.6, "Pop": 0.8, "Sarah": 0.1}}, {"game_index": 8, "label": "vs. Giants", "leverage": 38.8, "if_win": {"Amir": 0.0, "Andy": 1.1, "Buhduh": 26.0, "Emer": 28.7, "Hanan": 3.1, "Jacob": 2.2, "Jay": 0.0, "Jen": 7.7, "Marsha": 0.0, "Nathan": 29.3, "Pop": 1.8, "Sarah": 0.0}, "if_lose": {"Amir": 0.0, "Andy": 8.1, "Buhduh": 14.9, "Emer": 17.8, "Hanan": 0.0, "Jacob": 18.5, "Jay": 0.0, "Jen": 6.6, "Marsha": 15.2, "Nathan": 18.6, "Pop": 0.0, "Sarah": 0.3}}, {"game_index": 7, "label": "@ Commanders", "leverage": 38.4, "if_win": {"Amir": 0.0, "Andy": 4.0, "Buhduh": 5.7, "Emer": 31.7, "Hanan": 2.2, "Jacob": 8.8, "Jay": 0.0, "Jen": 8.2, "Marsha": 6.4, "Nathan": 31.5, "Pop": 1.5, "Sarah": 0.1}, "if_lose": {"Amir": 0.0, "Andy": 2.8, "Buhduh": 44.0, "Emer": 16.0, "Hanan": 1.8, "Jacob": 6.5, "Jay": 0.0, "Jen": 6.3, "Marsha": 3.7, "Nathan": 17.8, "Pop": 0.9, "Sarah": 0.1}}, {"game_index": 15, "label": "@ 49ers", "leverage": 25.8, "if_win": {"Amir": 0.0, "Andy": 0.0, "Buhduh": 20.3, "Emer": 21.1, "Hanan": 4.8, "Jacob": 18.1, "Jay": 0.0, "Jen": 5.4, "Marsha": 3.7, "Nathan": 23.7, "Pop": 2.8, "Sarah": 0.2}, "if_lose": {"Amir": 0.0, "Andy": 6.2, "Buhduh": 23.6, "Emer": 27.9, "Hanan": 0.0, "Jacob": 0.0, "Jay": 0.0, "Jen": 8.8, "Marsha": 6.4, "Nathan": 27.1, "Pop": 0.0, "Sarah": 0.0}}, {"game_index": 11, "label": "@ Cardinals", "leverage": 0.0, "if_win": {"Amir": 0.0, "Andy": 3.5, "Buhduh": 22.2, "Emer": 25.0, "Hanan": 2.1, "Jacob": 7.8, "Jay": 0.0, "Jen": 7.4, "Marsha": 5.2, "Nathan": 25.6, "Pop": 1.2, "Sarah": 0.1}, "if_lose": {"Amir": 0.0, "Andy": 3.5, "Buhduh": 22.2, "Emer": 25.0, "Hanan": 2.1, "Jacob": 7.8, "Jay": 0.0, "Jen": 7.4, "Marsha": 5.2, "Nathan": 25.6, "Pop": 1.2, "Sarah": 0.1}}], "nextLev": {"game_index": 7, "label": "@ Commanders", "leverage": 38.4, "if_win": {"Amir": 0.0, "Andy": 4.0, "Buhduh": 5.7, "Emer": 31.7, "Hanan": 2.2, "Jacob": 8.8, "Jay": 0.0, "Jen": 8.2, "Marsha": 6.4, "Nathan": 31.5, "Pop": 1.5, "Sarah": 0.1}, "if_lose": {"Amir": 0.0, "Andy": 2.8, "Buhduh": 44.0, "Emer": 16.0, "Hanan": 1.8, "Jacob": 6.5, "Jay": 0.0, "Jen": 6.3, "Marsha": 3.7, "Nathan": 17.8, "Pop": 0.9, "Sarah": 0.1}}, "pointsModel": {"mean": 381.0, "sd": 49.193495504995376, "ppg": 22.5, "model": "shrunk", "games_played": 7, "points_so_far": 156.0}, "retro": [{"game_index": 0, "label": "vs. Commanders", "result": "L", "swing": {"Amir": -0.0, "Andy": 1.3, "Buhduh": 2.6, "Emer": 0.3, "Hanan": -1.5, "Jacob": 1.5, "Jay": 0.0, "Jen": -1.7, "Marsha": 0.0, "Nathan": -2.6, "Pop": 0.0, "Sarah": 0.1}, "magnitude": 5.8}, {"game_index": 1, "label": "@ Titans", "result": "L", "swing": {"Amir": -5.6, "Andy": 3.5, "Buhduh": -26.1, "Emer": 18.8, "Hanan": 2.1, "Jacob": -10.6, "Jay": -4.4, "Jen": 4.2, "Marsha": 4.4, "Nathan": 18.4, "Pop": -4.2, "Sarah": -0.5}, "magnitude": 51.4}, {"game_index": 2, "label": "@ Bears", "result": "L", "swing": {"Amir": 0.0, "Andy": -2.5, "Buhduh": 19.5, "Emer": -10.6, "Hanan": -1.2, "Jacob": 7.6, "Jay": 0.0, "Jen": -1.3, "Marsha": -1.8, "Nathan": -7.3, "Pop": -1.0, "Sarah": -1.4}, "magnitude": 27.1}, {"game_index": 3, "label": "vs. Rams", "result": "W", "swing": {"Amir": 0.0, "Andy": -10.0, "Buhduh": -30.4, "Emer": 17.6, "Hanan": -13.0, "Jacob": 7.6, "Jay": 0.0, "Jen": 5.1, "Marsha": 3.9, "Nathan": 17.7, "Pop": 1.2, "Sarah": 0.3}, "magnitude": 53.4}, {"game_index": 4, "label": "vs. Jaguars (London)", "result": "L", "swing": {"Amir": 0.0, "Andy": 0.0, "Buhduh": 0.2, "Emer": -0.3, "Hanan": 0.0, "Jacob": -0.3, "Jay": 0.0, "Jen": 0.0, "Marsha": 0.0, "Nathan": 0.4, "Pop": 0.0, "Sarah": 0.0}, "magnitude": 0.6}, {"game_index": 5, "label": "vs. Panthers", "result": "W", "swing": {"Amir": 0.0, "Andy": 3.5, "Buhduh": 11.7, "Emer": 8.0, "Hanan": 0.0, "Jacob": 3.7, "Jay": 0.0, "Jen": 1.0, "Marsha": -35.4, "Nathan": 7.3, "Pop": 0.0, "Sarah": 0.1}, "magnitude": 35.3}, {"game_index": 6, "label": "vs. Cowboys", "result": "W", "swing": {"Amir": 0.0, "Andy": -13.8, "Buhduh": 3.0, "Emer": 10.5, "Hanan": 2.1, "Jacob": -17.1, "Jay": 0.0, "Jen": 2.3, "Marsha": 3.1, "Nathan": 9.6, "Pop": 1.2, "Sarah": -1.0}, "magnitude": 31.9}], "career": {"Amir": {"name": "Amir", "seasons": [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025], "first_season": 2016, "championships": 1, "title_years": [2019], "best_finish": 1, "best_finish_year": 2019, "worst_finish": 12, "worst_finish_year": 2024, "average_place": 6.9, "average_correct": 8.9, "best_score": 14, "worst_score": 6, "top3": 1, "bottom3": 4, "career_points": 89, "all_time_place": 7}, "Andy": {"name": "Andy", "seasons": [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025], "first_season": 2016, "championships": 1, "title_years": [2020], "best_finish": 1, "best_finish_year": 2020, "worst_finish": 12, "worst_finish_year": 2025, "average_place": 5.8, "average_correct": 8.9, "best_score": 11, "worst_score": 5, "top3": 3, "bottom3": 3, "career_points": 89, "all_time_place": 6}, "Buhduh": {"name": "Buhduh", "seasons": [2022, 2023, 2024, 2025], "first_season": 2022, "championships": 0, "title_years": [], "best_finish": 3, "best_finish_year": 2024, "worst_finish": 8, "worst_finish_year": 2022, "average_place": 5.0, "average_correct": 10.25, "best_score": 11, "worst_score": 9, "top3": 2, "bottom3": 0, "career_points": 41, "all_time_place": 12}, "Emer": {"name": "Emer", "seasons": [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025], "first_season": 2017, "championships": 0, "title_years": [], "best_finish": 2, "best_finish_year": 2024, "worst_finish": 10, "worst_finish_year": 2022, "average_place": 6.22, "average_correct": 8.78, "best_score": 12, "worst_score": 5, "top3": 1, "bottom3": 4, "career_points": 79, "all_time_place": 11}, "Hanan": {"name": "Hanan", "seasons": [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025], "first_season": 2017, "championships": 1, "title_years": [2023], "best_finish": 1, "best_finish_year": 2023, "worst_finish": 11, "worst_finish_year": 2025, "average_place": 6.11, "average_correct": 9.33, "best_score": 14, "worst_score": 7, "top3": 2, "bottom3": 4, "career_points": 84, "all_time_place": 8}, "Jacob": {"name": "Jacob", "seasons": [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025], "first_season": 2016, "championships": 2, "title_years": [2021, 2022], "best_finish": 1, "best_finish_year": 2021, "worst_finish": 10, "worst_finish_year": 2018, "average_place": 4.8, "average_correct": 9.5, "best_score": 14, "worst_score": 5, "top3": 3, "bottom3": 1, "career_points": 95, "all_time_place": 1}, "Jay": {"name": "Jay", "seasons": [2024, 2025], "first_season": 2024, "championships": 1, "title_years": [2024], "best_finish": 1, "best_finish_year": 2024, "worst_finish": 8, "worst_finish_year": 2025, "average_place": 4.5, "average_correct": 10.0, "best_score": 11, "worst_score": 9, "top3": 1, "bottom3": 0, "career_points": 20, "all_time_place": 9}, "Jen": {"name": "Jen", "seasons": [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025], "first_season": 2016, "championships": 0, "title_years": [], "best_finish": 2, "best_finish_year": 2021, "worst_finish": 10, "worst_finish_year": 2017, "average_place": 5.3, "average_correct": 9.7, "best_score": 14, "worst_score": 8, "top3": 4, "bottom3": 2, "career_points": 97, "all_time_place": 10}, "Marsha": {"name": "Marsha", "seasons": [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025], "first_season": 2016, "championships": 1, "title_years": [2017], "best_finish": 1, "best_finish_year": 2017, "worst_finish": 11, "worst_finish_year": 2024, "average_place": 5.0, "average_correct": 9.9, "best_score": 13, "worst_score": 7, "top3": 4, "bottom3": 2, "career_points": 99, "all_time_place": 3}, "Nathan": {"name": "Nathan", "seasons": [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025], "first_season": 2016, "championships": 1, "title_years": [2016], "best_finish": 1, "best_finish_year": 2016, "worst_finish": 10, "worst_finish_year": 2020, "average_place": 4.0, "average_correct": 9.9, "best_score": 14, "worst_score": 5, "top3": 5, "bottom3": 2, "career_points": 99, "all_time_place": 2}, "Pop": {"name": "Pop", "seasons": [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025], "first_season": 2016, "championships": 1, "title_years": [2025], "best_finish": 1, "best_finish_year": 2025, "worst_finish": 11, "worst_finish_year": 2023, "average_place": 6.5, "average_correct": 9.1, "best_score": 12, "worst_score": 6, "top3": 3, "bottom3": 4, "career_points": 91, "all_time_place": 5}, "Sarah": {"name": "Sarah", "seasons": [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025], "first_season": 2016, "championships": 1, "title_years": [2018], "best_finish": 1, "best_finish_year": 2018, "worst_finish": 10, "worst_finish_year": 2025, "average_place": 6.1, "average_correct": 9.3, "best_score": 13, "worst_score": 5, "top3": 1, "bottom3": 4, "career_points": 93, "all_time_place": 4}}, "personality": {"Amir": {"name": "Amir", "seasons_measured": 10, "optimism": -0.1, "most_optimistic_season": 4, "accuracy": 55.5, "contrarian_rate": 24.4, "division_faith": 75.0}, "Andy": {"name": "Andy", "seasons_measured": 10, "optimism": -0.7, "most_optimistic_season": 4, "accuracy": 54.4, "contrarian_rate": 30.5, "division_faith": 66.7}, "Buhduh": {"name": "Buhduh", "seasons_measured": 4, "optimism": -0.75, "most_optimistic_season": 2, "accuracy": 60.3, "contrarian_rate": 29.4, "division_faith": 66.7}, "Emer": {"name": "Emer", "seasons_measured": 9, "optimism": 0.11, "most_optimistic_season": 4, "accuracy": 53.1, "contrarian_rate": 31.1, "division_faith": 61.1}, "Hanan": {"name": "Hanan", "seasons_measured": 9, "optimism": 0.22, "most_optimistic_season": 5, "accuracy": 56.8, "contrarian_rate": 24.3, "division_faith": 72.2}, "Jacob": {"name": "Jacob", "seasons_measured": 10, "optimism": -0.1, "most_optimistic_season": 3, "accuracy": 57.6, "contrarian_rate": 27.4, "division_faith": 65.0}, "Jay": {"name": "Jay", "seasons_measured": 2, "optimism": 2.0, "most_optimistic_season": 4, "accuracy": 58.8, "contrarian_rate": 14.7, "division_faith": 83.3}, "Jen": {"name": "Jen", "seasons_measured": 10, "optimism": 0.3, "most_optimistic_season": 5, "accuracy": 59.0, "contrarian_rate": 28.7, "division_faith": 70.0}, "Marsha": {"name": "Marsha", "seasons_measured": 10, "optimism": 0.9, "most_optimistic_season": 5, "accuracy": 60.2, "contrarian_rate": 28.0, "division_faith": 75.0}, "Nathan": {"name": "Nathan", "seasons_measured": 10, "optimism": 1.3, "most_optimistic_season": 8, "accuracy": 60.0, "contrarian_rate": 22.6, "division_faith": 75.0}, "Pop": {"name": "Pop", "seasons_measured": 10, "optimism": 0.7, "most_optimistic_season": 6, "accuracy": 55.5, "contrarian_rate": 28.7, "division_faith": 75.0}, "Sarah": {"name": "Sarah", "seasons_measured": 10, "optimism": 1.3, "most_optimistic_season": 6, "accuracy": 56.6, "contrarian_rate": 28.7, "division_faith": 73.3}}, "snapshots": [{"week": 0, "weighted": {"Amir": 3.1, "Andy": 13.7, "Buhduh": 33.9, "Emer": 9.2, "Hanan": 4.7, "Jacob": 8.1, "Jay": 1.2, "Jen": 2.7, "Marsha": 6.4, "Nathan": 8.6, "Pop": 3.6, "Sarah": 4.8}, "correct": {"Amir": 0, "Andy": 0, "Buhduh": 0, "Emer": 0, "Hanan": 0, "Jacob": 0, "Jay": 0, "Jen": 0, "Marsha": 0, "Nathan": 0, "Pop": 0, "Sarah": 0}, "deciding": {"outright": 45.1, "tb1": 28.9, "tb2": 16.0, "tb3": 10.1, "split": 0.0}, "outcomes": 131072}, {"week": 1, "weighted": {"Amir": 2.5, "Andy": 13.4, "Buhduh": 37.1, "Emer": 8.6, "Hanan": 4.2, "Jacob": 8.4, "Jay": 1.0, "Jen": 2.5, "Marsha": 6.4, "Nathan": 8.0, "Pop": 3.5, "Sarah": 4.4}, "correct": {"Amir": 0, "Andy": 0, "Buhduh": 0, "Emer": 0, "Hanan": 0, "Jacob": 0, "Jay": 0, "Jen": 0, "Marsha": 0, "Nathan": 0, "Pop": 0, "Sarah": 0}, "deciding": {"outright": 45.1, "tb1": 31.0, "tb2": 16.4, "tb3": 7.5, "split": 0.0}, "outcomes": 65536}, {"week": 2, "weighted": {"Amir": 0.0, "Andy": 23.0, "Buhduh": 21.6, "Emer": 15.0, "Hanan": 8.0, "Jacob": 2.9, "Jay": 0.0, "Jen": 4.1, "Marsha": 10.4, "Nathan": 13.4, "Pop": 0.5, "Sarah": 1.0}, "correct": {"Amir": 0, "Andy": 1, "Buhduh": 0, "Emer": 1, "Hanan": 1, "Jacob": 0, "Jay": 0, "Jen": 1, "Marsha": 1, "Nathan": 1, "Pop": 0, "Sarah": 0}, "deciding": {"outright": 50.2, "tb1": 28.2, "tb2": 18.9, "tb3": 2.7, "split": 0.0}, "outcomes": 32768}, {"week": 3, "weighted": {"Amir": 0.0, "Andy": 17.8, "Buhduh": 34.5, "Emer": 10.7, "Hanan": 6.9, "Jacob": 5.9, "Jay": 0.0, "Jen": 3.6, "Marsha": 8.8, "Nathan": 11.3, "Pop": 0.3, "Sarah": 0.3}, "correct": {"Amir": 0, "Andy": 1, "Buhduh": 1, "Emer": 1, "Hanan": 1, "Jacob": 1, "Jay": 0, "Jen": 1, "Marsha": 1, "Nathan": 1, "Pop": 0, "Sarah": 0}, "deciding": {"outright": 48.2, "tb1": 28.1, "tb2": 20.5, "tb3": 3.2, "split": 0.0}, "outcomes": 16384}, {"week": 4, "weighted": {"Amir": 0.0, "Andy": 8.0, "Buhduh": 17.6, "Emer": 18.7, "Hanan": 1.1, "Jacob": 13.9, "Jay": 0.0, "Jen": 6.2, "Marsha": 13.3, "Nathan": 19.7, "Pop": 0.7, "Sarah": 0.9}, "correct": {"Amir": 1, "Andy": 1, "Buhduh": 1, "Emer": 2, "Hanan": 1, "Jacob": 2, "Jay": 1, "Jen": 2, "Marsha": 2, "Nathan": 2, "Pop": 1, "Sarah": 1}, "deciding": {"outright": 49.0, "tb1": 29.1, "tb2": 17.2, "tb3": 4.7, "split": 0.0}, "outcomes": 8192}, {"week": 5, "weighted": {"Amir": 0.0, "Andy": 8.0, "Buhduh": 17.6, "Emer": 18.6, "Hanan": 1.1, "Jacob": 14.2, "Jay": 0.0, "Jen": 6.2, "Marsha": 13.3, "Nathan": 19.8, "Pop": 0.7, "Sarah": 0.6}, "correct": {"Amir": 1, "Andy": 1, "Buhduh": 1, "Emer": 2, "Hanan": 1, "Jacob": 2, "Jay": 1, "Jen": 2, "Marsha": 2, "Nathan": 2, "Pop": 1, "Sarah": 1}, "deciding": {"outright": 49.0, "tb1": 29.7, "tb2": 17.0, "tb3": 4.3, "split": 0.0}, "outcomes": 4096}, {"week": 6, "weighted": {"Amir": 0.0, "Andy": 9.7, "Buhduh": 20.8, "Emer": 20.3, "Hanan": 1.1, "Jacob": 15.2, "Jay": 0.0, "Jen": 6.4, "Marsha": 3.8, "Nathan": 21.3, "Pop": 0.7, "Sarah": 0.7}, "correct": {"Amir": 2, "Andy": 2, "Buhduh": 2, "Emer": 3, "Hanan": 2, "Jacob": 3, "Jay": 2, "Jen": 3, "Marsha": 2, "Nathan": 3, "Pop": 2, "Sarah": 2}, "deciding": {"outright": 41.7, "tb1": 33.5, "tb2": 20.3, "tb3": 4.5, "split": 0.0}, "outcomes": 2048}, {"week": 7, "weighted": {"Amir": 0.0, "Andy": 3.5, "Buhduh": 22.2, "Emer": 25.0, "Hanan": 2.1, "Jacob": 7.6, "Jay": 0.0, "Jen": 7.4, "Marsha": 5.2, "Nathan": 25.6, "Pop": 1.2, "Sarah": 0.3}, "correct": {"Amir": 3, "Andy": 2, "Buhduh": 3, "Emer": 4, "Hanan": 3, "Jacob": 3, "Jay": 3, "Jen": 4, "Marsha": 3, "Nathan": 4, "Pop": 3, "Sarah": 2}, "deciding": {"outright": 43.7, "tb1": 34.7, "tb2": 19.0, "tb3": 2.5, "split": 0.0}, "outcomes": 1024}], "outcomes": 1024, "champions": [{"season": 1, "year": 2016, "games": 16, "record": "7-9", "winning_score": 10, "champion": "Nathan", "co_champions": ["Andy"], "field_average": 8.25, "notes": "Inaugural season; Andy tied at 10 but Nathan took trophy"}, {"season": 2, "year": 2017, "games": 16, "record": "13-3", "winning_score": 13, "champion": "Marsha", "co_champions": [], "field_average": 10.1, "notes": "First Super Bowl run (LII); Nathan 2nd with 11"}, {"season": 3, "year": 2018, "games": 16, "record": "9-7", "winning_score": 12, "champion": "Sarah", "co_champions": ["Pop"], "field_average": 8.5, "notes": "Sarah won tiebreaker over Pop at 12"}, {"season": 4, "year": 2019, "games": 16, "record": "9-7", "winning_score": 14, "champion": "Amir", "co_champions": [], "field_average": 9.9, "notes": "Amir's only title; 14 correct"}, {"season": 5, "year": 2020, "games": 16, "record": "4-11-1", "winning_score": 8, "champion": "Andy", "co_champions": ["Hanan", "Jen", "Marsha", "Pop"], "field_average": 6.8, "notes": "Lowest winning score ever; Eagles fired Doug Pederson; 5-way tie at 8 resolved to Andy"}, {"season": 6, "year": 2021, "games": 17, "record": "9-8", "winning_score": 14, "champion": "Jacob", "co_champions": ["Jen", "Nathan"], "field_average": 11.1, "notes": "Three-way tie at 14; Jacob took trophy; first 17-game season"}, {"season": 7, "year": 2022, "games": 17, "record": "14-3", "winning_score": 13, "champion": "Jacob", "co_champions": [], "field_average": 10.5, "notes": "Jacob's 2nd title; Super Bowl LVII run; Buhduh joins as 11th competitor (listed under real name Lisa)"}, {"season": 8, "year": 2023, "games": 17, "record": "11-6", "winning_score": 14, "champion": "Hanan", "co_champions": [], "field_average": 10.7, "notes": "Hanan's title; Emer/Jen/Nathan tied 2nd at 12"}, {"season": 9, "year": 2024, "games": 17, "record": "14-3", "winning_score": 11, "champion": "Jay", "co_champions": ["Buhduh", "Emer"], "field_average": 9.3, "notes": "Jay's rookie-season title; 3-way tie at 11 resolved to Jay; 8th unique champion"}, {"season": 10, "year": 2025, "games": 17, "record": "11-6", "winning_score": 11, "champion": "Pop", "co_champions": [], "field_average": 8.4, "notes": "Pop's first title via 17-0 all-wins pick; Marsha 2nd at 10; 2nd-least-competitive season"}], "whatif": {"0": {"W": {"Amir": 0.0, "Andy": 2.2, "Buhduh": 19.5, "Emer": 24.7, "Hanan": 3.6, "Jacob": 6.1, "Jay": 0.0, "Jen": 9.1, "Marsha": 5.2, "Nathan": 28.2, "Pop": 1.2, "Sarah": 0.2}, "L": {"Amir": 0.0, "Andy": 3.5, "Buhduh": 22.2, "Emer": 25.0, "Hanan": 2.1, "Jacob": 7.6, "Jay": 0.0, "Jen": 7.4, "Marsha": 5.2, "Nathan": 25.6, "Pop": 1.2, "Sarah": 0.3}, "actual": "L"}, "1": {"W": {"Amir": 5.6, "Andy": 0.0, "Buhduh": 48.3, "Emer": 6.2, "Hanan": 0.0, "Jacob": 18.2, "Jay": 4.4, "Jen": 3.2, "Marsha": 0.8, "Nathan": 7.2, "Pop": 5.4, "Sarah": 0.8}, "L": {"Amir": 0.0, "Andy": 3.5, "Buhduh": 22.2, "Emer": 25.0, "Hanan": 2.1, "Jacob": 7.6, "Jay": 0.0, "Jen": 7.4, "Marsha": 5.2, "Nathan": 25.6, "Pop": 1.2, "Sarah": 0.3}, "actual": "L"}, "2": {"W": {"Amir": 0.0, "Andy": 6.0, "Buhduh": 2.7, "Emer": 35.6, "Hanan": 3.3, "Jacob": 0.0, "Jay": 0.0, "Jen": 8.7, "Marsha": 7.0, "Nathan": 32.9, "Pop": 2.2, "Sarah": 1.6}, "L": {"Amir": 0.0, "Andy": 3.5, "Buhduh": 22.2, "Emer": 25.0, "Hanan": 2.1, "Jacob": 7.6, "Jay": 0.0, "Jen": 7.4, "Marsha": 5.2, "Nathan": 25.6, "Pop": 1.2, "Sarah": 0.3}, "actual": "L"}, "3": {"W": {"Amir": 0.0, "Andy": 3.5, "Buhduh": 22.2, "Emer": 25.0, "Hanan": 2.1, "Jacob": 7.6, "Jay": 0.0, "Jen": 7.4, "Marsha": 5.2, "Nathan": 25.6, "Pop": 1.2, "Sarah": 0.3}, "L": {"Amir": 0.0, "Andy": 13.6, "Buhduh": 52.6, "Emer": 7.4, "Hanan": 15.0, "Jacob": 0.0, "Jay": 0.0, "Jen": 2.3, "Marsha": 1.3, "Nathan": 7.9, "Pop": 0.0, "Sarah": 0.0}, "actual": "W"}, "4": {"W": {"Amir": 0.0, "Andy": 3.5, "Buhduh": 22.0, "Emer": 25.3, "Hanan": 2.1, "Jacob": 7.9, "Jay": 0.0, "Jen": 7.4, "Marsha": 5.2, "Nathan": 25.2, "Pop": 1.2, "Sarah": 0.3}, "L": {"Amir": 0.0, "Andy": 3.5, "Buhduh": 22.2, "Emer": 25.0, "Hanan": 2.1, "Jacob": 7.6, "Jay": 0.0, "Jen": 7.4, "Marsha": 5.2, "Nathan": 25.6, "Pop": 1.2, "Sarah": 0.3}, "actual": "L"}, "5": {"W": {"Amir": 0.0, "Andy": 3.5, "Buhduh": 22.2, "Emer": 25.0, "Hanan": 2.1, "Jacob": 7.6, "Jay": 0.0, "Jen": 7.4, "Marsha": 5.2, "Nathan": 25.6, "Pop": 1.2, "Sarah": 0.3}, "L": {"Amir": 0.0, "Andy": 0.0, "Buhduh": 10.5, "Emer": 16.9, "Hanan": 2.1, "Jacob": 3.9, "Jay": 0.0, "Jen": 6.4, "Marsha": 40.6, "Nathan": 18.3, "Pop": 1.2, "Sarah": 0.1}, "actual": "W"}, "6": {"W": {"Amir": 0.0, "Andy": 3.5, "Buhduh": 22.2, "Emer": 25.0, "Hanan": 2.1, "Jacob": 7.6, "Jay": 0.0, "Jen": 7.4, "Marsha": 5.2, "Nathan": 25.6, "Pop": 1.2, "Sarah": 0.3}, "L": {"Amir": 0.0, "Andy": 17.3, "Buhduh": 19.1, "Emer": 14.5, "Hanan": 0.0, "Jacob": 24.7, "Jay": 0.0, "Jen": 5.1, "Marsha": 2.1, "Nathan": 16.0, "Pop": 0.0, "Sarah": 1.2}, "actual": "W"}, "7": {"W": {"Amir": 0.0, "Andy": 4.0, "Buhduh": 5.7, "Emer": 31.7, "Hanan": 2.2, "Jacob": 8.8, "Jay": 0.0, "Jen": 8.2, "Marsha": 6.4, "Nathan": 31.5, "Pop": 1.5, "Sarah": 0.1}, "L": {"Amir": 0.0, "Andy": 2.8, "Buhduh": 44.0, "Emer": 16.0, "Hanan": 1.8, "Jacob": 6.5, "Jay": 0.0, "Jen": 6.3, "Marsha": 3.7, "Nathan": 17.8, "Pop": 0.9, "Sarah": 0.1}, "actual": null}, "8": {"W": {"Amir": 0.0, "Andy": 1.1, "Buhduh": 26.0, "Emer": 28.7, "Hanan": 3.1, "Jacob": 2.2, "Jay": 0.0, "Jen": 7.7, "Marsha": 0.0, "Nathan": 29.3, "Pop": 1.8, "Sarah": 0.0}, "L": {"Amir": 0.0, "Andy": 8.1, "Buhduh": 14.9, "Emer": 17.8, "Hanan": 0.0, "Jacob": 18.5, "Jay": 0.0, "Jen": 6.6, "Marsha": 15.2, "Nathan": 18.6, "Pop": 0.0, "Sarah": 0.3}, "actual": null}, "9": {"W": {"Amir": 0.0, "Andy": 4.4, "Buhduh": 26.2, "Emer": 31.9, "Hanan": 0.0, "Jacob": 10.3, "Jay": 0.0, "Jen": 3.5, "Marsha": 6.7, "Nathan": 14.9, "Pop": 1.9, "Sarah": 0.0}, "L": {"Amir": 0.0, "Andy": 2.0, "Buhduh": 15.3, "Emer": 13.3, "Hanan": 5.5, "Jacob": 3.6, "Jay": 0.0, "Jen": 13.8, "Marsha": 2.7, "Nathan": 43.5, "Pop": 0.0, "Sarah": 0.3}, "actual": null}, "10": {"W": {"Amir": 0.0, "Andy": 7.5, "Buhduh": 16.0, "Emer": 21.5, "Hanan": 4.4, "Jacob": 14.4, "Jay": 0.0, "Jen": 15.8, "Marsha": 1.8, "Nathan": 15.8, "Pop": 2.6, "Sarah": 0.2}, "L": {"Amir": 0.0, "Andy": 0.0, "Buhduh": 27.6, "Emer": 28.0, "Hanan": 0.0, "Jacob": 2.1, "Jay": 0.0, "Jen": 0.0, "Marsha": 8.2, "Nathan": 34.2, "Pop": 0.0, "Sarah": 0.0}, "actual": null}, "11": {"W": {"Amir": 0.0, "Andy": 3.5, "Buhduh": 22.2, "Emer": 25.0, "Hanan": 2.1, "Jacob": 7.8, "Jay": 0.0, "Jen": 7.4, "Marsha": 5.2, "Nathan": 25.6, "Pop": 1.2, "Sarah": 0.1}, "L": {"Amir": 0.0, "Andy": 3.5, "Buhduh": 22.2, "Emer": 25.0, "Hanan": 2.1, "Jacob": 7.8, "Jay": 0.0, "Jen": 7.4, "Marsha": 5.2, "Nathan": 25.6, "Pop": 1.2, "Sarah": 0.1}, "actual": null}, "12": {"W": {"Amir": 0.0, "Andy": 4.4, "Buhduh": 25.9, "Emer": 32.0, "Hanan": 3.3, "Jacob": 10.2, "Jay": 0.0, "Jen": 2.3, "Marsha": 6.8, "Nathan": 13.0, "Pop": 1.9, "Sarah": 0.2}, "L": {"Amir": 0.0, "Andy": 2.0, "Buhduh": 16.1, "Emer": 13.4, "Hanan": 0.0, "Jacob": 3.9, "Jay": 0.0, "Jen": 15.6, "Marsha": 2.7, "Nathan": 46.3, "Pop": 0.0, "Sarah": 0.0}, "actual": null}, "13": {"W": {"Amir": 0.0, "Andy": 4.2, "Buhduh": 28.7, "Emer": 3.8, "Hanan": 2.8, "Jacob": 8.2, "Jay": 0.0, "Jen": 10.9, "Marsha": 10.4, "Nathan": 28.6, "Pop": 2.4, "Sarah": 0.1}, "L": {"Amir": 0.0, "Andy": 2.8, "Buhduh": 15.6, "Emer": 46.4, "Hanan": 1.3, "Jacob": 7.5, "Jay": 0.0, "Jen": 3.7, "Marsha": 0.0, "Nathan": 22.6, "Pop": 0.0, "Sarah": 0.1}, "actual": null}, "14": {"W": {"Amir": 0.0, "Andy": 0.0, "Buhduh": 26.0, "Emer": 35.9, "Hanan": 1.2, "Jacob": 4.8, "Jay": 0.0, "Jen": 13.0, "Marsha": 8.0, "Nathan": 8.9, "Pop": 2.1, "Sarah": 0.1}, "L": {"Amir": 0.0, "Andy": 8.1, "Buhduh": 17.3, "Emer": 10.8, "Hanan": 3.1, "Jacob": 11.7, "Jay": 0.0, "Jen": 0.0, "Marsha": 1.7, "Nathan": 47.2, "Pop": 0.0, "Sarah": 0.1}, "actual": null}, "15": {"W": {"Amir": 0.0, "Andy": 0.0, "Buhduh": 20.3, "Emer": 21.1, "Hanan": 4.8, "Jacob": 18.1, "Jay": 0.0, "Jen": 5.4, "Marsha": 3.7, "Nathan": 23.7, "Pop": 2.8, "Sarah": 0.2}, "L": {"Amir": 0.0, "Andy": 6.2, "Buhduh": 23.6, "Emer": 27.9, "Hanan": 0.0, "Jacob": 0.0, "Jay": 0.0, "Jen": 8.8, "Marsha": 6.4, "Nathan": 27.1, "Pop": 0.0, "Sarah": 0.0}, "actual": null}, "16": {"W": {"Amir": 0.0, "Andy": 4.0, "Buhduh": 5.8, "Emer": 31.6, "Hanan": 2.2, "Jacob": 8.8, "Jay": 0.0, "Jen": 8.2, "Marsha": 6.4, "Nathan": 31.4, "Pop": 1.5, "Sarah": 0.1}, "L": {"Amir": 0.0, "Andy": 2.8, "Buhduh": 44.8, "Emer": 15.8, "Hanan": 1.8, "Jacob": 6.5, "Jay": 0.0, "Jen": 6.2, "Marsha": 3.6, "Nathan": 17.6, "Pop": 0.8, "Sarah": 0.1}, "actual": null}}}
+{
+ "board": {
+  "Amir": 17.0,
+  "Andy": 18.0,
+  "Buhduh": 0.0,
+  "Emer": 5.7,
+  "Hanan": 3.0,
+  "Jacob": 0.6,
+  "Jay": 23.6,
+  "Jen": 1.2,
+  "Marsha": 0.0,
+  "Nathan": 25.1,
+  "Pop": 0.0,
+  "Sarah": 5.7
+ },
+ "cal": {
+  "actual_wins": 3,
+  "baseline_coinflip": 0.25,
+  "beats_coinflip": true,
+  "brier": 0.2289,
+  "games": 7,
+  "mean_predicted_wins": 4.03,
+  "straight_up_correct": 5,
+  "straight_up_pct": 71.4,
+  "ties": 0
+ },
+ "career": {
+  "Amir": {
+   "all_time_place": 7,
+   "average_correct": 8.9,
+   "average_place": 6.9,
+   "best_finish": 1,
+   "best_finish_year": 2019,
+   "best_score": 14,
+   "bottom3": 4,
+   "career_points": 89,
+   "championships": 1,
+   "first_season": 2016,
+   "name": "Amir",
+   "seasons": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "title_years": [
+    2019
+   ],
+   "top3": 1,
+   "worst_finish": 12,
+   "worst_finish_year": 2024,
+   "worst_score": 6
+  },
+  "Andy": {
+   "all_time_place": 6,
+   "average_correct": 8.9,
+   "average_place": 5.8,
+   "best_finish": 1,
+   "best_finish_year": 2020,
+   "best_score": 11,
+   "bottom3": 3,
+   "career_points": 89,
+   "championships": 1,
+   "first_season": 2016,
+   "name": "Andy",
+   "seasons": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "title_years": [
+    2020
+   ],
+   "top3": 3,
+   "worst_finish": 12,
+   "worst_finish_year": 2025,
+   "worst_score": 5
+  },
+  "Buhduh": {
+   "all_time_place": 12,
+   "average_correct": 10.25,
+   "average_place": 5.0,
+   "best_finish": 3,
+   "best_finish_year": 2024,
+   "best_score": 11,
+   "bottom3": 0,
+   "career_points": 41,
+   "championships": 0,
+   "first_season": 2022,
+   "name": "Buhduh",
+   "seasons": [
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "title_years": [],
+   "top3": 2,
+   "worst_finish": 8,
+   "worst_finish_year": 2022,
+   "worst_score": 9
+  },
+  "Emer": {
+   "all_time_place": 11,
+   "average_correct": 8.78,
+   "average_place": 6.22,
+   "best_finish": 2,
+   "best_finish_year": 2024,
+   "best_score": 12,
+   "bottom3": 4,
+   "career_points": 79,
+   "championships": 0,
+   "first_season": 2017,
+   "name": "Emer",
+   "seasons": [
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "title_years": [],
+   "top3": 1,
+   "worst_finish": 10,
+   "worst_finish_year": 2022,
+   "worst_score": 5
+  },
+  "Hanan": {
+   "all_time_place": 8,
+   "average_correct": 9.33,
+   "average_place": 6.11,
+   "best_finish": 1,
+   "best_finish_year": 2023,
+   "best_score": 14,
+   "bottom3": 4,
+   "career_points": 84,
+   "championships": 1,
+   "first_season": 2017,
+   "name": "Hanan",
+   "seasons": [
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "title_years": [
+    2023
+   ],
+   "top3": 2,
+   "worst_finish": 11,
+   "worst_finish_year": 2025,
+   "worst_score": 7
+  },
+  "Jacob": {
+   "all_time_place": 1,
+   "average_correct": 9.5,
+   "average_place": 4.8,
+   "best_finish": 1,
+   "best_finish_year": 2021,
+   "best_score": 14,
+   "bottom3": 1,
+   "career_points": 95,
+   "championships": 2,
+   "first_season": 2016,
+   "name": "Jacob",
+   "seasons": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "title_years": [
+    2021,
+    2022
+   ],
+   "top3": 3,
+   "worst_finish": 10,
+   "worst_finish_year": 2018,
+   "worst_score": 5
+  },
+  "Jay": {
+   "all_time_place": 9,
+   "average_correct": 10.0,
+   "average_place": 4.5,
+   "best_finish": 1,
+   "best_finish_year": 2024,
+   "best_score": 11,
+   "bottom3": 0,
+   "career_points": 20,
+   "championships": 1,
+   "first_season": 2024,
+   "name": "Jay",
+   "seasons": [
+    2024,
+    2025
+   ],
+   "title_years": [
+    2024
+   ],
+   "top3": 1,
+   "worst_finish": 8,
+   "worst_finish_year": 2025,
+   "worst_score": 9
+  },
+  "Jen": {
+   "all_time_place": 10,
+   "average_correct": 9.7,
+   "average_place": 5.3,
+   "best_finish": 2,
+   "best_finish_year": 2021,
+   "best_score": 14,
+   "bottom3": 2,
+   "career_points": 97,
+   "championships": 0,
+   "first_season": 2016,
+   "name": "Jen",
+   "seasons": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "title_years": [],
+   "top3": 4,
+   "worst_finish": 10,
+   "worst_finish_year": 2017,
+   "worst_score": 8
+  },
+  "Marsha": {
+   "all_time_place": 3,
+   "average_correct": 9.9,
+   "average_place": 5.0,
+   "best_finish": 1,
+   "best_finish_year": 2017,
+   "best_score": 13,
+   "bottom3": 2,
+   "career_points": 99,
+   "championships": 1,
+   "first_season": 2016,
+   "name": "Marsha",
+   "seasons": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "title_years": [
+    2017
+   ],
+   "top3": 4,
+   "worst_finish": 11,
+   "worst_finish_year": 2024,
+   "worst_score": 7
+  },
+  "Nathan": {
+   "all_time_place": 2,
+   "average_correct": 9.9,
+   "average_place": 4.0,
+   "best_finish": 1,
+   "best_finish_year": 2016,
+   "best_score": 14,
+   "bottom3": 2,
+   "career_points": 99,
+   "championships": 1,
+   "first_season": 2016,
+   "name": "Nathan",
+   "seasons": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "title_years": [
+    2016
+   ],
+   "top3": 5,
+   "worst_finish": 10,
+   "worst_finish_year": 2020,
+   "worst_score": 5
+  },
+  "Pop": {
+   "all_time_place": 5,
+   "average_correct": 9.1,
+   "average_place": 6.5,
+   "best_finish": 1,
+   "best_finish_year": 2025,
+   "best_score": 12,
+   "bottom3": 4,
+   "career_points": 91,
+   "championships": 1,
+   "first_season": 2016,
+   "name": "Pop",
+   "seasons": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "title_years": [
+    2025
+   ],
+   "top3": 3,
+   "worst_finish": 11,
+   "worst_finish_year": 2023,
+   "worst_score": 6
+  },
+  "Sarah": {
+   "all_time_place": 4,
+   "average_correct": 9.3,
+   "average_place": 6.1,
+   "best_finish": 1,
+   "best_finish_year": 2018,
+   "best_score": 13,
+   "bottom3": 4,
+   "career_points": 93,
+   "championships": 1,
+   "first_season": 2016,
+   "name": "Sarah",
+   "seasons": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "title_years": [
+    2018
+   ],
+   "top3": 1,
+   "worst_finish": 10,
+   "worst_finish_year": 2025,
+   "worst_score": 5
+  }
+ },
+ "chalk": [
+  {
+   "consensus": 0.5,
+   "espn_weight": 0.5698,
+   "field_vs_espn": -0.07,
+   "game_index": 7,
+   "label": "@ Commanders",
+   "picked_loss": 6,
+   "picked_win": 6
+  },
+  {
+   "consensus": 0.5,
+   "espn_weight": 0.5642,
+   "field_vs_espn": -0.06,
+   "game_index": 14,
+   "label": "vs. Texans",
+   "picked_loss": 6,
+   "picked_win": 6
+  },
+  {
+   "consensus": 0.58,
+   "espn_weight": 0.4669,
+   "field_vs_espn": -0.05,
+   "game_index": 10,
+   "label": "@ Cowboys",
+   "picked_loss": 7,
+   "picked_win": 5
+  },
+  {
+   "consensus": 0.67,
+   "espn_weight": 0.6223,
+   "field_vs_espn": 0.04,
+   "game_index": 12,
+   "label": "vs. Colts",
+   "picked_loss": 4,
+   "picked_win": 8
+  },
+  {
+   "consensus": 0.67,
+   "espn_weight": 0.5796,
+   "field_vs_espn": 0.09,
+   "game_index": 16,
+   "label": "@ Giants",
+   "picked_loss": 4,
+   "picked_win": 8
+  },
+  {
+   "consensus": 0.75,
+   "espn_weight": 0.6265,
+   "field_vs_espn": 0.12,
+   "game_index": 9,
+   "label": "vs. Steelers",
+   "picked_loss": 3,
+   "picked_win": 9
+  },
+  {
+   "consensus": 0.75,
+   "espn_weight": 0.5036,
+   "field_vs_espn": -0.25,
+   "game_index": 13,
+   "label": "vs. Seahawks",
+   "picked_loss": 9,
+   "picked_win": 3
+  },
+  {
+   "consensus": 0.83,
+   "espn_weight": 0.6566,
+   "field_vs_espn": 0.18,
+   "game_index": 8,
+   "label": "vs. Giants",
+   "picked_loss": 2,
+   "picked_win": 10
+  },
+  {
+   "consensus": 0.83,
+   "espn_weight": 0.7102,
+   "field_vs_espn": 0.12,
+   "game_index": 11,
+   "label": "@ Cardinals",
+   "picked_loss": 2,
+   "picked_win": 10
+  },
+  {
+   "consensus": 0.83,
+   "espn_weight": 0.4322,
+   "field_vs_espn": -0.27,
+   "game_index": 15,
+   "label": "@ 49ers",
+   "picked_loss": 10,
+   "picked_win": 2
+  }
+ ],
+ "champions": [
+  {
+   "champion": "Nathan",
+   "co_champions": [
+    "Andy"
+   ],
+   "field_average": 8.25,
+   "games": 16,
+   "notes": "Inaugural season; Andy tied at 10 but Nathan took trophy",
+   "record": "7-9",
+   "season": 1,
+   "winning_score": 10,
+   "year": 2016
+  },
+  {
+   "champion": "Marsha",
+   "co_champions": [],
+   "field_average": 10.1,
+   "games": 16,
+   "notes": "First Super Bowl run (LII); Nathan 2nd with 11",
+   "record": "13-3",
+   "season": 2,
+   "winning_score": 13,
+   "year": 2017
+  },
+  {
+   "champion": "Sarah",
+   "co_champions": [
+    "Pop"
+   ],
+   "field_average": 8.5,
+   "games": 16,
+   "notes": "Sarah won tiebreaker over Pop at 12",
+   "record": "9-7",
+   "season": 3,
+   "winning_score": 12,
+   "year": 2018
+  },
+  {
+   "champion": "Amir",
+   "co_champions": [],
+   "field_average": 9.9,
+   "games": 16,
+   "notes": "Amir's only title; 14 correct",
+   "record": "9-7",
+   "season": 4,
+   "winning_score": 14,
+   "year": 2019
+  },
+  {
+   "champion": "Andy",
+   "co_champions": [
+    "Hanan",
+    "Jen",
+    "Marsha",
+    "Pop"
+   ],
+   "field_average": 6.8,
+   "games": 16,
+   "notes": "Lowest winning score ever; Eagles fired Doug Pederson; 5-way tie at 8 resolved to Andy",
+   "record": "4-11-1",
+   "season": 5,
+   "winning_score": 8,
+   "year": 2020
+  },
+  {
+   "champion": "Jacob",
+   "co_champions": [
+    "Jen",
+    "Nathan"
+   ],
+   "field_average": 11.1,
+   "games": 17,
+   "notes": "Three-way tie at 14; Jacob took trophy; first 17-game season",
+   "record": "9-8",
+   "season": 6,
+   "winning_score": 14,
+   "year": 2021
+  },
+  {
+   "champion": "Jacob",
+   "co_champions": [],
+   "field_average": 10.5,
+   "games": 17,
+   "notes": "Jacob's 2nd title; Super Bowl LVII run; Buhduh joins as 11th competitor (listed under real name Lisa)",
+   "record": "14-3",
+   "season": 7,
+   "winning_score": 13,
+   "year": 2022
+  },
+  {
+   "champion": "Hanan",
+   "co_champions": [],
+   "field_average": 10.7,
+   "games": 17,
+   "notes": "Hanan's title; Emer/Jen/Nathan tied 2nd at 12",
+   "record": "11-6",
+   "season": 8,
+   "winning_score": 14,
+   "year": 2023
+  },
+  {
+   "champion": "Jay",
+   "co_champions": [
+    "Buhduh",
+    "Emer"
+   ],
+   "field_average": 9.3,
+   "games": 17,
+   "notes": "Jay's rookie-season title; 3-way tie at 11 resolved to Jay; 8th unique champion",
+   "record": "14-3",
+   "season": 9,
+   "winning_score": 11,
+   "year": 2024
+  },
+  {
+   "champion": "Pop",
+   "co_champions": [],
+   "field_average": 8.4,
+   "games": 17,
+   "notes": "Pop's first title via 17-0 all-wins pick; Marsha 2nd at 10; 2nd-least-competitive season",
+   "record": "11-6",
+   "season": 10,
+   "winning_score": 11,
+   "year": 2025
+  }
+ ],
+ "colors": {
+  "Amir": "#972B2B",
+  "Andy": "#97612B",
+  "Buhduh": "#97972B",
+  "Emer": "#61972B",
+  "Hanan": "#2B972B",
+  "Jacob": "#2B9761",
+  "Jay": "#2B9797",
+  "Jen": "#2B6197",
+  "Marsha": "#2B2B97",
+  "Nathan": "#612B97",
+  "Pop": "#972B97",
+  "Sarah": "#972B61"
+ },
+ "conc": {
+  "alive": 10,
+  "effective_field": 5.32,
+  "hhi": 0.1879,
+  "leader_share": 25.1
+ },
+ "correct": {
+  "Amir": 6,
+  "Andy": 6,
+  "Buhduh": 4,
+  "Emer": 5,
+  "Hanan": 5,
+  "Jacob": 3,
+  "Jay": 7,
+  "Jen": 4,
+  "Marsha": 3,
+  "Nathan": 6,
+  "Pop": 2,
+  "Sarah": 5
+ },
+ "counter": {
+  "actual": "L",
+  "board": {
+   "Amir": 9.8,
+   "Andy": 7.3,
+   "Buhduh": 5.3,
+   "Emer": 2.8,
+   "Hanan": 29.8,
+   "Jacob": 5.3,
+   "Jay": 14.5,
+   "Jen": 6.5,
+   "Marsha": 0.0,
+   "Nathan": 13.7,
+   "Pop": 1.9,
+   "Sarah": 3.0
+  },
+  "game_index": 6,
+  "hypothetical": "W",
+  "label": "vs. Cowboys"
+ },
+ "deciding": {
+  "baseline_week": 6,
+  "rows": [
+   {
+    "delta": 1.1,
+    "key": "outright",
+    "layer": "Correct Picks",
+    "share": 63.2
+   },
+   {
+    "delta": 2.8,
+    "key": "tb1",
+    "layer": "Tiebreaker 1 - Season Record",
+    "share": 22.3
+   },
+   {
+    "delta": -1.7,
+    "key": "tb2",
+    "layer": "Tiebreaker 2 - Division Record",
+    "share": 6.1
+   },
+   {
+    "delta": -2.2,
+    "key": "tb3",
+    "layer": "Tiebreaker 3 - Points Total",
+    "share": 8.4
+   }
+  ]
+ },
+ "diff": {
+  "Amir": {
+   "mean_distance": 5.18,
+   "nearest": "Marsha",
+   "nearest_distance": 3,
+   "nearest_shared": 7,
+   "remaining_games": 10
+  },
+  "Andy": {
+   "mean_distance": 3.36,
+   "nearest": "Buhduh",
+   "nearest_distance": 1,
+   "nearest_shared": 9,
+   "remaining_games": 10
+  },
+  "Buhduh": {
+   "mean_distance": 3.36,
+   "nearest": "Andy",
+   "nearest_distance": 1,
+   "nearest_shared": 9,
+   "remaining_games": 10
+  },
+  "Emer": {
+   "mean_distance": 4.45,
+   "nearest": "Hanan",
+   "nearest_distance": 2,
+   "nearest_shared": 8,
+   "remaining_games": 10
+  },
+  "Hanan": {
+   "mean_distance": 3.55,
+   "nearest": "Andy",
+   "nearest_distance": 2,
+   "nearest_shared": 8,
+   "remaining_games": 10
+  },
+  "Jacob": {
+   "mean_distance": 4.64,
+   "nearest": "Buhduh",
+   "nearest_distance": 3,
+   "nearest_shared": 7,
+   "remaining_games": 10
+  },
+  "Jay": {
+   "mean_distance": 5.0,
+   "nearest": "Andy",
+   "nearest_distance": 3,
+   "nearest_shared": 7,
+   "remaining_games": 10
+  },
+  "Jen": {
+   "mean_distance": 5.0,
+   "nearest": "Buhduh",
+   "nearest_distance": 3,
+   "nearest_shared": 7,
+   "remaining_games": 10
+  },
+  "Marsha": {
+   "mean_distance": 4.09,
+   "nearest": "Amir",
+   "nearest_distance": 3,
+   "nearest_shared": 7,
+   "remaining_games": 10
+  },
+  "Nathan": {
+   "mean_distance": 4.09,
+   "nearest": "Buhduh",
+   "nearest_distance": 2,
+   "nearest_shared": 8,
+   "remaining_games": 10
+  },
+  "Pop": {
+   "mean_distance": 4.64,
+   "nearest": "Buhduh",
+   "nearest_distance": 3,
+   "nearest_shared": 7,
+   "remaining_games": 10
+  },
+  "Sarah": {
+   "mean_distance": 4.45,
+   "nearest": "Emer",
+   "nearest_distance": 3,
+   "nearest_shared": 7,
+   "remaining_games": 10
+  }
+ },
+ "elim": {
+  "alive": [
+   "Amir",
+   "Andy",
+   "Emer",
+   "Hanan",
+   "Jacob",
+   "Jay",
+   "Jen",
+   "Marsha",
+   "Nathan",
+   "Sarah"
+  ],
+  "effectively_eliminated": [],
+  "eliminated": [
+   "Buhduh",
+   "Pop"
+  ],
+  "eliminated_by_loss": [
+   "Emer",
+   "Hanan",
+   "Marsha"
+  ],
+  "eliminated_by_win": [],
+  "next_game_index": 7,
+  "next_game_label": "@ Commanders"
+ },
+ "expected": {
+  "Amir": 10.95,
+  "Andy": 11.79,
+  "Buhduh": 9.66,
+  "Emer": 10.62,
+  "Hanan": 10.86,
+  "Jacob": 8.3,
+  "Jay": 12.06,
+  "Jen": 8.83,
+  "Marsha": 8.52,
+  "Nathan": 11.6,
+  "Pop": 7.67,
+  "Sarah": 10.23
+ },
+ "fixture": {
+  "note": "Generated by dashboard/make_fixture.py. The results and scores are invented, drawn from the real ESPN win probabilities with a fixed seed. This is a future state of the 2026 season, not an observed one.",
+  "seed": 2026,
+  "synthetic": true
+ },
+ "games": [
+  {
+   "date": "2026-09-13",
+   "division": true,
+   "i": 0,
+   "label": "vs. Commanders",
+   "points": 19,
+   "result": "W",
+   "resultSource": "synthetic",
+   "week": 1,
+   "weight": 0.6647,
+   "weightSource": "espn"
+  },
+  {
+   "date": "2026-09-20",
+   "division": false,
+   "i": 1,
+   "label": "@ Titans",
+   "points": 17,
+   "result": "L",
+   "resultSource": "synthetic",
+   "week": 2,
+   "weight": 0.673,
+   "weightSource": "espn"
+  },
+  {
+   "date": "2026-09-29",
+   "division": false,
+   "i": 2,
+   "label": "@ Bears",
+   "points": 4,
+   "result": "L",
+   "resultSource": "synthetic",
+   "week": 3,
+   "weight": 0.4994,
+   "weightSource": "espn"
+  },
+  {
+   "date": "2026-10-04",
+   "division": false,
+   "i": 3,
+   "label": "vs. Rams",
+   "points": 12,
+   "result": "L",
+   "resultSource": "synthetic",
+   "week": 4,
+   "weight": 0.4119,
+   "weightSource": "espn"
+  },
+  {
+   "date": "2026-10-11",
+   "division": false,
+   "i": 4,
+   "label": "vs. Jaguars (London)",
+   "points": 29,
+   "result": "W",
+   "resultSource": "synthetic",
+   "week": 5,
+   "weight": 0.5307,
+   "weightSource": "espn"
+  },
+  {
+   "date": "2026-10-18",
+   "division": false,
+   "i": 5,
+   "label": "vs. Panthers",
+   "points": 25,
+   "result": "W",
+   "resultSource": "synthetic",
+   "week": 6,
+   "weight": 0.6999,
+   "weightSource": "espn"
+  },
+  {
+   "date": "2026-10-27",
+   "division": true,
+   "i": 6,
+   "label": "vs. Cowboys",
+   "points": 10,
+   "result": "L",
+   "resultSource": "synthetic",
+   "week": 7,
+   "weight": 0.5546,
+   "weightSource": "espn"
+  },
+  {
+   "date": "2026-11-02",
+   "division": true,
+   "i": 7,
+   "label": "@ Commanders",
+   "points": null,
+   "result": "A",
+   "resultSource": "espn",
+   "week": 8,
+   "weight": 0.5698,
+   "weightSource": "espn"
+  },
+  {
+   "date": "2026-11-08",
+   "division": true,
+   "i": 8,
+   "label": "vs. Giants",
+   "points": null,
+   "result": "A",
+   "resultSource": "espn",
+   "week": 9,
+   "weight": 0.6566,
+   "weightSource": "espn"
+  },
+  {
+   "date": "2026-11-22",
+   "division": false,
+   "i": 9,
+   "label": "vs. Steelers",
+   "points": null,
+   "result": "A",
+   "resultSource": "espn",
+   "week": 11,
+   "weight": 0.6265,
+   "weightSource": "espn"
+  },
+  {
+   "date": "2026-11-26",
+   "division": true,
+   "i": 10,
+   "label": "@ Cowboys",
+   "points": null,
+   "result": "A",
+   "resultSource": "espn",
+   "week": 12,
+   "weight": 0.4669,
+   "weightSource": "espn"
+  },
+  {
+   "date": "2026-12-06",
+   "division": false,
+   "i": 11,
+   "label": "@ Cardinals",
+   "points": null,
+   "result": "A",
+   "resultSource": "espn",
+   "week": 13,
+   "weight": 0.7102,
+   "weightSource": "espn"
+  },
+  {
+   "date": "2026-12-13",
+   "division": false,
+   "i": 12,
+   "label": "vs. Colts",
+   "points": null,
+   "result": "A",
+   "resultSource": "espn",
+   "week": 14,
+   "weight": 0.6223,
+   "weightSource": "espn"
+  },
+  {
+   "date": "2026-12-19",
+   "division": false,
+   "i": 13,
+   "label": "vs. Seahawks",
+   "points": null,
+   "result": "A",
+   "resultSource": "espn",
+   "week": 15,
+   "weight": 0.5036,
+   "weightSource": "espn"
+  },
+  {
+   "date": "2026-12-25",
+   "division": false,
+   "i": 14,
+   "label": "vs. Texans",
+   "points": null,
+   "result": "A",
+   "resultSource": "espn",
+   "week": 16,
+   "weight": 0.5642,
+   "weightSource": "espn"
+  },
+  {
+   "date": "2027-01-04",
+   "division": false,
+   "i": 15,
+   "label": "@ 49ers",
+   "points": null,
+   "result": "A",
+   "resultSource": "espn",
+   "week": 17,
+   "weight": 0.4322,
+   "weightSource": "espn"
+  },
+  {
+   "date": "2027-01-10",
+   "division": true,
+   "i": 16,
+   "label": "@ Giants",
+   "points": null,
+   "result": "A",
+   "resultSource": "espn",
+   "week": 18,
+   "weight": 0.5796,
+   "weightSource": "espn"
+  }
+ ],
+ "generated": "2026-09-07",
+ "guesses": {
+  "Amir": 382,
+  "Andy": 430,
+  "Buhduh": 429,
+  "Emer": 407,
+  "Hanan": 380,
+  "Jacob": 407,
+  "Jay": 443,
+  "Jen": 435,
+  "Marsha": 439,
+  "Nathan": 421,
+  "Pop": 425,
+  "Sarah": 395
+ },
+ "heat": {
+  "baseline_week": 6,
+  "deltas": {
+   "Amir": 4.1,
+   "Andy": 5.9,
+   "Buhduh": -3.0,
+   "Emer": 1.6,
+   "Hanan": -14.8,
+   "Jacob": -2.6,
+   "Jay": 5.0,
+   "Jen": -3.0,
+   "Marsha": 0.0,
+   "Nathan": 6.3,
+   "Pop": -1.1,
+   "Sarah": 1.4
+  },
+  "down": [
+   "Hanan",
+   "Buhduh",
+   "Jen",
+   "Jacob",
+   "Pop"
+  ],
+  "flat": [
+   "Marsha"
+  ],
+  "up": [
+   "Nathan",
+   "Andy",
+   "Jay",
+   "Amir",
+   "Emer",
+   "Sarah"
+  ]
+ },
+ "leverage": [
+  {
+   "game_index": 8,
+   "if_lose": {
+    "Amir": 29.2,
+    "Andy": 5.3,
+    "Buhduh": 0.0,
+    "Emer": 1.7,
+    "Hanan": 1.2,
+    "Jacob": 0.0,
+    "Jay": 45.0,
+    "Jen": 0.0,
+    "Marsha": 0.0,
+    "Nathan": 15.8,
+    "Pop": 0.0,
+    "Sarah": 1.7
+   },
+   "if_win": {
+    "Amir": 10.6,
+    "Andy": 24.6,
+    "Buhduh": 0.0,
+    "Emer": 7.8,
+    "Hanan": 3.9,
+    "Jacob": 0.9,
+    "Jay": 12.5,
+    "Jen": 1.9,
+    "Marsha": 0.0,
+    "Nathan": 30.0,
+    "Pop": 0.0,
+    "Sarah": 7.8
+   },
+   "label": "vs. Giants",
+   "leverage": 51.1
+  },
+  {
+   "game_index": 9,
+   "if_lose": {
+    "Amir": 9.9,
+    "Andy": 8.6,
+    "Buhduh": 0.0,
+    "Emer": 3.7,
+    "Hanan": 1.8,
+    "Jacob": 0.0,
+    "Jay": 45.3,
+    "Jen": 2.7,
+    "Marsha": 0.0,
+    "Nathan": 14.8,
+    "Pop": 0.0,
+    "Sarah": 13.2
+   },
+   "if_win": {
+    "Amir": 21.2,
+    "Andy": 23.6,
+    "Buhduh": 0.0,
+    "Emer": 6.9,
+    "Hanan": 3.7,
+    "Jacob": 0.9,
+    "Jay": 10.7,
+    "Jen": 0.4,
+    "Marsha": 0.0,
+    "Nathan": 31.3,
+    "Pop": 0.0,
+    "Sarah": 1.3
+   },
+   "label": "vs. Steelers",
+   "leverage": 48.7
+  },
+  {
+   "game_index": 14,
+   "if_lose": {
+    "Amir": 13.7,
+    "Andy": 6.1,
+    "Buhduh": 0.0,
+    "Emer": 0.0,
+    "Hanan": 0.0,
+    "Jacob": 1.3,
+    "Jay": 20.1,
+    "Jen": 2.9,
+    "Marsha": 0.0,
+    "Nathan": 44.6,
+    "Pop": 0.0,
+    "Sarah": 11.2
+   },
+   "if_win": {
+    "Amir": 19.5,
+    "Andy": 27.2,
+    "Buhduh": 0.0,
+    "Emer": 10.1,
+    "Hanan": 5.3,
+    "Jacob": 0.0,
+    "Jay": 26.4,
+    "Jen": 0.0,
+    "Marsha": 0.0,
+    "Nathan": 10.1,
+    "Pop": 0.0,
+    "Sarah": 1.5
+   },
+   "label": "vs. Texans",
+   "leverage": 48.6
+  },
+  {
+   "game_index": 10,
+   "if_lose": {
+    "Amir": 23.5,
+    "Andy": 28.4,
+    "Buhduh": 0.0,
+    "Emer": 2.4,
+    "Hanan": 0.0,
+    "Jacob": 0.0,
+    "Jay": 28.5,
+    "Jen": 2.1,
+    "Marsha": 0.0,
+    "Nathan": 12.7,
+    "Pop": 0.0,
+    "Sarah": 2.4
+   },
+   "if_win": {
+    "Amir": 9.5,
+    "Andy": 6.2,
+    "Buhduh": 0.0,
+    "Emer": 9.5,
+    "Hanan": 6.4,
+    "Jacob": 1.3,
+    "Jay": 18.1,
+    "Jen": 0.3,
+    "Marsha": 0.0,
+    "Nathan": 39.4,
+    "Pop": 0.0,
+    "Sarah": 9.5
+   },
+   "label": "@ Cowboys",
+   "leverage": 48.5
+  },
+  {
+   "game_index": 13,
+   "if_lose": {
+    "Amir": 22.5,
+    "Andy": 22.7,
+    "Buhduh": 0.0,
+    "Emer": 1.7,
+    "Hanan": 6.0,
+    "Jacob": 1.2,
+    "Jay": 27.2,
+    "Jen": 1.9,
+    "Marsha": 0.0,
+    "Nathan": 7.8,
+    "Pop": 0.0,
+    "Sarah": 9.2
+   },
+   "if_win": {
+    "Amir": 11.5,
+    "Andy": 13.4,
+    "Buhduh": 0.0,
+    "Emer": 9.7,
+    "Hanan": 0.0,
+    "Jacob": 0.0,
+    "Jay": 20.2,
+    "Jen": 0.6,
+    "Marsha": 0.0,
+    "Nathan": 42.2,
+    "Pop": 0.0,
+    "Sarah": 2.4
+   },
+   "label": "vs. Seahawks",
+   "leverage": 42.5
+  },
+  {
+   "game_index": 12,
+   "if_lose": {
+    "Amir": 31.1,
+    "Andy": 7.4,
+    "Buhduh": 0.0,
+    "Emer": 12.1,
+    "Hanan": 0.0,
+    "Jacob": 0.3,
+    "Jay": 18.5,
+    "Jen": 1.2,
+    "Marsha": 0.0,
+    "Nathan": 18.2,
+    "Pop": 0.0,
+    "Sarah": 11.3
+   },
+   "if_win": {
+    "Amir": 8.4,
+    "Andy": 24.4,
+    "Buhduh": 0.0,
+    "Emer": 1.8,
+    "Hanan": 4.8,
+    "Jacob": 0.7,
+    "Jay": 26.8,
+    "Jen": 1.3,
+    "Marsha": 0.0,
+    "Nathan": 29.4,
+    "Pop": 0.0,
+    "Sarah": 2.4
+   },
+   "label": "vs. Colts",
+   "leverage": 41.8
+  },
+  {
+   "game_index": 7,
+   "if_lose": {
+    "Amir": 6.9,
+    "Andy": 25.4,
+    "Buhduh": 0.0,
+    "Emer": 0.0,
+    "Hanan": 0.0,
+    "Jacob": 0.7,
+    "Jay": 31.8,
+    "Jen": 2.0,
+    "Marsha": 0.0,
+    "Nathan": 31.7,
+    "Pop": 0.0,
+    "Sarah": 1.4
+   },
+   "if_win": {
+    "Amir": 24.6,
+    "Andy": 12.4,
+    "Buhduh": 0.0,
+    "Emer": 10.0,
+    "Hanan": 5.2,
+    "Jacob": 0.5,
+    "Jay": 17.5,
+    "Jen": 0.6,
+    "Marsha": 0.0,
+    "Nathan": 20.2,
+    "Pop": 0.0,
+    "Sarah": 9.0
+   },
+   "label": "@ Commanders",
+   "leverage": 40.5
+  },
+  {
+   "game_index": 16,
+   "if_lose": {
+    "Amir": 12.2,
+    "Andy": 11.1,
+    "Buhduh": 0.0,
+    "Emer": 4.1,
+    "Hanan": 1.9,
+    "Jacob": 1.4,
+    "Jay": 43.7,
+    "Jen": 2.5,
+    "Marsha": 0.0,
+    "Nathan": 18.9,
+    "Pop": 0.0,
+    "Sarah": 4.1
+   },
+   "if_win": {
+    "Amir": 20.4,
+    "Andy": 23.0,
+    "Buhduh": 0.0,
+    "Emer": 6.9,
+    "Hanan": 3.8,
+    "Jacob": 0.0,
+    "Jay": 9.1,
+    "Jen": 0.4,
+    "Marsha": 0.0,
+    "Nathan": 29.6,
+    "Pop": 0.0,
+    "Sarah": 6.9
+   },
+   "label": "@ Giants",
+   "leverage": 38.2
+  },
+  {
+   "game_index": 11,
+   "if_lose": {
+    "Amir": 37.5,
+    "Andy": 9.0,
+    "Buhduh": 0.0,
+    "Emer": 2.4,
+    "Hanan": 2.6,
+    "Jacob": 0.6,
+    "Jay": 17.4,
+    "Jen": 4.3,
+    "Marsha": 0.0,
+    "Nathan": 23.1,
+    "Pop": 0.0,
+    "Sarah": 3.2
+   },
+   "if_win": {
+    "Amir": 8.6,
+    "Andy": 21.7,
+    "Buhduh": 0.0,
+    "Emer": 7.1,
+    "Hanan": 3.1,
+    "Jacob": 0.6,
+    "Jay": 26.2,
+    "Jen": 0.0,
+    "Marsha": 0.0,
+    "Nathan": 26.0,
+    "Pop": 0.0,
+    "Sarah": 6.8
+   },
+   "label": "@ Cardinals",
+   "leverage": 33.2
+  },
+  {
+   "game_index": 15,
+   "if_lose": {
+    "Amir": 17.2,
+    "Andy": 16.4,
+    "Buhduh": 0.0,
+    "Emer": 5.4,
+    "Hanan": 3.0,
+    "Jacob": 0.0,
+    "Jay": 25.3,
+    "Jen": 1.3,
+    "Marsha": 0.0,
+    "Nathan": 26.1,
+    "Pop": 0.0,
+    "Sarah": 5.5
+   },
+   "if_win": {
+    "Amir": 16.7,
+    "Andy": 20.1,
+    "Buhduh": 0.0,
+    "Emer": 6.2,
+    "Hanan": 3.0,
+    "Jacob": 1.4,
+    "Jay": 21.4,
+    "Jen": 1.2,
+    "Marsha": 0.0,
+    "Nathan": 23.9,
+    "Pop": 0.0,
+    "Sarah": 6.1
+   },
+   "label": "@ 49ers",
+   "leverage": 6.6
+  }
+ ],
+ "nextLev": {
+  "game_index": 7,
+  "if_lose": {
+   "Amir": 6.9,
+   "Andy": 25.4,
+   "Buhduh": 0.0,
+   "Emer": 0.0,
+   "Hanan": 0.0,
+   "Jacob": 0.7,
+   "Jay": 31.8,
+   "Jen": 2.0,
+   "Marsha": 0.0,
+   "Nathan": 31.7,
+   "Pop": 0.0,
+   "Sarah": 1.4
+  },
+  "if_win": {
+   "Amir": 24.6,
+   "Andy": 12.4,
+   "Buhduh": 0.0,
+   "Emer": 10.0,
+   "Hanan": 5.2,
+   "Jacob": 0.5,
+   "Jay": 17.5,
+   "Jen": 0.6,
+   "Marsha": 0.0,
+   "Nathan": 20.2,
+   "Pop": 0.0,
+   "Sarah": 9.0
+  },
+  "label": "@ Commanders",
+  "leverage": 40.5
+ },
+ "outcomes": 1024,
+ "personality": {
+  "Amir": {
+   "accuracy": 55.5,
+   "contrarian_rate": 24.4,
+   "division_faith": 75.0,
+   "most_optimistic_season": 4,
+   "name": "Amir",
+   "optimism": -0.1,
+   "seasons_measured": 10
+  },
+  "Andy": {
+   "accuracy": 54.4,
+   "contrarian_rate": 30.5,
+   "division_faith": 66.7,
+   "most_optimistic_season": 4,
+   "name": "Andy",
+   "optimism": -0.7,
+   "seasons_measured": 10
+  },
+  "Buhduh": {
+   "accuracy": 60.3,
+   "contrarian_rate": 29.4,
+   "division_faith": 66.7,
+   "most_optimistic_season": 2,
+   "name": "Buhduh",
+   "optimism": -0.75,
+   "seasons_measured": 4
+  },
+  "Emer": {
+   "accuracy": 53.1,
+   "contrarian_rate": 31.1,
+   "division_faith": 61.1,
+   "most_optimistic_season": 4,
+   "name": "Emer",
+   "optimism": 0.11,
+   "seasons_measured": 9
+  },
+  "Hanan": {
+   "accuracy": 56.8,
+   "contrarian_rate": 24.3,
+   "division_faith": 72.2,
+   "most_optimistic_season": 5,
+   "name": "Hanan",
+   "optimism": 0.22,
+   "seasons_measured": 9
+  },
+  "Jacob": {
+   "accuracy": 57.6,
+   "contrarian_rate": 27.4,
+   "division_faith": 65.0,
+   "most_optimistic_season": 3,
+   "name": "Jacob",
+   "optimism": -0.1,
+   "seasons_measured": 10
+  },
+  "Jay": {
+   "accuracy": 58.8,
+   "contrarian_rate": 14.7,
+   "division_faith": 83.3,
+   "most_optimistic_season": 4,
+   "name": "Jay",
+   "optimism": 2.0,
+   "seasons_measured": 2
+  },
+  "Jen": {
+   "accuracy": 59.0,
+   "contrarian_rate": 28.7,
+   "division_faith": 70.0,
+   "most_optimistic_season": 5,
+   "name": "Jen",
+   "optimism": 0.3,
+   "seasons_measured": 10
+  },
+  "Marsha": {
+   "accuracy": 60.2,
+   "contrarian_rate": 28.0,
+   "division_faith": 75.0,
+   "most_optimistic_season": 5,
+   "name": "Marsha",
+   "optimism": 0.9,
+   "seasons_measured": 10
+  },
+  "Nathan": {
+   "accuracy": 60.0,
+   "contrarian_rate": 22.6,
+   "division_faith": 75.0,
+   "most_optimistic_season": 8,
+   "name": "Nathan",
+   "optimism": 1.3,
+   "seasons_measured": 10
+  },
+  "Pop": {
+   "accuracy": 55.5,
+   "contrarian_rate": 28.7,
+   "division_faith": 75.0,
+   "most_optimistic_season": 6,
+   "name": "Pop",
+   "optimism": 0.7,
+   "seasons_measured": 10
+  },
+  "Sarah": {
+   "accuracy": 56.6,
+   "contrarian_rate": 28.7,
+   "division_faith": 73.3,
+   "most_optimistic_season": 6,
+   "name": "Sarah",
+   "optimism": 1.3,
+   "seasons_measured": 10
+  }
+ },
+ "picks": {
+  "Amir": [
+   "W",
+   "W",
+   "L",
+   "L",
+   "W",
+   "W",
+   "L",
+   "W",
+   "L",
+   "W",
+   "L",
+   "L",
+   "L",
+   "L",
+   "W",
+   "L",
+   "W"
+  ],
+  "Andy": [
+   "W",
+   "W",
+   "L",
+   "L",
+   "W",
+   "W",
+   "L",
+   "L",
+   "W",
+   "W",
+   "L",
+   "W",
+   "W",
+   "L",
+   "W",
+   "L",
+   "W"
+  ],
+  "Buhduh": [
+   "W",
+   "W",
+   "W",
+   "L",
+   "W",
+   "W",
+   "W",
+   "L",
+   "W",
+   "W",
+   "L",
+   "W",
+   "W",
+   "L",
+   "L",
+   "L",
+   "W"
+  ],
+  "Emer": [
+   "W",
+   "W",
+   "L",
+   "W",
+   "W",
+   "W",
+   "L",
+   "W",
+   "W",
+   "W",
+   "W",
+   "W",
+   "L",
+   "W",
+   "W",
+   "L",
+   "W"
+  ],
+  "Hanan": [
+   "W",
+   "W",
+   "L",
+   "L",
+   "W",
+   "W",
+   "W",
+   "W",
+   "W",
+   "W",
+   "W",
+   "W",
+   "W",
+   "L",
+   "W",
+   "L",
+   "W"
+  ],
+  "Jacob": [
+   "W",
+   "W",
+   "L",
+   "W",
+   "L",
+   "W",
+   "W",
+   "L",
+   "W",
+   "W",
+   "W",
+   "W",
+   "W",
+   "L",
+   "L",
+   "W",
+   "L"
+  ],
+  "Jay": [
+   "W",
+   "L",
+   "L",
+   "L",
+   "W",
+   "W",
+   "L",
+   "L",
+   "L",
+   "L",
+   "L",
+   "W",
+   "W",
+   "L",
+   "W",
+   "L",
+   "L"
+  ],
+  "Jen": [
+   "W",
+   "L",
+   "W",
+   "L",
+   "W",
+   "L",
+   "W",
+   "L",
+   "W",
+   "L",
+   "L",
+   "L",
+   "W",
+   "L",
+   "L",
+   "L",
+   "L"
+  ],
+  "Marsha": [
+   "W",
+   "W",
+   "W",
+   "W",
+   "W",
+   "L",
+   "L",
+   "W",
+   "W",
+   "W",
+   "L",
+   "W",
+   "L",
+   "L",
+   "W",
+   "L",
+   "L"
+  ],
+  "Nathan": [
+   "W",
+   "W",
+   "L",
+   "L",
+   "W",
+   "W",
+   "L",
+   "L",
+   "W",
+   "W",
+   "W",
+   "W",
+   "W",
+   "W",
+   "L",
+   "L",
+   "W"
+  ],
+  "Pop": [
+   "W",
+   "L",
+   "W",
+   "W",
+   "L",
+   "L",
+   "W",
+   "W",
+   "W",
+   "W",
+   "L",
+   "W",
+   "W",
+   "W",
+   "L",
+   "W",
+   "W"
+  ],
+  "Sarah": [
+   "W",
+   "W",
+   "L",
+   "L",
+   "L",
+   "W",
+   "L",
+   "W",
+   "W",
+   "L",
+   "W",
+   "W",
+   "L",
+   "L",
+   "L",
+   "L",
+   "W"
+  ]
+ },
+ "pointsModel": {
+  "exact": false,
+  "games_played": 7,
+  "mean": 301.0,
+  "model": "shrunk",
+  "points_so_far": 116.0,
+  "ppg": 18.5,
+  "sd": 49.193495504995376
+ },
+ "ranked": [
+  "Nathan",
+  "Jay",
+  "Andy",
+  "Amir",
+  "Sarah",
+  "Emer",
+  "Hanan",
+  "Jen",
+  "Jacob",
+  "Marsha",
+  "Buhduh",
+  "Pop"
+ ],
+ "retro": [
+  {
+   "game_index": 0,
+   "label": "vs. Commanders",
+   "magnitude": 9.1,
+   "result": "W",
+   "swing": {
+    "Amir": 1.7,
+    "Andy": 5.0,
+    "Buhduh": 0.0,
+    "Emer": 1.1,
+    "Hanan": 0.0,
+    "Jacob": 0.0,
+    "Jay": -8.0,
+    "Jen": 0.2,
+    "Marsha": 0.0,
+    "Nathan": -1.1,
+    "Pop": 0.0,
+    "Sarah": 1.0
+   }
+  },
+  {
+   "game_index": 1,
+   "label": "@ Titans",
+   "magnitude": 20.2,
+   "result": "L",
+   "swing": {
+    "Amir": -3.1,
+    "Andy": -9.0,
+    "Buhduh": 0.0,
+    "Emer": -1.5,
+    "Hanan": -1.3,
+    "Jacob": -0.4,
+    "Jay": 19.1,
+    "Jen": 1.1,
+    "Marsha": -0.0,
+    "Nathan": -4.4,
+    "Pop": 0.0,
+    "Sarah": -0.5
+   }
+  },
+  {
+   "game_index": 2,
+   "label": "@ Bears",
+   "magnitude": 17.8,
+   "result": "L",
+   "swing": {
+    "Amir": 3.8,
+    "Andy": 1.6,
+    "Buhduh": -5.6,
+    "Emer": -0.4,
+    "Hanan": -0.3,
+    "Jacob": 0.2,
+    "Jay": 7.0,
+    "Jen": -5.7,
+    "Marsha": -2.8,
+    "Nathan": 4.3,
+    "Pop": -3.1,
+    "Sarah": 0.9
+   }
+  },
+  {
+   "game_index": 3,
+   "label": "vs. Rams",
+   "magnitude": 34.6,
+   "result": "L",
+   "swing": {
+    "Amir": 8.1,
+    "Andy": 3.6,
+    "Buhduh": 0.0,
+    "Emer": -25.8,
+    "Hanan": 3.0,
+    "Jacob": -6.1,
+    "Jay": 5.2,
+    "Jen": 0.3,
+    "Marsha": -0.9,
+    "Nathan": 11.5,
+    "Pop": -1.8,
+    "Sarah": 2.9
+   }
+  },
+  {
+   "game_index": 4,
+   "label": "vs. Jaguars (London)",
+   "magnitude": 27.5,
+   "result": "W",
+   "swing": {
+    "Amir": 3.5,
+    "Andy": 7.7,
+    "Buhduh": 0.0,
+    "Emer": 2.8,
+    "Hanan": 1.0,
+    "Jacob": -4.7,
+    "Jay": 1.2,
+    "Jen": 0.3,
+    "Marsha": 0.0,
+    "Nathan": 11.1,
+    "Pop": -1.3,
+    "Sarah": -21.5
+   }
+  },
+  {
+   "game_index": 5,
+   "label": "vs. Panthers",
+   "magnitude": 14.2,
+   "result": "W",
+   "swing": {
+    "Amir": 2.4,
+    "Andy": 4.6,
+    "Buhduh": 0.0,
+    "Emer": 1.5,
+    "Hanan": 0.0,
+    "Jacob": 0.2,
+    "Jay": 2.5,
+    "Jen": -10.7,
+    "Marsha": -1.9,
+    "Nathan": 2.1,
+    "Pop": -1.6,
+    "Sarah": 0.8
+   }
+  },
+  {
+   "game_index": 6,
+   "label": "vs. Cowboys",
+   "magnitude": 44.0,
+   "result": "L",
+   "swing": {
+    "Amir": 7.1,
+    "Andy": 10.7,
+    "Buhduh": -5.3,
+    "Emer": 2.9,
+    "Hanan": -26.8,
+    "Jacob": -4.8,
+    "Jay": 9.1,
+    "Jen": -5.2,
+    "Marsha": 0.0,
+    "Nathan": 11.4,
+    "Pop": -1.9,
+    "Sarah": 2.7
+   }
+  }
+ ],
+ "roster": [
+  "Amir",
+  "Andy",
+  "Buhduh",
+  "Emer",
+  "Hanan",
+  "Jacob",
+  "Jay",
+  "Jen",
+  "Marsha",
+  "Nathan",
+  "Pop",
+  "Sarah"
+ ],
+ "snapshots": [
+  {
+   "correct": {
+    "Amir": 0,
+    "Andy": 0,
+    "Buhduh": 0,
+    "Emer": 0,
+    "Hanan": 0,
+    "Jacob": 0,
+    "Jay": 0,
+    "Jen": 0,
+    "Marsha": 0,
+    "Nathan": 0,
+    "Pop": 0,
+    "Sarah": 0
+   },
+   "deciding": {
+    "outright": 64.1,
+    "split": 0.0,
+    "tb1": 15.6,
+    "tb2": 7.4,
+    "tb3": 12.9
+   },
+   "outcomes": 131072,
+   "week": 0,
+   "weighted": {
+    "Amir": 7.3,
+    "Andy": 7.7,
+    "Buhduh": 10.4,
+    "Emer": 8.8,
+    "Hanan": 9.2,
+    "Jacob": 11.1,
+    "Jay": 5.7,
+    "Jen": 5.0,
+    "Marsha": 7.6,
+    "Nathan": 9.2,
+    "Pop": 9.7,
+    "Sarah": 8.2
+   }
+  },
+  {
+   "correct": {
+    "Amir": 1,
+    "Andy": 1,
+    "Buhduh": 1,
+    "Emer": 1,
+    "Hanan": 1,
+    "Jacob": 1,
+    "Jay": 1,
+    "Jen": 1,
+    "Marsha": 1,
+    "Nathan": 1,
+    "Pop": 1,
+    "Sarah": 1
+   },
+   "deciding": {
+    "outright": 64.1,
+    "split": 0.0,
+    "tb1": 15.4,
+    "tb2": 7.4,
+    "tb3": 13.2
+   },
+   "outcomes": 65536,
+   "week": 1,
+   "weighted": {
+    "Amir": 7.3,
+    "Andy": 8.3,
+    "Buhduh": 9.6,
+    "Emer": 8.9,
+    "Hanan": 10.1,
+    "Jacob": 11.2,
+    "Jay": 4.8,
+    "Jen": 4.9,
+    "Marsha": 7.5,
+    "Nathan": 8.9,
+    "Pop": 10.1,
+    "Sarah": 8.3
+   }
+  },
+  {
+   "correct": {
+    "Amir": 1,
+    "Andy": 1,
+    "Buhduh": 1,
+    "Emer": 1,
+    "Hanan": 1,
+    "Jacob": 1,
+    "Jay": 2,
+    "Jen": 2,
+    "Marsha": 1,
+    "Nathan": 1,
+    "Pop": 2,
+    "Sarah": 1
+   },
+   "deciding": {
+    "outright": 64.9,
+    "split": 0.0,
+    "tb1": 17.4,
+    "tb2": 7.1,
+    "tb3": 10.7
+   },
+   "outcomes": 32768,
+   "week": 2,
+   "weighted": {
+    "Amir": 6.3,
+    "Andy": 6.1,
+    "Buhduh": 5.8,
+    "Emer": 6.8,
+    "Hanan": 7.6,
+    "Jacob": 8.0,
+    "Jay": 10.3,
+    "Jen": 10.4,
+    "Marsha": 5.1,
+    "Nathan": 7.5,
+    "Pop": 18.7,
+    "Sarah": 7.3
+   }
+  },
+  {
+   "correct": {
+    "Amir": 2,
+    "Andy": 2,
+    "Buhduh": 1,
+    "Emer": 2,
+    "Hanan": 2,
+    "Jacob": 2,
+    "Jay": 3,
+    "Jen": 2,
+    "Marsha": 1,
+    "Nathan": 2,
+    "Pop": 2,
+    "Sarah": 2
+   },
+   "deciding": {
+    "outright": 64.6,
+    "split": 0.0,
+    "tb1": 17.7,
+    "tb2": 7.9,
+    "tb3": 9.8
+   },
+   "outcomes": 16384,
+   "week": 3,
+   "weighted": {
+    "Amir": 8.5,
+    "Andy": 7.9,
+    "Buhduh": 1.3,
+    "Emer": 8.7,
+    "Hanan": 10.0,
+    "Jacob": 12.2,
+    "Jay": 13.9,
+    "Jen": 6.6,
+    "Marsha": 1.5,
+    "Nathan": 9.7,
+    "Pop": 10.6,
+    "Sarah": 9.0
+   }
+  },
+  {
+   "correct": {
+    "Amir": 3,
+    "Andy": 3,
+    "Buhduh": 2,
+    "Emer": 2,
+    "Hanan": 3,
+    "Jacob": 2,
+    "Jay": 4,
+    "Jen": 3,
+    "Marsha": 1,
+    "Nathan": 3,
+    "Pop": 2,
+    "Sarah": 3
+   },
+   "deciding": {
+    "outright": 62.4,
+    "split": 0.0,
+    "tb1": 18.9,
+    "tb2": 7.9,
+    "tb3": 10.7
+   },
+   "outcomes": 8192,
+   "week": 4,
+   "weighted": {
+    "Amir": 10.7,
+    "Andy": 9.1,
+    "Buhduh": 1.7,
+    "Emer": 2.8,
+    "Hanan": 13.5,
+    "Jacob": 7.1,
+    "Jay": 16.1,
+    "Jen": 8.3,
+    "Marsha": 0.3,
+    "Nathan": 13.2,
+    "Pop": 5.9,
+    "Sarah": 11.4
+   }
+  },
+  {
+   "correct": {
+    "Amir": 4,
+    "Andy": 4,
+    "Buhduh": 3,
+    "Emer": 3,
+    "Hanan": 4,
+    "Jacob": 2,
+    "Jay": 5,
+    "Jen": 4,
+    "Marsha": 2,
+    "Nathan": 4,
+    "Pop": 2,
+    "Sarah": 3
+   },
+   "deciding": {
+    "outright": 62.1,
+    "split": 0.0,
+    "tb1": 18.7,
+    "tb2": 8.6,
+    "tb3": 10.6
+   },
+   "outcomes": 4096,
+   "week": 5,
+   "weighted": {
+    "Amir": 12.2,
+    "Andy": 11.2,
+    "Buhduh": 2.5,
+    "Emer": 3.7,
+    "Hanan": 16.8,
+    "Jacob": 2.6,
+    "Jay": 16.9,
+    "Jen": 9.2,
+    "Marsha": 0.4,
+    "Nathan": 17.7,
+    "Pop": 2.7,
+    "Sarah": 4.0
+   }
+  },
+  {
+   "correct": {
+    "Amir": 5,
+    "Andy": 5,
+    "Buhduh": 4,
+    "Emer": 4,
+    "Hanan": 5,
+    "Jacob": 3,
+    "Jay": 6,
+    "Jen": 4,
+    "Marsha": 2,
+    "Nathan": 5,
+    "Pop": 2,
+    "Sarah": 4
+   },
+   "deciding": {
+    "outright": 62.1,
+    "split": 0.0,
+    "tb1": 19.5,
+    "tb2": 7.8,
+    "tb3": 10.6
+   },
+   "outcomes": 2048,
+   "week": 6,
+   "weighted": {
+    "Amir": 12.9,
+    "Andy": 12.1,
+    "Buhduh": 3.0,
+    "Emer": 4.1,
+    "Hanan": 17.8,
+    "Jacob": 3.2,
+    "Jay": 18.6,
+    "Jen": 4.2,
+    "Marsha": 0.0,
+    "Nathan": 18.8,
+    "Pop": 1.1,
+    "Sarah": 4.3
+   }
+  },
+  {
+   "correct": {
+    "Amir": 6,
+    "Andy": 6,
+    "Buhduh": 4,
+    "Emer": 5,
+    "Hanan": 5,
+    "Jacob": 3,
+    "Jay": 7,
+    "Jen": 4,
+    "Marsha": 3,
+    "Nathan": 6,
+    "Pop": 2,
+    "Sarah": 5
+   },
+   "deciding": {
+    "outright": 63.2,
+    "split": 0.0,
+    "tb1": 22.3,
+    "tb2": 6.1,
+    "tb3": 8.4
+   },
+   "outcomes": 1024,
+   "week": 7,
+   "weighted": {
+    "Amir": 17.0,
+    "Andy": 18.0,
+    "Buhduh": 0.0,
+    "Emer": 5.7,
+    "Hanan": 3.0,
+    "Jacob": 0.6,
+    "Jay": 23.6,
+    "Jen": 1.2,
+    "Marsha": 0.0,
+    "Nathan": 25.1,
+    "Pop": 0.0,
+    "Sarah": 5.7
+   }
+  }
+ ],
+ "span": {
+  "Amir": {
+   "best": 16,
+   "current": 6,
+   "worst": 6
+  },
+  "Andy": {
+   "best": 16,
+   "current": 6,
+   "worst": 6
+  },
+  "Buhduh": {
+   "best": 14,
+   "current": 4,
+   "worst": 4
+  },
+  "Emer": {
+   "best": 15,
+   "current": 5,
+   "worst": 5
+  },
+  "Hanan": {
+   "best": 15,
+   "current": 5,
+   "worst": 5
+  },
+  "Jacob": {
+   "best": 13,
+   "current": 3,
+   "worst": 3
+  },
+  "Jay": {
+   "best": 17,
+   "current": 7,
+   "worst": 7
+  },
+  "Jen": {
+   "best": 14,
+   "current": 4,
+   "worst": 4
+  },
+  "Marsha": {
+   "best": 13,
+   "current": 3,
+   "worst": 3
+  },
+  "Nathan": {
+   "best": 16,
+   "current": 6,
+   "worst": 6
+  },
+  "Pop": {
+   "best": 12,
+   "current": 2,
+   "worst": 2
+  },
+  "Sarah": {
+   "best": 15,
+   "current": 5,
+   "worst": 5
+  }
+ },
+ "straight": {
+  "Amir": 23.2,
+  "Andy": 8.6,
+  "Buhduh": 0.0,
+  "Emer": 3.5,
+  "Hanan": 1.4,
+  "Jacob": 0.6,
+  "Jay": 32.9,
+  "Jen": 2.6,
+  "Marsha": 0.0,
+  "Nathan": 20.9,
+  "Pop": 0.0,
+  "Sarah": 6.2
+ },
+ "twins": [
+  {
+   "distance": 1,
+   "pair": [
+    "Andy",
+    "Buhduh"
+   ],
+   "points_guess": [
+    430,
+    429
+   ],
+   "predicted_wins": [
+    10,
+    11
+   ]
+  }
+ ],
+ "vol": {
+  "Amir": {
+   "biggest_single_move": 4.1,
+   "current": 17.0,
+   "low": 6.3,
+   "peak": 17.0,
+   "peak_week": 7,
+   "total_movement": 11.7
+  },
+  "Andy": {
+   "biggest_single_move": 5.9,
+   "current": 18.0,
+   "low": 6.1,
+   "peak": 18.0,
+   "peak_week": 7,
+   "total_movement": 14.7
+  },
+  "Buhduh": {
+   "biggest_single_move": 4.5,
+   "current": 0.0,
+   "low": 0.0,
+   "peak": 10.4,
+   "peak_week": 0,
+   "total_movement": 13.8
+  },
+  "Emer": {
+   "biggest_single_move": 5.9,
+   "current": 5.7,
+   "low": 2.8,
+   "peak": 8.9,
+   "peak_week": 1,
+   "total_movement": 12.9
+  },
+  "Hanan": {
+   "biggest_single_move": 14.8,
+   "current": 3.0,
+   "low": 3.0,
+   "peak": 17.8,
+   "peak_week": 6,
+   "total_movement": 28.4
+  },
+  "Jacob": {
+   "biggest_single_move": 5.1,
+   "current": 0.6,
+   "low": 0.6,
+   "peak": 12.2,
+   "peak_week": 3,
+   "total_movement": 20.3
+  },
+  "Jay": {
+   "biggest_single_move": 5.5,
+   "current": 23.6,
+   "low": 4.8,
+   "peak": 23.6,
+   "peak_week": 7,
+   "total_movement": 19.7
+  },
+  "Jen": {
+   "biggest_single_move": 5.5,
+   "current": 1.2,
+   "low": 1.2,
+   "peak": 10.4,
+   "peak_week": 2,
+   "total_movement": 20.0
+  },
+  "Marsha": {
+   "biggest_single_move": 3.6,
+   "current": 0.0,
+   "low": 0.0,
+   "peak": 7.6,
+   "peak_week": 0,
+   "total_movement": 7.8
+  },
+  "Nathan": {
+   "biggest_single_move": 6.3,
+   "current": 25.1,
+   "low": 7.5,
+   "peak": 25.1,
+   "peak_week": 7,
+   "total_movement": 19.3
+  },
+  "Pop": {
+   "biggest_single_move": 8.6,
+   "current": 0.0,
+   "low": 0.0,
+   "peak": 18.7,
+   "peak_week": 2,
+   "total_movement": 27.7
+  },
+  "Sarah": {
+   "biggest_single_move": 7.4,
+   "current": 5.7,
+   "low": 4.0,
+   "peak": 11.4,
+   "peak_week": 4,
+   "total_movement": 14.3
+  }
+ },
+ "week": 7,
+ "whatif": {
+  "0": {
+   "L": {
+    "Amir": 15.2,
+    "Andy": 13.0,
+    "Buhduh": 0.0,
+    "Emer": 4.6,
+    "Hanan": 3.0,
+    "Jacob": 0.6,
+    "Jay": 31.6,
+    "Jen": 1.0,
+    "Marsha": 0.0,
+    "Nathan": 26.3,
+    "Pop": 0.0,
+    "Sarah": 4.8
+   },
+   "W": {
+    "Amir": 17.0,
+    "Andy": 18.0,
+    "Buhduh": 0.0,
+    "Emer": 5.7,
+    "Hanan": 3.0,
+    "Jacob": 0.6,
+    "Jay": 23.6,
+    "Jen": 1.2,
+    "Marsha": 0.0,
+    "Nathan": 25.1,
+    "Pop": 0.0,
+    "Sarah": 5.7
+   },
+   "actual": "W"
+  },
+  "1": {
+   "L": {
+    "Amir": 17.0,
+    "Andy": 18.0,
+    "Buhduh": 0.0,
+    "Emer": 5.7,
+    "Hanan": 3.0,
+    "Jacob": 0.6,
+    "Jay": 23.6,
+    "Jen": 1.2,
+    "Marsha": 0.0,
+    "Nathan": 25.1,
+    "Pop": 0.0,
+    "Sarah": 5.7
+   },
+   "W": {
+    "Amir": 20.1,
+    "Andy": 27.0,
+    "Buhduh": 0.0,
+    "Emer": 7.2,
+    "Hanan": 4.3,
+    "Jacob": 1.0,
+    "Jay": 4.6,
+    "Jen": 0.1,
+    "Marsha": 0.0,
+    "Nathan": 29.5,
+    "Pop": 0.0,
+    "Sarah": 6.3
+   },
+   "actual": "L"
+  },
+  "10": {
+   "L": {
+    "Amir": 23.5,
+    "Andy": 28.4,
+    "Buhduh": 0.0,
+    "Emer": 2.4,
+    "Hanan": 0.0,
+    "Jacob": 0.0,
+    "Jay": 28.5,
+    "Jen": 2.1,
+    "Marsha": 0.0,
+    "Nathan": 12.7,
+    "Pop": 0.0,
+    "Sarah": 2.4
+   },
+   "W": {
+    "Amir": 9.5,
+    "Andy": 6.2,
+    "Buhduh": 0.0,
+    "Emer": 9.5,
+    "Hanan": 6.4,
+    "Jacob": 1.3,
+    "Jay": 18.1,
+    "Jen": 0.3,
+    "Marsha": 0.0,
+    "Nathan": 39.4,
+    "Pop": 0.0,
+    "Sarah": 9.5
+   },
+   "actual": "A"
+  },
+  "11": {
+   "L": {
+    "Amir": 37.5,
+    "Andy": 9.0,
+    "Buhduh": 0.0,
+    "Emer": 2.4,
+    "Hanan": 2.6,
+    "Jacob": 0.6,
+    "Jay": 17.4,
+    "Jen": 4.3,
+    "Marsha": 0.0,
+    "Nathan": 23.1,
+    "Pop": 0.0,
+    "Sarah": 3.2
+   },
+   "W": {
+    "Amir": 8.6,
+    "Andy": 21.7,
+    "Buhduh": 0.0,
+    "Emer": 7.1,
+    "Hanan": 3.1,
+    "Jacob": 0.6,
+    "Jay": 26.2,
+    "Jen": 0.0,
+    "Marsha": 0.0,
+    "Nathan": 26.0,
+    "Pop": 0.0,
+    "Sarah": 6.8
+   },
+   "actual": "A"
+  },
+  "12": {
+   "L": {
+    "Amir": 31.1,
+    "Andy": 7.4,
+    "Buhduh": 0.0,
+    "Emer": 12.1,
+    "Hanan": 0.0,
+    "Jacob": 0.3,
+    "Jay": 18.5,
+    "Jen": 1.2,
+    "Marsha": 0.0,
+    "Nathan": 18.2,
+    "Pop": 0.0,
+    "Sarah": 11.3
+   },
+   "W": {
+    "Amir": 8.4,
+    "Andy": 24.4,
+    "Buhduh": 0.0,
+    "Emer": 1.8,
+    "Hanan": 4.8,
+    "Jacob": 0.7,
+    "Jay": 26.8,
+    "Jen": 1.3,
+    "Marsha": 0.0,
+    "Nathan": 29.4,
+    "Pop": 0.0,
+    "Sarah": 2.4
+   },
+   "actual": "A"
+  },
+  "13": {
+   "L": {
+    "Amir": 22.5,
+    "Andy": 22.7,
+    "Buhduh": 0.0,
+    "Emer": 1.7,
+    "Hanan": 6.0,
+    "Jacob": 1.2,
+    "Jay": 27.2,
+    "Jen": 1.9,
+    "Marsha": 0.0,
+    "Nathan": 7.8,
+    "Pop": 0.0,
+    "Sarah": 9.2
+   },
+   "W": {
+    "Amir": 11.5,
+    "Andy": 13.4,
+    "Buhduh": 0.0,
+    "Emer": 9.7,
+    "Hanan": 0.0,
+    "Jacob": 0.0,
+    "Jay": 20.2,
+    "Jen": 0.6,
+    "Marsha": 0.0,
+    "Nathan": 42.2,
+    "Pop": 0.0,
+    "Sarah": 2.4
+   },
+   "actual": "A"
+  },
+  "14": {
+   "L": {
+    "Amir": 13.7,
+    "Andy": 6.1,
+    "Buhduh": 0.0,
+    "Emer": 0.0,
+    "Hanan": 0.0,
+    "Jacob": 1.3,
+    "Jay": 20.1,
+    "Jen": 2.9,
+    "Marsha": 0.0,
+    "Nathan": 44.6,
+    "Pop": 0.0,
+    "Sarah": 11.2
+   },
+   "W": {
+    "Amir": 19.5,
+    "Andy": 27.2,
+    "Buhduh": 0.0,
+    "Emer": 10.1,
+    "Hanan": 5.3,
+    "Jacob": 0.0,
+    "Jay": 26.4,
+    "Jen": 0.0,
+    "Marsha": 0.0,
+    "Nathan": 10.1,
+    "Pop": 0.0,
+    "Sarah": 1.5
+   },
+   "actual": "A"
+  },
+  "15": {
+   "L": {
+    "Amir": 17.2,
+    "Andy": 16.4,
+    "Buhduh": 0.0,
+    "Emer": 5.4,
+    "Hanan": 3.0,
+    "Jacob": 0.0,
+    "Jay": 25.3,
+    "Jen": 1.3,
+    "Marsha": 0.0,
+    "Nathan": 26.1,
+    "Pop": 0.0,
+    "Sarah": 5.5
+   },
+   "W": {
+    "Amir": 16.7,
+    "Andy": 20.1,
+    "Buhduh": 0.0,
+    "Emer": 6.2,
+    "Hanan": 3.0,
+    "Jacob": 1.4,
+    "Jay": 21.4,
+    "Jen": 1.2,
+    "Marsha": 0.0,
+    "Nathan": 23.9,
+    "Pop": 0.0,
+    "Sarah": 6.1
+   },
+   "actual": "A"
+  },
+  "16": {
+   "L": {
+    "Amir": 12.2,
+    "Andy": 11.1,
+    "Buhduh": 0.0,
+    "Emer": 4.1,
+    "Hanan": 1.9,
+    "Jacob": 1.4,
+    "Jay": 43.7,
+    "Jen": 2.5,
+    "Marsha": 0.0,
+    "Nathan": 18.9,
+    "Pop": 0.0,
+    "Sarah": 4.1
+   },
+   "W": {
+    "Amir": 20.4,
+    "Andy": 23.0,
+    "Buhduh": 0.0,
+    "Emer": 6.9,
+    "Hanan": 3.8,
+    "Jacob": 0.0,
+    "Jay": 9.1,
+    "Jen": 0.4,
+    "Marsha": 0.0,
+    "Nathan": 29.6,
+    "Pop": 0.0,
+    "Sarah": 6.9
+   },
+   "actual": "A"
+  },
+  "2": {
+   "L": {
+    "Amir": 17.0,
+    "Andy": 18.0,
+    "Buhduh": 0.0,
+    "Emer": 5.7,
+    "Hanan": 3.0,
+    "Jacob": 0.6,
+    "Jay": 23.6,
+    "Jen": 1.2,
+    "Marsha": 0.0,
+    "Nathan": 25.1,
+    "Pop": 0.0,
+    "Sarah": 5.7
+   },
+   "W": {
+    "Amir": 13.2,
+    "Andy": 16.4,
+    "Buhduh": 5.6,
+    "Emer": 6.1,
+    "Hanan": 3.2,
+    "Jacob": 0.4,
+    "Jay": 16.7,
+    "Jen": 6.9,
+    "Marsha": 2.8,
+    "Nathan": 20.8,
+    "Pop": 3.1,
+    "Sarah": 4.8
+   },
+   "actual": "L"
+  },
+  "3": {
+   "L": {
+    "Amir": 17.0,
+    "Andy": 18.0,
+    "Buhduh": 0.0,
+    "Emer": 5.7,
+    "Hanan": 3.0,
+    "Jacob": 0.6,
+    "Jay": 23.6,
+    "Jen": 1.2,
+    "Marsha": 0.0,
+    "Nathan": 25.1,
+    "Pop": 0.0,
+    "Sarah": 5.7
+   },
+   "W": {
+    "Amir": 8.9,
+    "Andy": 14.4,
+    "Buhduh": 0.0,
+    "Emer": 31.5,
+    "Hanan": 0.0,
+    "Jacob": 6.6,
+    "Jay": 18.4,
+    "Jen": 0.9,
+    "Marsha": 0.9,
+    "Nathan": 13.6,
+    "Pop": 1.8,
+    "Sarah": 2.9
+   },
+   "actual": "L"
+  },
+  "4": {
+   "L": {
+    "Amir": 13.5,
+    "Andy": 10.3,
+    "Buhduh": 0.0,
+    "Emer": 2.9,
+    "Hanan": 2.0,
+    "Jacob": 5.3,
+    "Jay": 22.4,
+    "Jen": 1.0,
+    "Marsha": 0.0,
+    "Nathan": 14.1,
+    "Pop": 1.3,
+    "Sarah": 27.3
+   },
+   "W": {
+    "Amir": 17.0,
+    "Andy": 18.0,
+    "Buhduh": 0.0,
+    "Emer": 5.7,
+    "Hanan": 3.0,
+    "Jacob": 0.6,
+    "Jay": 23.6,
+    "Jen": 1.2,
+    "Marsha": 0.0,
+    "Nathan": 25.1,
+    "Pop": 0.0,
+    "Sarah": 5.7
+   },
+   "actual": "W"
+  },
+  "5": {
+   "L": {
+    "Amir": 14.6,
+    "Andy": 13.4,
+    "Buhduh": 0.0,
+    "Emer": 4.2,
+    "Hanan": 3.0,
+    "Jacob": 0.4,
+    "Jay": 21.1,
+    "Jen": 11.9,
+    "Marsha": 1.9,
+    "Nathan": 23.0,
+    "Pop": 1.6,
+    "Sarah": 4.9
+   },
+   "W": {
+    "Amir": 17.0,
+    "Andy": 18.0,
+    "Buhduh": 0.0,
+    "Emer": 5.7,
+    "Hanan": 3.0,
+    "Jacob": 0.6,
+    "Jay": 23.6,
+    "Jen": 1.2,
+    "Marsha": 0.0,
+    "Nathan": 25.1,
+    "Pop": 0.0,
+    "Sarah": 5.7
+   },
+   "actual": "W"
+  },
+  "6": {
+   "L": {
+    "Amir": 17.0,
+    "Andy": 18.0,
+    "Buhduh": 0.0,
+    "Emer": 5.7,
+    "Hanan": 3.0,
+    "Jacob": 0.6,
+    "Jay": 23.6,
+    "Jen": 1.2,
+    "Marsha": 0.0,
+    "Nathan": 25.1,
+    "Pop": 0.0,
+    "Sarah": 5.7
+   },
+   "W": {
+    "Amir": 9.8,
+    "Andy": 7.3,
+    "Buhduh": 5.3,
+    "Emer": 2.8,
+    "Hanan": 29.8,
+    "Jacob": 5.3,
+    "Jay": 14.5,
+    "Jen": 6.5,
+    "Marsha": 0.0,
+    "Nathan": 13.7,
+    "Pop": 1.9,
+    "Sarah": 3.0
+   },
+   "actual": "L"
+  },
+  "7": {
+   "L": {
+    "Amir": 6.9,
+    "Andy": 25.4,
+    "Buhduh": 0.0,
+    "Emer": 0.0,
+    "Hanan": 0.0,
+    "Jacob": 0.7,
+    "Jay": 31.8,
+    "Jen": 2.0,
+    "Marsha": 0.0,
+    "Nathan": 31.7,
+    "Pop": 0.0,
+    "Sarah": 1.4
+   },
+   "W": {
+    "Amir": 24.6,
+    "Andy": 12.4,
+    "Buhduh": 0.0,
+    "Emer": 10.0,
+    "Hanan": 5.2,
+    "Jacob": 0.5,
+    "Jay": 17.5,
+    "Jen": 0.6,
+    "Marsha": 0.0,
+    "Nathan": 20.2,
+    "Pop": 0.0,
+    "Sarah": 9.0
+   },
+   "actual": "A"
+  },
+  "8": {
+   "L": {
+    "Amir": 29.2,
+    "Andy": 5.3,
+    "Buhduh": 0.0,
+    "Emer": 1.7,
+    "Hanan": 1.2,
+    "Jacob": 0.0,
+    "Jay": 45.0,
+    "Jen": 0.0,
+    "Marsha": 0.0,
+    "Nathan": 15.8,
+    "Pop": 0.0,
+    "Sarah": 1.7
+   },
+   "W": {
+    "Amir": 10.6,
+    "Andy": 24.6,
+    "Buhduh": 0.0,
+    "Emer": 7.8,
+    "Hanan": 3.9,
+    "Jacob": 0.9,
+    "Jay": 12.5,
+    "Jen": 1.9,
+    "Marsha": 0.0,
+    "Nathan": 30.0,
+    "Pop": 0.0,
+    "Sarah": 7.8
+   },
+   "actual": "A"
+  },
+  "9": {
+   "L": {
+    "Amir": 9.9,
+    "Andy": 8.6,
+    "Buhduh": 0.0,
+    "Emer": 3.7,
+    "Hanan": 1.8,
+    "Jacob": 0.0,
+    "Jay": 45.3,
+    "Jen": 2.7,
+    "Marsha": 0.0,
+    "Nathan": 14.8,
+    "Pop": 0.0,
+    "Sarah": 13.2
+   },
+   "W": {
+    "Amir": 21.2,
+    "Andy": 23.6,
+    "Buhduh": 0.0,
+    "Emer": 6.9,
+    "Hanan": 3.7,
+    "Jacob": 0.9,
+    "Jay": 10.7,
+    "Jen": 0.4,
+    "Marsha": 0.0,
+    "Nathan": 31.3,
+    "Pop": 0.0,
+    "Sarah": 1.3
+   },
+   "actual": "A"
+  }
+ },
+ "year": 2026
+}
