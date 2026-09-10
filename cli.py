@@ -259,8 +259,16 @@ def cmd_cms(argv):
         parts = ["+{} new".format(result.get("added", 0))]
         if result.get("unchanged"):
             parts.append("{} unchanged".format(result["unchanged"]))
-        if result.get("updated"):
-            parts.append("{} updated".format(result["updated"]))
+        # A fill is a frozen row's blank cell learning its answer -- picks.correct
+        # once a game is played. It counts inside `updated`, but it is reported
+        # on its own because it is the one rewrite a frozen table accepts
+        # without being asked, and folding it into "updated" would read as a
+        # correction every single week.
+        filled = result.get("filled", 0)
+        if filled:
+            parts.append("{} filled in".format(filled))
+        if result.get("updated", 0) - filled:
+            parts.append("{} updated".format(result["updated"] - filled))
         if result.get("protected"):
             parts.append("{} left alone".format(result["protected"]))
         if result.get("corrected"):

@@ -95,6 +95,59 @@ r = post({op:'writeTable', tab:'seasons', year:2026,
           columns:['slug','season','status'], rows:[['2026',2026,'in_progress']]});
 check('and updates again without complaint', r.ok && r.updated===1, r);
 
+console.log('\n--- picks.correct fills in, and only fills in ---');
+const PCOLS = ['slug','season','week_ref','nfl_week','game','competitor',
+               'name','pick','is_bye','correct'];
+const pick = (w,n,p,c) => [`2026-w${String(w).padStart(2,'0')}-${n}`, 2026,
+                           `2026-w${String(w).padStart(2,'0')}`, w,
+                           `2026-w${String(w).padStart(2,'0')}`, n, n, p, false, c];
+
+r = post({op:'writeTable', tab:'picks', year:2026, columns:PCOLS,
+          rows:[pick(1,'amir','W',''), pick(2,'amir','L','')]});
+check('writes the season with correct still blank', r.ok && r.added===2, r);
+
+r = post({op:'writeTable', tab:'picks', year:2026, columns:PCOLS,
+          rows:[pick(1,'amir','W',true), pick(2,'amir','L','')]});
+check('week 1 settling is a fill, not a refusal',
+      r.ok && r.filled===1 && r.unchanged===1, r);
+check('and the answer is stored',
+      SHEETS['picks'].grid.find(x=>x[0]==='2026-w01-amir')[9] === true);
+
+r = post({op:'writeTable', tab:'picks', year:2026, columns:PCOLS,
+          rows:[pick(1,'amir','W',true)]});
+check('replaying a settled row is a no-op', r.ok && r.unchanged===1 && r.filled===0, r);
+
+r = post({op:'writeTable', tab:'picks', year:2026, columns:PCOLS,
+          rows:[pick(1,'amir','W',false)]});
+check('but an answer changing to a different answer is still refused',
+      !r.ok && /frozen table/.test(r.error) && /correct/.test(r.error), r);
+check('and the stored answer is untouched',
+      SHEETS['picks'].grid.find(x=>x[0]==='2026-w01-amir')[9] === true);
+
+r = post({op:'writeTable', tab:'picks', year:2026, columns:PCOLS,
+          rows:[pick(1,'amir','W','')]});
+check('an answer going back to blank is refused too',
+      !r.ok && /frozen table/.test(r.error), r);
+
+// The whole point of exempting one column rather than dropping picks out of
+// FROZEN_TABS: the pick itself is still guarded.
+r = post({op:'writeTable', tab:'picks', year:2026, columns:PCOLS,
+          rows:[pick(1,'amir','L',true)]});
+check('the pick itself is still frozen',
+      !r.ok && /frozen table/.test(r.error) && /pick/.test(r.error), r);
+
+r = post({op:'writeTable', tab:'picks', year:2026, columns:PCOLS,
+          rows:[pick(1,'amir','L',false)], allowCorrection:true});
+check('allowCorrection still overrides both', r.ok && r.corrected.length===1, r);
+post({op:'writeTable', tab:'picks', year:2026, columns:PCOLS,
+      rows:[pick(1,'amir','W',true)], allowCorrection:true});   // put it back
+
+// standings is frozen with no fillable column, so nothing changed for it.
+r = post({op:'writeTable', tab:'standings', year:2026, columns:COLS,
+          rows:[row(2026,2,'amir',99)]});
+check('a frozen table with no fillable column is unaffected',
+      !r.ok && /frozen table/.test(r.error), r);
+
 console.log('\n--- the guarantee: a past season cannot be rewritten ---');
 r = post({op:'writeTable', tab:'standings', year:2027, columns:COLS,
           rows:[row(2027,1,'amir',9)]});

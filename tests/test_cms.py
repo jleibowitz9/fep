@@ -84,11 +84,21 @@ class ImmutabilityTest(unittest.TestCase):
     FROZEN = ("weeks", "standings", "picks")
     LIVE = ("games", "seasons", "competitor_seasons")
 
+    # `picks` is frozen in every column but one. `correct` cannot be, because
+    # it is the game's result seen from the pick's side and a result becomes
+    # known during the season. It is held to the weaker guarantee instead --
+    # blank until settled, then never moving again -- which
+    # test_a_settled_pick_never_changes_its_answer asserts. Everything else on
+    # the row is still checked cell for cell below.
+    LIVE_COLUMNS = {"picks": ("correct",)}
+
     def setUp(self):
         self.season = build_season()
 
     def _rows_by_slug(self, table):
-        return {row["slug"]: row for row in table.rows}
+        live = self.LIVE_COLUMNS.get(table.name, ())
+        return {row["slug"]: {k: v for k, v in row.items() if k not in live}
+                for row in table.rows}
 
     def test_a_frozen_row_never_changes_once_written(self):
         history = {}          # table -> slug -> row, as first published
@@ -116,6 +126,52 @@ class ImmutabilityTest(unittest.TestCase):
         self.assertEqual(len(history["standings"]), 19 * 12)
         self.assertEqual(len(history["weeks"]), 19)
         self.assertEqual(len(history["picks"]), 18 * 12)   # 17 games + the bye
+
+    def test_a_settled_pick_never_changes_its_answer(self):
+        """The guarantee `picks.correct` gets instead of being frozen.
+
+        A cell may fill in exactly once, from blank to True or False. If it can
+        move from True to False, or back to blank, the column is a live
+        statistic wearing a frozen table's clothes, which is the failure this
+        whole module is built to prevent.
+
+        The season is replayed with the results genuinely unknown ahead of
+        time, because `build_season` fills every result in up front and a walk
+        over that never exercises the transition at all -- `picks_table` reads
+        `game["result"]` directly rather than the board, so it would show all
+        seventeen games settled in week zero and the test would pass on a
+        column that could not move.
+        """
+        season = self.season
+        final = [g["result"] for g in season["games"]]
+        for game in season["games"]:
+            game["result"] = engine.UNPLAYED
+
+        settled = {}          # slug -> the answer it first showed
+
+        for week in range(0, 19):
+            for game in season["games"]:
+                if game["nfl_week"] <= week:
+                    game["result"] = final[game["index"]]
+            for row in cms.tables(season)["picks"].rows:
+                answer = row["correct"]
+                if answer == "":
+                    self.assertNotIn(
+                        row["slug"], settled,
+                        "{} went back to blank in week {}".format(
+                            row["slug"], week))
+                    continue
+                self.assertIn(answer, (True, False), row["slug"])
+                if row["slug"] in settled:
+                    self.assertEqual(
+                        settled[row["slug"]], answer,
+                        "{} changed its answer in week {}".format(
+                            row["slug"], week))
+                else:
+                    settled[row["slug"]] = answer
+
+        # By the end every game has been played, so only the bye is still blank.
+        self.assertEqual(len(settled), 17 * 12)
 
     def test_a_frozen_row_is_never_deleted(self):
         season = self.season
@@ -691,6 +747,80 @@ class OneKeyPerWeekTest(unittest.TestCase):
         self.assertEqual(
             sum(1 for r in tables["picks"].rows
                 if r["competitor"] == "amir" and r["pick"] in ("W", "L")), 17)
+
+
+class CorrectColumnTest(unittest.TestCase):
+    """`picks.correct`, the one live cell on an otherwise frozen row.
+
+    It has to agree with the board, so it is scored the way
+    `engine.correct_picks_so_far` scores it and checked against it here. The
+    interesting cases are the three that are not True or False.
+    """
+
+    def _rows(self, season):
+        return {r["slug"]: r for r in cms.picks_table(season).rows}
+
+    def test_a_pick_matching_the_result_is_correct(self):
+        season = build_season()
+        rows = self._rows(season)
+        for name in ROSTER:
+            sheet = season["picks"][name]
+            for game in season["games"]:
+                slug = "{}-{}".format(
+                    cms.game_slug(2026, game["nfl_week"]), cms._slugify(name))
+                self.assertEqual(rows[slug]["correct"],
+                                 sheet[game["index"]] == game["result"], slug)
+
+    def test_the_column_agrees_with_the_board(self):
+        """The failure worth catching: a second way to score, scoring it
+        differently. The count of True cells per competitor must be the number
+        the engine already reports."""
+        season = build_season()
+        rows = cms.picks_table(season).rows
+        expected = engine.correct_picks_so_far(
+            season["picks"], [g["result"] for g in season["games"]])
+        for name in ROSTER:
+            counted = sum(1 for r in rows
+                          if r["name"] == name and r["correct"] is True)
+            self.assertEqual(counted, expected[name], name)
+
+    def test_an_unplayed_game_is_blank_rather_than_wrong(self):
+        """False is a claim the pick was wrong. Before kickoff there is no
+        claim to make, and rendering one as a red cross is a lie."""
+        season = build_season()
+        season["games"][4]["result"] = engine.UNPLAYED
+        rows = self._rows(season)
+        week = season["games"][4]["nfl_week"]
+        slug = "{}-amir".format(cms.game_slug(2026, week))
+        self.assertEqual(rows[slug]["correct"], "")
+        self.assertIn(rows[slug]["pick"], ("W", "L"))    # the pick still stands
+
+    def test_the_bye_is_blank(self):
+        season = build_season()
+        rows = [r for r in cms.picks_table(season).rows if r["is_bye"]]
+        self.assertEqual(len(rows), 12)
+        self.assertTrue(all(r["correct"] == "" for r in rows))
+
+    def test_a_tie_counts_for_nobody(self):
+        """Settled, so not blank -- but no pick is ever 'T', so everyone is
+        wrong. That is how the family scored the 2020 Bengals game."""
+        season = build_season()
+        season["games"][2]["result"] = engine.TIE
+        week = season["games"][2]["nfl_week"]
+        key = cms.game_slug(2026, week)
+        rows = [r for r in cms.picks_table(season).rows if r["week_ref"] == key]
+        self.assertEqual(len(rows), 12)
+        self.assertTrue(all(r["correct"] is False for r in rows))
+
+    def test_correcting_a_result_corrects_the_column(self):
+        """The reason not to cache this in the season file: it has to follow a
+        manual override, and a stored copy would silently disagree."""
+        season = build_season()
+        game = season["games"][6]
+        slug = "{}-amir".format(cms.game_slug(2026, game["nfl_week"]))
+        before = self._rows(season)[slug]["correct"]
+        game["result"] = engine.LOSS if game["result"] == engine.WIN else engine.WIN
+        self.assertEqual(self._rows(season)[slug]["correct"], not before)
 
 
 class LabelTest(unittest.TestCase):
