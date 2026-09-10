@@ -37,7 +37,7 @@
 // about. The Python client reads the same constant out of its local copy and
 // refuses to push when the two disagree, because editing this file does not
 // redeploy it and the two have now silently diverged twice.
-var CODE_VERSION = '2026.09.07-b';
+var CODE_VERSION = '2026.09.09-a';
 
 // Columns B through M inclusive. 1-indexed, as the Sheets API counts them.
 var FIRST_COL = 2;   // B
@@ -63,6 +63,17 @@ var CROSS_SEASON_TABS = ['competitors'];
 // awkward: it must be asked for, it names every row it changes, and it shows up
 // in the response.
 var FROZEN_TABS = ['weeks', 'standings', 'picks'];
+
+// A frozen table may still hold one column that fills in. `picks.correct` is a
+// game's result seen from the pick's side, and a result genuinely becomes known
+// during the season, so that cell moves from blank to TRUE or FALSE exactly
+// once. Listing it here buys precisely that and nothing else: the fill is
+// allowed only when the sheet's cell is blank and the incoming one is not. A
+// cell that already holds an answer and is now sent a different one is drift
+// and is still refused, as is any movement in any column not named here. The
+// alternative was to drop `picks` out of FROZEN_TABS entirely, which would have
+// left `pick` itself unguarded to buy one column.
+var FILLABLE_COLUMNS = { picks: ['correct'] };
 
 
 function doPost(e) {
@@ -288,8 +299,10 @@ function writeTable(body) {
 
   var frozen = FROZEN_TABS.indexOf(name) !== -1;
   var allowCorrection = body.allowCorrection === true;
+  var fillable = fillableIndices(name, columns);
 
   var added = 0, updated = 0, unchanged = 0, protectedRows = 0, corrected = [];
+  var filled = 0;
   var drift = [];
   for (var i = 0; i < rows.length; i++) {
     var slug = String(rows[i][0]);
@@ -304,6 +317,13 @@ function writeTable(body) {
       if (sameRow(current, rows[i], columns.length)) {
         unchanged++;
         continue;             // an identical replay is a no-op, not a rewrite
+      }
+      if (frozen && isOnlyFilling(current, rows[i], columns.length, fillable)) {
+        // Blank becoming known. Not a rewrite, so it needs no correction flag.
+        bySlug[slug] = rows[i];
+        filled++;
+        updated++;
+        continue;
       }
       if (frozen && !allowCorrection) {
         drift.push(slug + ' (' + describeDrift(current, rows[i], columns) + ')');
@@ -351,6 +371,7 @@ function writeTable(body) {
     protected: protectedRows,
     corrected: corrected,
     frozen: frozen,
+    filled: filled,
     total: order.length,
     range: name + '!A1:' + colName(columns.length) + grid.length
   });
@@ -374,6 +395,37 @@ function applyColumnFormats(sheet, columns, rows) {
     }
     sheet.getRange(1, c + 1, height, 1).setNumberFormat(text ? '@' : 'General');
   }
+}
+
+
+/** Indices of the columns a frozen table is allowed to fill in later. */
+function fillableIndices(name, columns) {
+  var names = FILLABLE_COLUMNS[name] || [];
+  var indices = {};
+  for (var i = 0; i < columns.length; i++) {
+    if (names.indexOf(String(columns[i]).trim()) !== -1) { indices[i] = true; }
+  }
+  return indices;
+}
+
+
+/**
+ * True when the only difference is a fillable cell going from blank to a value.
+ *
+ * Deliberately one-directional. A value going back to blank is a row losing
+ * something it had published, and a value changing to a different value is the
+ * exact rewrite the frozen check exists to catch; both fall through to drift.
+ */
+function isOnlyFilling(current, incoming, width, fillable) {
+  var anyFill = false;
+  for (var i = 0; i < width; i++) {
+    var was = normalizeCell(current[i]);
+    var now = normalizeCell(incoming[i]);
+    if (was === now) { continue; }
+    if (!fillable[i] || was !== '' || now === '') { return false; }
+    anyFill = true;
+  }
+  return anyFill;
 }
 
 

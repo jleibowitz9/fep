@@ -15,11 +15,13 @@ computation. Standings come out of the weekly snapshots, which are frozen the
 moment they are taken, rather than from re-running the engine. So changing the
 engine in 2029 cannot move a number the family read in 2026.
 
-The one deliberate exception is `games`, which holds current state: a result
-genuinely becomes known partway through the season. Anything that needs the
-season *as it stood* in a given week reads `weeks` or `standings` instead, both
-of which are per-week and frozen. That distinction is the whole reason `weeks`
-exists as its own table.
+The deliberate exceptions are `games` and, in one column, `picks`: a result
+genuinely becomes known partway through the season, and `picks.correct` is that
+same fact seen from the other side. Both only ever move from blank to settled,
+never from one answer to another. Anything that needs the season *as it stood*
+in a given week reads `weeks` or `standings` instead, both of which are per-week
+and frozen. That distinction is the whole reason `weeks` exists as its own
+table.
 
 SLUGS
 
@@ -582,13 +584,29 @@ def weeks_table(season: dict) -> Table:
     return Table("weeks", WEEK_COLUMNS, rows)
 
 
+def _pick_is_correct(game: Optional[dict], sheet: Sequence[str]):
+    """True, False, or blank while the game is unplayed or there is no game.
+
+    Blank rather than False for the unknown cases, because False is a claim that
+    the pick was wrong. A bye and a Sunday afternoon before kickoff are both
+    "no answer yet", and rendering either as a red cross is a lie the table
+    would be telling on its own.
+    """
+    if game is None:
+        return ""
+    result = game["result"]
+    if result == engine.UNPLAYED:
+        return ""
+    return sheet[game["index"]] == result
+
+
 # New columns are appended, never inserted. Framer maps a sheet column to a CMS
 # field, and inserting one in the middle shifts every column after it. Even if
 # that mapping is by header name and survives, appending costs nothing and
 # removes the question.
 PICK_COLUMNS = [
     "slug", "season", "week_ref", "nfl_week", "game", "competitor", "name",
-    "pick", "is_bye",
+    "pick", "is_bye", "correct",
 ]
 
 
@@ -601,10 +619,25 @@ def picks_table(season: dict) -> Table:
     because there was no game, which is a fact about the week rather than a
     reason to omit it.
 
-    There is deliberately no `correct` column. It would have to be rewritten
-    every week as results land, which would turn a write-once table into a
-    weekly one for no gain: a component can compare `pick` against the linked
-    game's `result` itself.
+    `correct` is the one thing here that is not written once. It is blank until
+    the game is settled and then holds True or False forever, which is the same
+    shape as `games.result`, because it is that same fact seen from the pick's
+    side. The table stays frozen everywhere else: the row never contradicts
+    itself, since a cell only ever moves from "unknown" to the answer and never
+    from one answer to another. The transport enforces exactly that much and no
+    more -- `FILLABLE_COLUMNS` in `Code.gs` names this one column, and a
+    `correct` that already holds an answer is refused like any other drift.
+
+    Two things follow for anything reading it. A blank is "not yet", not "no",
+    so a two-state renderer needs `is_bye` and the game's `result` to tell them
+    apart. And the week a cell fills in is the week the game was played, not the
+    week the row was written.
+
+    Scored exactly as `engine.correct_picks_so_far` scores it, so the column and
+    the board can never disagree: a pick is correct when the game is settled and
+    the pick equals the result. A tie is settled and matches nobody, because no
+    pick is ever "T", so a tie makes every pick that week False rather than
+    blank. That is how the family scored the 2020 Bengals game.
     """
     year = season["year"]
     by_week = {g["nfl_week"]: g for g in season["games"]}
@@ -625,6 +658,7 @@ def picks_table(season: dict) -> Table:
                 "name": name,
                 "is_bye": game is None,
                 "pick": sheet[game["index"]] if game else "",
+                "correct": _pick_is_correct(game, sheet),
             })
     return Table("picks", PICK_COLUMNS, rows)
 

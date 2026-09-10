@@ -54,7 +54,7 @@ Three conventions, all there to stop a component being bound to the wrong thing:
 | `competitor_seasons` | `2026-amir` | 12 | weekly |
 | `games` | `2026-w01` | 18 | **weekly** |
 | `weeks` | `2026-w03` | 19 | **frozen** |
-| `picks` | `2026-w01-amir` | 216 | **once a season** |
+| `picks` | `2026-w01-amir` | 216 | **frozen, except `correct` filling in** |
 | `standings` | `2026-w07-amir` | 228 | **frozen, append only** |
 
 About 490 rows a season.
@@ -83,10 +83,23 @@ per-week and frozen. That distinction is the entire reason `weeks` exists, and
 it is the difference between this and the old per-week tabs that filtered a live
 master sheet.
 
-**`picks` has no `correct` column, deliberately.** Adding one would mean
-rewriting all 204 rows every week as results land, turning a write-once table
-into a weekly one for nothing. A component compares `pick` against the linked
-game's `result` instead.
+**`picks.correct` is the one cell on a frozen row that fills in.** Blank until
+the game is settled, then `TRUE` or `FALSE` forever. It is a game's result seen
+from the pick's side, and a result genuinely becomes known during the season, so
+it cannot be written once with everything else on the row. It is scored exactly
+as `engine.correct_picks_so_far` scores it, so the column and the board cannot
+disagree; a tie is settled and matches nobody, so a tie makes every pick that
+week `FALSE` rather than blank, and a bye stays blank.
+
+Blank, not `FALSE`, for a game that has not kicked off: `FALSE` is a claim the
+pick was wrong, and a table that renders one as a red cross before the game is
+played is lying on its own. A component that wants a two-state view should read
+`is_bye` and the linked game's `result` to tell "not yet" from "no".
+
+The Apps Script knows about this one column by name (`FILLABLE_COLUMNS`) and
+lets it go from blank to a value without `allowCorrection`. Everything else on
+the row is still refused if it moves, and so is `correct` itself once it holds
+an answer -- see [Frozen tables](#frozen-tables-and-correcting-one).
 
 ## Slugs
 
@@ -196,6 +209,14 @@ go into `credentials/appsscript.json`.
 a row is written there, the only rewrite the script accepts is an identical one.
 Replaying a week is a no-op; a week that has *changed* is refused, and the
 refusal names the columns that moved.
+
+The single exception is `picks.correct`, listed in `FILLABLE_COLUMNS`. It may go
+from blank to a value without being asked, because that is a cell learning its
+answer rather than a published answer changing. The exemption is one-directional
+and one column wide: `TRUE` becoming `FALSE`, or a value going back to blank, is
+drift like any other and is refused. The push reports these separately, as
+`filled in` rather than `updated`, so a normal week does not read like a
+correction.
 
 That means re-running a past week will fail rather than quietly republish it:
 
