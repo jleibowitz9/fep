@@ -123,12 +123,34 @@ def cmd_week(argv):
     for change in season.get("last_refresh_changes") or []:
         print("  espn: {}".format(change))
 
-    week = int(argv[0]) if argv else season_mod.current_nfl_week(season)
+    # A rewrite of a week that has already gone out has to be asked for by
+    # name, and says why. `--correction "ESPN corrected the Week 4 score"`.
+    correction = None
+    positional = []
+    skip = -1
+    for index, arg in enumerate(argv):
+        if index == skip:
+            continue          # the reason, already consumed by the flag
+        if arg == "--correction":
+            correction = argv[index + 1] if index + 1 < len(argv) else ""
+            skip = index + 1
+        elif arg.startswith("--correction="):
+            correction = arg.split("=", 1)[1]
+        elif not arg.startswith("--"):
+            positional.append(arg)
+    if correction is not None and not str(correction).strip():
+        raise SystemExit("--correction needs a reason. It goes into the record.")
+
+    # The calendar decides which week this is, not the scoreboard. A bye week
+    # never produces a result, so defaulting to the last week that did would
+    # re-run the week before the bye and leave the bye itself unrecorded.
+    week = int(positional[0]) if positional else season_mod.week_to_run(season)
     # Pin the board to the end of that week. ESPN may already have a result from
     # a later week (a Thursday game, or a newsletter written late), and that must
     # not leak into this week's snapshot.
     board = season_mod.run(season, through_week=week)
-    season_mod.snapshot(season, week, board)
+    entry, status = season_mod.snapshot(season, week, board,
+                                        correction=correction)
     season_mod.save(season)
 
     pack = analytics.full_pack(season, board, week, through_week=week)
@@ -141,10 +163,13 @@ def cmd_week(argv):
     with open(chart_path, "w") as fh:
         fh.write(chart.render_from_season(season, upto_week=week))
 
-    published = publish.publish_from_season(season, week=week)
+    published = publish.publish_from_season(season, week=week,
+                                            correction=correction)
 
-    print("\n{} FEP | Week {}{}".format(
-        YEAR, week, "  (bye week)" if pack["is_bye"] else ""))
+    print("\n{} FEP | Week {}{}{}".format(
+        YEAR, week, "  (bye week)" if pack["is_bye"] else "",
+        {"unchanged": "  (already recorded, unchanged)",
+         "corrected": "  (CORRECTED)"}.get(status, "")))
     print("{:,} remaining outcomes, {} still alive\n".format(
         board.remaining_outcomes, pack["concentration"]["alive"]))
     for name in board.ranked():

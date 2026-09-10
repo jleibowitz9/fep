@@ -203,7 +203,7 @@ def build(write: bool = False) -> dict:
     drift = []
     for week in sorted(boards):
         board = season_mod.run(season, through_week=week)
-        entry = season_mod.snapshot(season, week, board, note=CAVEAT)
+        entry, _ = season_mod.snapshot(season, week, board, note=CAVEAT)
         recomputed = dict(entry["weighted"])
         # The published board is the fact. Keep the recomputed one beside it so
         # the size of the difference is visible rather than hidden.

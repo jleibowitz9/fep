@@ -383,8 +383,14 @@ def _state():
         return state
 
     outstanding = [n for n in season["roster"] if not season["picks"].get(n)]
+    next_week = season_mod.week_to_run(season)
     state["season"] = {
         "week": season_mod.current_nfl_week(season),
+        # What "Run the week" will actually do, named rather than assumed. The
+        # two differ during a bye, and that difference is precisely the one a
+        # button reading only "Run the week" would hide.
+        "next_week": next_week,
+        "next_is_bye": season_mod.is_bye_week(season, next_week),
         "played": season_mod.games_played(season),
         "roster": len(season["roster"]),
         "outstanding": outstanding,

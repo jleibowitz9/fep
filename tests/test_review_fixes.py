@@ -14,21 +14,33 @@ to "X cannot come back" stays legible.
   TestHistoricalBuilds       a past week's board shipped beside future data
   TestPayloadContract        the fixture had a key the live builder never made
   TestPreseason              a week 0 payload crashed the front end
+  TestByeWeekResolution      the default weekly run read the week off the
+                             scoreboard, which skips the bye entirely
+  TestSnapshotsFreeze        a snapshot documented as frozen replaced itself
+                             on every re-run, and a moved weight rewrote a
+                             week that had already been published
+  TestPublishedWeeksFreeze   the same, for the chart file behind a URL that
+                             has already gone out
 """
 
 from __future__ import annotations
 
+import copy
 import importlib.util
 import json
 import os
 import re
+import shutil
 import sys
+import tempfile
+import time
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from fep import analytics, chart, engine, espn, season as season_mod  # noqa: E402
+from fep import (analytics, chart, engine, espn, publish,  # noqa: E402
+                 season as season_mod)
 
 DASHBOARD = os.path.join(ROOT, "dashboard")
 
@@ -607,6 +619,247 @@ class TestRedesignSurfaces(unittest.TestCase):
         flagged = [g["i"] for g in data["games"] if g["division"]]
         self.assertEqual(flagged,
                          [g["index"] for g in season["games"] if g["division"]])
+
+
+# ---------------------------------------------------------------------------
+# September 2026, finding 2: the default weekly run skipped the Week 10 bye
+# ---------------------------------------------------------------------------
+
+def bye_season(bye_week=10, last_week=18):
+    """A schedule with one bye, dated a week apart, and nothing played yet."""
+    games, index, date = [], 0, None
+    import datetime
+    for week in range(1, last_week + 1):
+        date = ("2026-09-13" if date is None
+                else (datetime.date.fromisoformat(date)
+                      + datetime.timedelta(days=7)).isoformat())
+        if week == bye_week:
+            continue
+        games.append({
+            "index": index, "nfl_week": week, "label": "vs. Team",
+            "result": engine.UNPLAYED, "weight": 0.5, "points_for": None,
+            "points_against": None, "division": False, "date": date,
+        })
+        index += 1
+    mapping = {str(g["nfl_week"]): g["index"] for g in games}
+    mapping[str(bye_week)] = None
+    return {
+        "year": 2026, "games": games, "bye_week": bye_week,
+        "bye_weeks": [bye_week], "week_to_game_index": mapping,
+        "sheet": dict(season_mod.DEFAULT_SHEET), "snapshots": [],
+    }
+
+
+class TestByeWeekResolution(unittest.TestCase):
+    """The week the run records comes from the calendar, not the scoreboard."""
+
+    def test_the_bye_week_has_a_date_of_its_own(self):
+        # It has no game, so nothing dates it but the week before it.
+        dates = season_mod.week_dates(bye_season())
+        self.assertIn(10, dates)
+        self.assertEqual(dates[10], "2026-11-15")
+        self.assertEqual(dates[9], "2026-11-08")
+
+    def test_the_bye_is_the_week_to_run_during_the_bye(self):
+        # The reproduction: week 9 is played, week 10 never can be, and the
+        # scoreboard therefore stays on 9 for a fortnight.
+        season = bye_season()
+        for game in season["games"]:
+            if game["nfl_week"] <= 9:
+                game["result"] = engine.WIN
+        self.assertEqual(season_mod.current_nfl_week(season), 9)
+        self.assertEqual(season_mod.week_to_run(season, "2026-11-17"), 10)
+
+    def test_the_week_before_the_bye_is_still_the_week_before_the_bye(self):
+        season = bye_season()
+        self.assertEqual(season_mod.week_to_run(season, "2026-11-10"), 9)
+
+    def test_the_week_after_the_bye_moves_on(self):
+        season = bye_season()
+        self.assertEqual(season_mod.week_to_run(season, "2026-11-22"), 11)
+
+    def test_before_the_season_it_is_the_preseason_board(self):
+        season = bye_season()
+        self.assertEqual(season_mod.week_to_run(season, "2026-08-01"), 0)
+
+    def test_after_the_finale_it_clamps_to_the_last_week(self):
+        season = bye_season()
+        self.assertEqual(season_mod.week_to_run(season, "2027-06-01"), 18)
+
+    def test_the_real_2026_schedule_lands_on_its_bye(self):
+        # The one that matters. Not a constructed fixture: the season file the
+        # pool will actually run against.
+        season = season_mod.load(2026)
+        self.assertTrue(season_mod.is_bye_week(season, 10))
+        self.assertEqual(season_mod.week_to_run(season, "2026-11-17"), 10)
+
+
+# ---------------------------------------------------------------------------
+# September 2026, finding 3: weekly snapshots and chart files were overwriteable
+# ---------------------------------------------------------------------------
+
+class TestSnapshotsFreeze(unittest.TestCase):
+    """`CLAUDE.md` promises a week's row is identical in week N+1. Now it is."""
+
+    def setUp(self):
+        self.season = season_mod.load(2026)
+        self.board = season_mod.run(self.season, through_week=0)
+
+    def test_a_first_recording_is_created(self):
+        season = dict(self.season, snapshots=[])
+        _, status = season_mod.snapshot(season, 0, self.board)
+        self.assertEqual(status, "created")
+
+    def test_an_identical_replay_writes_nothing(self):
+        entry, status = season_mod.snapshot(self.season, 0, self.board)
+        self.assertEqual(status, "unchanged")
+        # The stored entry comes back, not a fresh one. This is what stopped
+        # the run producing a commit that only moved a timestamp.
+        self.assertIs(entry, season_mod.get_snapshot(self.season, 0))
+
+    def test_a_replay_does_not_move_the_timestamp(self):
+        before = season_mod.get_snapshot(self.season, 0)["taken_at"]
+        season_mod.snapshot(self.season, 0, self.board)
+        self.assertEqual(season_mod.get_snapshot(self.season, 0)["taken_at"],
+                         before)
+
+    def test_one_moved_weight_is_refused_by_name(self):
+        # Codex's reproduction, exactly: change a single FUTURE weight, re-run
+        # week 0, and every stored probability moves.
+        self.season["games"][14]["weight"] = 0.99
+        board = season_mod.run(self.season, through_week=0)
+        with self.assertRaises(engine.SeasonError) as caught:
+            season_mod.snapshot(self.season, 0, board)
+        message = str(caught.exception)
+        self.assertIn("week 0 is already recorded", message)
+        self.assertIn("weighted.", message)      # names what moved
+        self.assertIn("--correction", message)   # and how to mean it
+
+    def test_a_refused_replay_leaves_the_stored_week_alone(self):
+        before = copy.deepcopy(season_mod.get_snapshot(self.season, 0))
+        self.season["games"][14]["weight"] = 0.99
+        board = season_mod.run(self.season, through_week=0)
+        with self.assertRaises(engine.SeasonError):
+            season_mod.snapshot(self.season, 0, board)
+        self.assertEqual(season_mod.get_snapshot(self.season, 0), before)
+
+    def test_a_declared_correction_is_written_and_recorded(self):
+        self.season["games"][14]["weight"] = 0.99
+        board = season_mod.run(self.season, through_week=0)
+        entry, status = season_mod.snapshot(self.season, 0, board,
+                                            correction="ESPN moved the line")
+        self.assertEqual(status, "corrected")
+        self.assertEqual(len(entry["corrections"]), 1)
+        self.assertEqual(entry["corrections"][0]["reason"], "ESPN moved the line")
+        # A correction that leaves no trace is drift with better manners.
+        self.assertTrue(entry["corrections"][0]["changed"])
+        self.assertTrue(entry["corrections"][0]["at"])
+
+    def test_corrections_accumulate_rather_than_replace(self):
+        for weight, reason in ((0.99, "first"), (0.11, "second")):
+            self.season["games"][14]["weight"] = weight
+            board = season_mod.run(self.season, through_week=0)
+            entry, _ = season_mod.snapshot(self.season, 0, board,
+                                           correction=reason)
+        self.assertEqual([c["reason"] for c in entry["corrections"]],
+                         ["first", "second"])
+
+    def test_the_note_is_not_part_of_the_record(self):
+        # Two runs that saw the same season are the same recording, whatever
+        # was written beside them.
+        _, status = season_mod.snapshot(self.season, 0, self.board,
+                                        note="a different note")
+        self.assertEqual(status, "unchanged")
+
+    def test_drift_is_reported_in_the_shape_code_gs_uses(self):
+        stored = {"weighted": {"Amir": 12.3}, "weights": [0.55]}
+        incoming = {"weighted": {"Amir": 11.8}, "weights": [0.61]}
+        self.assertEqual(season_mod.snapshot_drift(stored, incoming),
+                         ["weighted.Amir: 12.3 -> 11.8", "weights[0]: 0.55 -> 0.61"])
+
+
+class TestANoOpRunLeavesNoTrace(unittest.TestCase):
+    """The six empty "weekly run" commits in this repo's history.
+
+    Freezing the snapshot was not enough on its own: the season file rewrote
+    `updated_at` and `last_refresh` regardless, and the backup stages the whole
+    `data` directory, so a run that changed nothing still produced a commit
+    claiming it had.
+    """
+
+    def setUp(self):
+        # Read the real season first, then point saves at scratch. The other
+        # order would have `load` looking in an empty directory.
+        self.season = season_mod.load(2026)
+        self.dir = tempfile.mkdtemp()
+        self.original = season_mod.DATA_DIR
+        season_mod.DATA_DIR = self.dir
+
+    def tearDown(self):
+        season_mod.DATA_DIR = self.original
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def _save(self, season):
+        path = season_mod.save(season)
+        return path, os.stat(path).st_mtime_ns
+
+    def test_saving_an_unchanged_season_does_not_touch_the_file(self):
+        season = self.season
+        path, before = self._save(season)
+        time.sleep(0.01)
+        season["last_refresh"] = "2099-01-01T00:00:00"   # asked again, learned nothing
+        self.assertEqual(self._save(season)[1], before)
+
+    def test_a_real_change_is_still_written(self):
+        season = self.season
+        path, before = self._save(season)
+        time.sleep(0.01)
+        season["games"][3]["weight"] = 0.123456
+        self.assertNotEqual(self._save(season)[1], before)
+
+    def test_a_real_change_moves_the_updated_stamp(self):
+        season = self.season
+        self._save(season)
+        stamped = season["updated_at"]
+        season["games"][3]["weight"] = 0.123456
+        season["updated_at"] = "not a time"
+        self._save(season)
+        self.assertNotEqual(season["updated_at"], "not a time")
+        self.assertTrue(season["updated_at"] >= stamped)
+
+
+class TestPublishedWeeksFreeze(unittest.TestCase):
+    """A chart URL a newsletter has already sent out is a promise."""
+
+    def setUp(self):
+        self.season = season_mod.load(2026)
+        self.dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def _publish(self, **kwargs):
+        return publish.publish_from_season(self.season, week=0,
+                                           out_dir=self.dir, **kwargs)[0]
+
+    def test_republishing_the_same_week_touches_nothing(self):
+        path = self._publish()
+        before = os.stat(path).st_mtime_ns
+        time.sleep(0.01)
+        self.assertEqual(self._publish(), path)
+        self.assertEqual(os.stat(path).st_mtime_ns, before)
+
+    def test_a_changed_week_is_refused(self):
+        self._publish()
+        self.season["snapshots"][0]["weighted"]["Amir"] = 99.9
+        with self.assertRaises(publish.PublishedWeekError):
+            self._publish()
+
+    def test_a_declared_correction_goes_through(self):
+        path = self._publish()
+        self.season["snapshots"][0]["weighted"]["Amir"] = 99.9
+        self._publish(correction="ESPN corrected the score")
+        self.assertIn("99.9", open(path).read())
 
 
 if __name__ == "__main__":

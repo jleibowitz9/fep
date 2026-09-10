@@ -600,13 +600,23 @@ function logOut(text, bad){
   el.scrollTop=el.scrollHeight;
 }
 
+// The run button says which week it will record. During a bye the week the
+// calendar is on and the week the scoreboard is on are different numbers, and
+// a button reading only "Run the week" is exactly where that difference would
+// go unnoticed.
+function runLabel(){
+  const s=(STATE||{}).season||{};
+  if(s.next_week==null) return 'Run the week';
+  return `Run week ${s.next_week}` + (s.next_is_bye ? ' (bye)' : '');
+}
+
 function setBusy(on,label){
   BUSY=on;
   document.querySelectorAll('[data-run]').forEach(b=>{b.disabled=on;});
   const rb=document.getElementById('runBtn');
   if(rb && rb.dataset.run) rb.innerHTML = on
     ? `<span class="spin"></span>${label||'Working'}`
-    : 'Run the week';
+    : runLabel();
 }
 
 // Reloading is how the page picks up a new season file. Only the actions that
@@ -699,6 +709,8 @@ function controlPanel(){
 
 function paintState(){
   if(!STATE) return;
+  if(!BUSY) document.querySelectorAll('[data-run="week"]')
+    .forEach(b=>{b.textContent=runLabel();});
   const sheet=document.getElementById('ctlSheet');
   if(sheet) sheet.textContent = STATE.sheet && STATE.sheet.appsscript ? 'Apps Script ready'
     : (STATE.sheet && STATE.sheet.credentials ? 'service account' : 'nothing configured');
