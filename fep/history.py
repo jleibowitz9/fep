@@ -7,17 +7,19 @@ record.
 
 SOURCES
 -------
-The authoritative CSVs in the fep-master skill's data directory:
+Six CSVs in `data/history/`, inside this repo:
 
     champions_by_season.csv          one row per season, 2016 to 2025
     all_time_totals.csv              career totals per competitor
     season_results_by_competitor.csv every finish, every season
-    weekly_picks_all_seasons.csv     game-by-game picks, 2016 to 2023
+    weekly_picks_all_seasons.csv     game-by-game picks, 2016 to 2025
     season_2024_weekly.csv           2024 weekly weighted board
     season_2025_weekly.csv           2025 weekly weighted board
 
-Game-by-game picks for 2024 and 2025 are not in the CSVs; they are read from
-Jacob's simulator files in the sibling year folders.
+These used to live outside the repo, and 2024 and 2025 were parsed out of
+Jacob's old simulator scripts as source text. `scripts/import_history.py`
+brought both in, so every season now comes from one file that travels with the
+code. Set FEP_DATA_DIR to read a copy somewhere else.
 
 DATA QUIRKS THAT MUST BE HONOURED
 ---------------------------------
@@ -48,13 +50,16 @@ from . import engine
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _PROJECT = os.path.dirname(_HERE)
-_YEARS_ROOT = os.path.dirname(_PROJECT)      # the "FEP Data Center" folder
 
-DEFAULT_DATA_DIR = os.environ.get("FEP_DATA_DIR") or os.path.expanduser(
-    "~/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/"
-    "d1014f01-77c2-4a2b-bb91-a8c459904777/a772b5d9-f193-460e-9d65-086a1d1f8efc/"
-    "skills/fep-master/data"
-)
+# The record lives in the repo. It used to be read from the fep-master skill's
+# data folder, down a path containing two session UUIDs, and 2024 and 2025 were
+# parsed out of Jacob's old simulator scripts in the sibling year folders.
+# Both were silent: a checkout anywhere else lost seasons and said so as the
+# record book disagreeing with itself, which reads like corruption rather than
+# a missing file. FEP_DATA_DIR still overrides, so the skill can point its own
+# copy here rather than the two drifting apart.
+DEFAULT_DATA_DIR = os.environ.get("FEP_DATA_DIR") or os.path.join(
+    _PROJECT, "data", "history")
 
 # NFC East, across every name Washington has used in the record.
 DIVISION_TOKENS = ("cowboys", "dallas", "giants", "commanders", "redskins",
@@ -73,8 +78,8 @@ def _rows(filename: str, data_dir: Optional[str] = None) -> List[dict]:
     path = os.path.join(data_dir or DEFAULT_DATA_DIR, filename)
     if not os.path.exists(path):
         raise HistoryError(
-            "cannot find {}. Set FEP_DATA_DIR to the fep-master skill's data "
-            "folder.".format(path)
+            "cannot find {}. It should be in the repo at data/history; set "
+            "FEP_DATA_DIR to read a copy from somewhere else.".format(path)
         )
     with open(path) as fh:
         # Some files carry leading comment lines.
@@ -204,120 +209,6 @@ def weekly_boards(data_dir: Optional[str] = None) -> Dict[int, Dict[int, Dict[st
 # game-by-game picks
 # ---------------------------------------------------------------------------
 
-_PICKS_RE = re.compile(r"picks_dict\s*=\s*\{(.*?)\n\s*\}", re.S)
-_ROW_RE = re.compile(r"'(\w+)'\s*:\s*\[(.*?)\]", re.S)
-_RESULTS_RE = re.compile(r"eagles_results\s*=\s*\[(.*?)\]", re.S)
-
-
-def _parse_simulator(path: str) -> Optional[dict]:
-    """Pull picks and results out of one of Jacob's simulator files."""
-    if not os.path.exists(path):
-        return None
-    text = open(path).read()
-
-    picks_block = _PICKS_RE.search(text)
-    if not picks_block:
-        return None
-    picks = {}
-    for name, body in _ROW_RE.findall(picks_block.group(1)):
-        picks[name.capitalize()] = [
-            cell.strip().strip("'\"") for cell in body.split(",") if cell.strip()
-        ]
-
-    results = None
-    results_block = _RESULTS_RE.search(text)
-    if results_block:
-        results = re.findall(r"'([WLA])'", results_block.group(1))
-
-    return {"picks": picks, "results": results}
-
-
-def _espn_season(year: int) -> Optional[dict]:
-    """Results, opponents and division games for a year, from ESPN (cached).
-
-    Returns None if ESPN cannot be reached and nothing is cached, so the rest of
-    the module still works offline.
-    """
-    key = "espn_{}".format(year)
-    if key in _cache:
-        return _cache[key]
-    try:
-        from . import espn
-        games = espn.fetch_schedule(year)
-    except Exception:
-        _cache[key] = None
-        return None
-    if any(g["result"] == engine.UNPLAYED for g in games):
-        _cache[key] = None
-        return None
-    _cache[key] = {
-        "results": [g["result"] for g in games],
-        "labels": [g["label"] for g in games],
-        "division_indices": [g["index"] for g in games if g["division"]],
-        "weeks": [g["nfl_week"] for g in games],
-    }
-    return _cache[key]
-
-
-def _season_from_simulator(year: int) -> Optional[dict]:
-    """2024 and 2025 picks live in the year folders, not the CSVs.
-
-    Jacob's 2024 file was left unfinished (its last two games are still 'A'), so
-    results and division games are taken from ESPN, which is authoritative for
-    what actually happened. The reconstructed record is cross-checked against
-    the FEP record book, and any disagreement is reported rather than hidden:
-    the family's sheet and real life have genuinely diverged before (2016).
-    """
-    candidates = [
-        os.path.join(_YEARS_ROOT, str(year), "simulator.py"),
-        os.path.join(_YEARS_ROOT, str(year), "FEP {}.py".format(year)),
-    ]
-    for path in candidates:
-        parsed = _parse_simulator(path)
-        if not parsed or not parsed["picks"]:
-            continue
-
-        results = parsed["results"] or []
-        notes = []
-        official = _espn_season(year)
-
-        if engine.UNPLAYED in results or not results:
-            if not official:
-                continue  # cannot complete this season, skip it
-            filled = sum(1 for r in results if r == engine.UNPLAYED) or len(official["results"])
-            notes.append(
-                "{} game(s) were still unplayed in {}; results taken from "
-                "ESPN.".format(filled, os.path.basename(path)))
-            results = list(official["results"])
-
-        book = {row["year"]: row["record"] for row in champions()}
-        record = "{}-{}".format(results.count(engine.WIN), results.count(engine.LOSS))
-        if year in book and book[year] != record:
-            notes.append("Reconstructed record {} does not match the record "
-                         "book's {}.".format(record, book[year]))
-
-        divisions = _DIVISION_BY_YEAR.get(year)
-        if divisions is None:
-            divisions = (official or {}).get("division_indices") or []
-
-        return {
-            "year": year,
-            "picks": parsed["picks"],
-            "results": results,
-            "opponents": (official or {}).get("labels") or [None] * len(results),
-            "weeks": (official or {}).get("weeks") or list(range(1, len(results) + 1)),
-            "division_indices": divisions,
-            "notes": notes,
-            "source": os.path.relpath(path, _YEARS_ROOT),
-        }
-    return None
-
-
-# Division indices for seasons read from simulator files. 2025's are Jacob's own
-# and match the ESPN schedule exactly; anything else is derived from ESPN.
-_DIVISION_BY_YEAR = {2025: [0, 5, 7, 10, 14, 16]}
-
-
 def weekly_picks(data_dir: Optional[str] = None) -> Dict[int, dict]:
     """Game-by-game picks for every season we have them.
 
@@ -387,11 +278,6 @@ def weekly_picks(data_dir: Optional[str] = None) -> Dict[int, dict]:
             "notes": notes,
             "source": "weekly_picks_all_seasons.csv",
         }
-
-    for year in (2024, 2025):
-        season = _season_from_simulator(year)
-        if season:
-            out[year] = season
 
     _cache[key] = dict(sorted(out.items()))
     return _cache[key]

@@ -18,10 +18,10 @@ Two skills carry the detail. Read the relevant one before working:
 2. **`dashboard/index.html` is generated.** Edit `dashboard/template.html` and
    rebuild. The generated file is gitignored and overwritten every build.
 
-3. **History reads from outside the repo.** `fep/history.py` needs `2022/`
-   through `2025/` as *siblings* of this folder, plus the `fep-master` skill's
-   data dir (`FEP_DATA_DIR`). A worktree created anywhere else silently loses
-   seasons and fails as six confusing test errors, not as a missing file.
+3. **The repo is self-contained; keep it that way.** History lives in
+   `data/history/`, the 2025 regression baseline in `tests/fixtures/`. All of
+   it used to be read from outside and it failed silently. If you find yourself
+   writing a path with `..` or `~/Library` in it, that is the bug.
 
 4. **There are four test files, 191 tests.** `test_engine.py` is a third of the
    suite. Run all of them:

@@ -52,7 +52,10 @@ sys.path.insert(0, ROOT)
 
 from fep import chart, engine, espn, season as season_mod  # noqa: E402
 
-ARCHIVE = os.path.join(os.path.dirname(ROOT), "2025", "simulator.py")
+# The archive now lives in the repo as a frozen test fixture, byte-identical to
+# the sibling year folder it used to be read from. Same file, same sha256, and
+# a --capture run no longer depends on what is next to the repo.
+ARCHIVE = os.path.join(ROOT, "tests", "fixtures", "simulator_2025.py")
 CHART_DATA = os.path.join(ROOT, "chart-data", "2025")
 FIXTURE = os.path.join(ROOT, "data", "fixtures", "2025_source.json")
 YEAR = 2025
@@ -97,7 +100,7 @@ def capture() -> dict:
     fixture = {
         "note": ("Captured so 2025 can be rebuilt without the sibling archive "
                  "or a live ESPN. Refresh with --capture."),
-        "captured_from": os.path.relpath(ARCHIVE, os.path.dirname(ROOT)),
+        "captured_from": os.path.relpath(ARCHIVE, ROOT),
         "archive_sha256": hashlib.sha256(raw).hexdigest(),
         "archive": archive,
         "games": games,

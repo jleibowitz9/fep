@@ -1,6 +1,6 @@
 ---
 name: fep-dev
-description: How to work in the FEP repo without breaking it - where the source of truth lives, which files are generated, the history data that sits outside the repo, how to verify a change, and why pushing needs a specific GitHub account. Use this skill whenever you are about to read, edit, test, commit, branch, or push anything in the FEP codebase, whenever the user mentions the FEP repo, the dashboard, the season file, cli.py, the simulator, the CMS tables or the Framer chart, and whenever you are asked to "clean up", "fix", "add" or "review" something in this project. Read it BEFORE touching a file, not after something breaks - most of the traps here are silent and cost a full debugging cycle to rediscover.
+description: How to work in the FEP repo without breaking it - where the source of truth lives, which files are generated rather than edited, how to verify a change, what must stay frozen, and why pushing needs a specific GitHub account. Use this skill whenever you are about to read, edit, test, commit, branch, or push anything in the FEP codebase, whenever the user mentions the FEP repo, the dashboard, the season file, cli.py, the simulator, the historical record, the CMS tables or the Framer chart, and whenever you are asked to "clean up", "fix", "add" or "review" something in this project. Read it BEFORE touching a file, not after something breaks - most of the traps here are silent and cost a full debugging cycle to rediscover.
 ---
 
 # Working in the FEP repo
@@ -79,26 +79,35 @@ Two properties worth preserving:
 Every result, score and weight records whether it came from ESPN or from a
 human. `refresh` never overwrites a manual override, so it is always safe.
 
-## The history data lives outside the repo
+## The repo is self-contained, and that was expensive
 
-This is the trap that looks like a broken test suite.
+Everything the code reads lives inside the repo:
 
-`fep/history.py` reads the 2016-2025 record from **two places outside this
-directory**:
+- `data/history/` -- the ten-season record, six CSVs
+- `tests/fixtures/simulator_2025.py` -- the frozen 2025 regression baseline
+- `data/season_2026.json` -- this season
 
-- `_YEARS_ROOT` is the repo's *parent* folder. It expects `2022/`, `2023/`,
-  `2024/`, `2025/` as siblings of `2026/`.
-- `DEFAULT_DATA_DIR` points into the `fep-master` skill's `data/` folder, and
-  is overridable with the `FEP_DATA_DIR` environment variable.
+None of that was true until it was fixed. History was read from the
+`fep-master` skill's data folder down a path containing two session UUIDs, the
+2024 and 2025 picks were parsed out of Jacob's old simulator scripts as source
+text, and the most important test in the suite executed a file in a sibling
+year folder. A checkout anywhere else lost four seasons and reported it as
+**the record book disagreeing with itself** -- which reads like data corruption
+and sends you looking in entirely the wrong place.
 
-So a git worktree created anywhere else -- a temp directory, a scratch folder --
-silently loses several seasons. The symptom is not "file not found". It is six
-failing tests claiming the record book disagrees with itself, and a dashboard
-build dying with `no game-by-game picks on record for Jay`. Both look like real
-regressions and neither is.
+So: **if you find yourself writing a path containing `..` or `~/Library`, that
+is the bug.** `FEP_DATA_DIR` exists to point history somewhere else
+deliberately; nothing else should reach outside.
 
-**If you need a scratch worktree, put it inside `FEP Data Center/`, or symlink
-the year folders next to it.**
+The check that this still holds is to run the suite from a copy with no
+siblings:
+
+```bash
+rsync -a --exclude .git --exclude __pycache__ "$HOME/FEP Data Center/2026/" /tmp/iso/2026/
+cd /tmp/iso/2026 && python3 tests/test_engine.py
+```
+
+Anything that fails there is something that escaped the repo.
 
 ## Verifying a change
 

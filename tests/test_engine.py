@@ -29,12 +29,14 @@ sys.path.insert(0, ROOT)
 from fep import (chart, engine, espn, season as season_mod,  # noqa: E402
                  sheets, statpack)
 
-SKILL = os.path.expanduser(
-    "~/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/"
-    "d1014f01-77c2-4a2b-bb91-a8c459904777/a772b5d9-f193-460e-9d65-086a1d1f8efc/"
-    "skills/fep-master"
-)
-OLD_SIM = os.path.join(ROOT, "..", "2025", "simulator.py")
+# Both of these used to point outside the repo: the weekly board at the
+# fep-master skill's data folder, and the 2025 simulator at the sibling year
+# folder. That made the most important test in the suite unrunnable from a
+# checkout anywhere else, and left the regression baseline sitting in a file
+# somebody could edit. Both now travel with the code, and the simulator copy is
+# byte-identical to the one that ran that season.
+HISTORY = os.path.join(ROOT, "data", "history")
+OLD_SIM = os.path.join(ROOT, "tests", "fixtures", "simulator_2025.py")
 
 SCORES_2025 = [24, 20, 33, 31, 17, 17, 28, 38, 10, 16, 21, 15, 19, 31, 29, 13, 17]
 
@@ -346,7 +348,7 @@ class TestSheetSafety(unittest.TestCase):
 class TestChart(unittest.TestCase):
 
     def setUp(self):
-        with open(os.path.join(SKILL, "data", "season_2025_weekly.csv")) as fh:
+        with open(os.path.join(HISTORY, "season_2025_weekly.csv")) as fh:
             rows = list(csv.DictReader(fh))
         self.roster = [c for c in rows[0] if c != "week"]
         self.board = {int(r["week"]): {n: float(r[n]) for n in self.roster} for r in rows}
