@@ -629,7 +629,7 @@
   "snapshots": [
     {
       "week": 0,
-      "taken_at": "2026-09-09T19:55:34",
+      "taken_at": "2026-09-09T20:51:00",
       "note": "",
       "is_bye": false,
       "remaining_outcomes": 131072,
@@ -761,10 +761,10 @@
     "points_model": "shrunk"
   },
   "created_at": "2026-09-02T22:02:30",
-  "updated_at": "2026-09-09T19:55:34",
+  "updated_at": "2026-09-09T20:51:00",
   "bye_weeks": [
     10
   ],
-  "last_refresh": "2026-09-09T19:55:34",
+  "last_refresh": "2026-09-09T20:50:59",
   "last_refresh_changes": []
 }
