@@ -54,11 +54,45 @@ progress by looking at a diff.
 `<script type="application/json">` block. Editing it looks like it works and is
 erased by the next build.
 
-**The dashboard is a viewer, not an app.** It has no `localStorage`, no
-`fetch`, and writes nothing. Every button copies a shell command to the
-clipboard. The What If tab is deliberately ephemeral. If someone asks to make
-the dashboard "save" something, the answer is almost always that the *run*
-should save it into the season file, not that the page should persist state.
+**The dashboard is one page in two modes, and the mode is not a setting.** It
+is decided by whether anything is behind it.
+
+Served by `dashboard/serve.py` (the `scripts/FEP.app` icon) it is the
+application: the page is rendered from the season file on every load, and the
+buttons run the weekly run, the ESPN refresh, the Sheet push, the CMS tables, a
+pick-sheet load and the git commit. Opened as a file it is a viewer, because a
+`file://` page has no origin and can reach nothing, and every button falls back
+to copying the command that would do the thing.
+
+Two rules survive that and are worth defending:
+
+- **The server implements nothing.** Every action is a call into `cli.py` with
+  its output captured, so there is still exactly one weekly run and a button
+  cannot drift away from the command it replaces. A new button means a new
+  `cli.py` command first.
+- **The page still persists nothing of its own.** The What If tab is
+  deliberately ephemeral, and the only thing kept across a reload is which tab
+  you were on, in the URL hash. If someone asks to make the dashboard "save"
+  something, the answer is still that the *run* should save it into the season
+  file.
+
+**The payload is cached, and the cache key covers the code.** `collect()` is
+about eleven seconds, nearly all of it counterfactual boards, so `serve.py`
+caches it in `data/dashboard_cache/` against a fingerprint of the season file,
+`build.py`, `fep/*.py` and `data/history/`. If you edit the model and the
+dashboard shows the old numbers, the fingerprint is what to look at first --
+but it is meant to cover exactly that case, so suspect a real bug before
+blaming it. Never write that cache from a test: `tests/test_serve.py` has a
+`CacheIsolated` base class for anything that touches `_payload()`, and it
+exists because a stub leaked into the real cache once and the server then
+served a one-key payload and died on it.
+
+`serve.py` is also the only surface in this repo that takes input from outside
+the process, and one of its actions writes to a real Google Sheet. It binds
+`127.0.0.1` only, every action requires a token minted at launch and given to
+the page it rendered, and the writes that leave this machine arm on the first
+press and fire on the second. `tests/test_serve.py` holds that boundary. Do not
+relax any of it to make something convenient.
 
 ## The one irreplaceable file
 

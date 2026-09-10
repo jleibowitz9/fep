@@ -156,6 +156,7 @@ python3 tests/test_engine.py
 
 ## Requirements
 
-The engine, the ESPN pull, the chart and the stat pack use only the standard
-library, on the system Python 3.9. `requirements.txt` covers the two optional
-extras: Google Sheets and the Streamlit dashboard.
+The engine, the ESPN pull, the chart, the stat pack and the dashboard server
+use only the standard library, on the system Python 3.9. `requirements.txt`
+covers the one optional extra: the Google Sheets service-account client, which
+is not the path this repo actually uses (see `appsscript/README.md`).

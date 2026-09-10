@@ -1,26 +1,78 @@
 # The dashboard
 
-One HTML file. `build.py` reads `template.html`, substitutes the week's data
-into the `__DATA__` placeholder and the chart renderer into `__CHART__`, and
-writes `index.html`. That file opens with a double click, works offline, and
-shows exactly the week it was built for.
+The same page in two modes, decided by one fact: whether anything is behind it.
+
+**Served** (`scripts/FEP.app`, or `python3 dashboard/serve.py`) it is the
+application. Tapping the icon starts the server and opens the page: no Terminal
+window, and no model run until a button asks for one. The bundle's executable
+*is* the app, so the Dock icon stays lit while it runs and quitting it stops
+the server. `scripts/fep-app.command` is the same thing with a window, for when
+you want to watch it start. `serve.py` renders the page from the season file on every load and
+exposes the `cli.py` commands as routes, so the buttons run the weekly run, the
+ESPN refresh, the Sheet push, the CMS tables, the pick-sheet load and the git
+commit. Nothing is reimplemented there: each action is a call into `cli.py`
+with its output captured and handed back to the page, so a button and the
+command it replaces cannot drift apart.
+
+**Opened as a file** it is a viewer, exactly as it always was. A `file://` page
+has no origin, so it cannot reach the season file or start a process, and every
+button falls back to copying the command that would. This is the copy that
+still works with nothing running, which is why `cli.py dashboard` still writes
+it after every run.
 
 ```bash
-python3 cli.py dashboard              # the live season
+python3 dashboard/serve.py            # the app
+python3 cli.py dashboard              # the offline copy, from the live season
 python3 dashboard/build.py --mock dashboard/sample-data.json
 python3 dashboard/make_fixture.py     # regenerate that mock
 node tests/smoke_dashboard.js dashboard/index.html   # does the page survive load
+python3 tests/test_serve.py           # the server and its boundary
 ```
 
-The page is a **viewer**, not a runner. It shows the data that was baked into
-it when it was built. Fetching from ESPN, refreshing weights, saving a
-snapshot, publishing the chart and pushing to the Sheet all live in `cli.py`,
-and no button here performs any of them.
+`render()` is the shared step: `build()` writes what it returns to disk, and
+`serve.py` writes it straight to the response. The `__LIVE__` placeholder is
+how a page learns it has a server; built to a file it is replaced with nothing
+and the front end stays in its copy-the-command mode.
+
+## Why it opens instantly
+
+`collect()` costs about eleven seconds, almost all of it precomputing a
+counterfactual board for every remaining game twice over: once for What If and
+once for the leverage ranking. Doing that on every page load made tapping the
+icon feel like running the model, which is exactly what it is not supposed to
+do.
+
+So the payload is cached in `data/dashboard_cache/` (gitignored) against a
+fingerprint of everything it is a function of: the season file, `build.py`,
+every module in `fep/`, and `data/history/`. Touch any of them and the next
+load recomputes. That is the whole safety argument -- editing `fep/analytics.py`
+and being served yesterday's numbers would be a far worse bug than the wait it
+saves, so the key has to cover the code and not just the data.
+
+Two more things follow from a cache being a file on disk that nothing validates
+on the way in. `REQUIRED_KEYS` rejects a cached payload that is truncated,
+written by an older `collect()`, or otherwise not a payload, so a bad file
+means one slow load rather than a dead server; and `_page()` reports what went
+wrong instead of dropping the connection, because an empty reply reads as "the
+app never started". Both exist because a test once wrote a stub object into the
+real cache and took the server down with it.
+
+The weekly run rebuilds the cache as one of its own steps, so the reload after
+a run is instant too, and the offline `index.html` is built from that same
+payload rather than a second identical computation.
+
+Two things guard the server, because it is the only surface here that takes
+input from outside the process and one of its actions writes to a real Google
+Sheet. It binds `127.0.0.1` only, and every action requires a token minted at
+launch and handed to the page it rendered, so another site in the same browser
+cannot reach it. Writes that leave this machine arm on the first press and fire
+on the second.
 
 | File | What it is |
 |---|---|
 | `template.html` | the entire front end: markup, CSS and JS, hand written |
-| `build.py` | `collect()` defines the exact shape of `__DATA__` |
+| `serve.py` | the app: renders the page live and runs `cli.py` behind the buttons |
+| `build.py` | `collect()` defines the exact shape of `__DATA__`, `render()` the page |
 | `sample-data.json` | **generated**, and synthetic. A full week 7 payload for working on the front end out of season. The results are invented, drawn from the real ESPN win probabilities with a fixed seed |
 | `make_fixture.py` | builds `sample-data.json` *through* `collect()`, so the fixture can never carry a key the live builder does not produce |
 | `index.html` | **generated**. Never edit it; edit `template.html` and rebuild |

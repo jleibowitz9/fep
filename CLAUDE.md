@@ -17,16 +17,20 @@ Two skills carry the detail. Read the relevant one before working:
 
 2. **`dashboard/index.html` is generated.** Edit `dashboard/template.html` and
    rebuild. The generated file is gitignored and overwritten every build.
+   The same template is both the app and the offline viewer: served by
+   `dashboard/serve.py` its buttons run `cli.py`, opened as a file they copy
+   commands. If the buttons look dead, the page was opened from Finder rather
+   than through `scripts/FEP.app`.
 
 3. **The repo is self-contained; keep it that way.** History lives in
    `data/history/`, the 2025 regression baseline in `tests/fixtures/`. All of
    it used to be read from outside and it failed silently. If you find yourself
    writing a path with `..` or `~/Library` in it, that is the bug.
 
-4. **There are four test files, 191 tests.** `test_engine.py` is a third of the
+4. **There are five test files, 230 tests.** `test_engine.py` is a third of the
    suite. Run all of them:
    ```bash
-   for t in test_engine test_review_fixes test_cms test_backfill; do python3 tests/$t.py; done
+   for t in test_engine test_review_fixes test_cms test_backfill test_serve; do python3 tests/$t.py; done
    ```
 
 5. **Pushing needs the personal GitHub account.** This machine's active `gh`

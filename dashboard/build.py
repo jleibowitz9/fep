@@ -153,7 +153,15 @@ def script_json(data: dict) -> str:
             .replace("\u2029", "\\u2029"))
 
 
-def build(data: dict, output: str = OUTPUT) -> str:
+def render(data: dict, live: str = "") -> str:
+    """The finished page, as a string.
+
+    `serve.py` renders straight to the response so a reload always shows the
+    current season file, and only `build()` puts a copy on disk. `live` is the
+    hook the server uses to announce itself to the page; a page built to a file
+    has no server behind it, so it defaults to empty and the front end stays in
+    its copy-the-command mode.
+    """
     from fep import teams
 
     # The team table is a constant, not season data, so it is attached here
@@ -164,11 +172,15 @@ def build(data: dict, output: str = OUTPUT) -> str:
 
     with open(TEMPLATE) as fh:
         template = fh.read()
-    page = (template
+    return (template
             .replace("__DATA__", script_json(data))
-            .replace("__CHART__", chart_script(data)))
+            .replace("__CHART__", chart_script(data))
+            .replace("__LIVE__", live))
+
+
+def build(data: dict, output: str = OUTPUT) -> str:
     with open(output, "w") as fh:
-        fh.write(page)
+        fh.write(render(data))
     return output
 
 

@@ -367,6 +367,28 @@ tbody tr:hover{background:#1A1E21}
 .disc > summary:hover{color:var(--ink)}
 .disc > *:not(summary){padding:0 16px 16px}
 
+/* ---------------- control room ----------------
+   Only reachable when the page is served by dashboard/serve.py. Opened as a
+   file it has no origin and none of this appears. */
+.ctl{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.btn[disabled]{opacity:.4;cursor:default}
+.btn.danger{background:#7A2130}
+.btn.danger:hover{background:#8E2839}
+.btn.armed{background:#F2B33D;color:#0C0E10}
+.log{font-family:var(--mono);font-size:11px;line-height:1.65;color:#B7C4CB;
+  background:#08090A;border:1px solid var(--line);border-radius:10px;
+  padding:13px 15px;margin-top:14px;max-height:360px;overflow:auto;
+  white-space:pre-wrap;word-break:break-word}
+.log.bad{border-color:#7A2130;color:#FFC2C7}
+.log b{color:var(--ink);font-weight:700}
+.spin{display:inline-block;width:11px;height:11px;border-radius:99px;
+  border:2px solid #ffffff44;border-top-color:#fff;margin-right:7px;
+  vertical-align:-1px;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.drop{border:1px dashed var(--line2);border-radius:10px;padding:16px;margin-top:12px;
+  text-align:center;font-size:12px;color:var(--dim);cursor:pointer}
+.drop:hover,.drop.over{border-color:var(--green);color:var(--ink)}
+
 /* ---------------- picks matrix ---------------- */
 .pickmatrix{font-size:12px;min-width:900px}
 .pickmatrix th{padding-bottom:10px}
@@ -451,6 +473,7 @@ tbody tr:hover{background:#1A1E21}
   aria-labelledby="drawerName" tabindex="-1" hidden></div>
 <div class="toast" id="toast"></div>
 
+__LIVE__
 <script type="application/json" id="data">__DATA__</script>
 <script>
 const D = JSON.parse(document.getElementById('data').textContent);
@@ -550,6 +573,204 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
   clearTimeout(t._x);t._x=setTimeout(()=>t.classList.remove('on'),1500);}
 function copy(text,msg){navigator.clipboard.writeText(text).then(()=>toast(msg||"Copied"));}
 
+/* ================= LIVE =================
+   This page has two modes and they are decided by one fact: whether anything
+   is behind it. Double-clicked from Finder it is a viewer, it has no origin,
+   and every button copies the command that would do the thing. Served by
+   dashboard/serve.py the same buttons perform it, because the server is
+   running cli.py in a real process and handing back what it printed.
+
+   Nothing is reimplemented here. There is one weekly run and it lives in
+   cli.py; the difference is only whether you type it or click it. */
+const LIVE = !!(window.FEP_LIVE && window.FEP_LIVE.token);
+let STATE = null, BUSY = false;
+
+async function api(action, extra){
+  const r = await fetch('/api/action', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-FEP-Token':window.FEP_LIVE.token},
+    body: JSON.stringify(Object.assign({action}, extra||{}))
+  });
+  return r.json();
+}
+
+function logOut(text, bad){
+  const el=document.getElementById('ctlLog'); if(!el) return;
+  el.hidden=false; el.classList.toggle('bad',!!bad); el.textContent=text||'';
+  el.scrollTop=el.scrollHeight;
+}
+
+function setBusy(on,label){
+  BUSY=on;
+  document.querySelectorAll('[data-run]').forEach(b=>{b.disabled=on;});
+  const rb=document.getElementById('runBtn');
+  if(rb && rb.dataset.run) rb.innerHTML = on
+    ? `<span class="spin"></span>${label||'Working'}`
+    : 'Run the week';
+}
+
+// Reloading is how the page picks up a new season file. Only the actions that
+// change what the board is drawn from need it: writing to the Sheet or to git
+// changes the world outside this page, not the payload inside it.
+const RELOADS = {week:1, refresh:1, picks:1};
+
+async function run(action, extra, label){
+  if(BUSY) return toast("Something is already running");
+  setBusy(true,label);
+  logOut((label||action)+' ...');
+  let out;
+  try{
+    out = await api(action, extra);
+  }catch(err){
+    setBusy(false);
+    return logOut("Lost the connection to the app.\n\n"+err+
+      "\n\nThe window that launched it may have been closed.", true);
+  }
+  setBusy(false);
+  if(out.state) STATE=out.state, paintState();
+  const head=(out.label||action)+(out.seconds!==undefined?'  ('+out.seconds+'s)':'');
+  if(!out.ok){
+    logOut(head+"\n\n"+(out.error||'It did not work.')+"\n\n"+(out.log||''), true);
+    return toast(out.error||"That did not work");
+  }
+  logOut(head+"\n\n"+(out.log||'Done.'));
+  toast((out.label||'Done')+" ✓");
+  if(RELOADS[action]) setTimeout(()=>location.reload(), 700);
+}
+
+/* ---- the control room, rendered into the Run tab ---- */
+function controlPanel(){
+  return `
+  <div class="card">
+    <h3>Run <span class="tag">connected to the model</span></h3>
+    <p class="muted tiny" style="line-height:1.6">Each button runs the same
+      <code>cli.py</code> command the terminal would, in a real process on this
+      machine. What it printed appears at the bottom of this tab, unedited.</p>
+    <div class="ctl">
+      <button class="btn" data-run="week"
+        title="Pull results and weights from ESPN, run the model, snapshot the week, write the stat pack and chart, rebuild this page, commit and push">Run the week</button>
+      <button class="btn ghost" data-run="refresh" title="Results, scores and ESPN weights only. Nothing is snapshotted.">Refresh from ESPN</button>
+      <button class="btn ghost" data-run="board" title="Run the model and print the board without saving anything">Run the model</button>
+      <button class="btn ghost" data-run="leverage">Rank remaining games</button>
+      <button class="btn ghost" data-run="rebuild" title="Write dashboard/index.html, the copy that works with the app closed">Rebuild the offline copy</button>
+    </div>
+  </div>
+
+  <div class="grid g2 mt">
+    <div class="card"><h3>The Sheet <span class="tag" id="ctlSheet"></span></h3>
+      <p class="muted tiny" style="line-height:1.6">The push writes <code>B2:M20</code>
+        and nothing else: column A keeps the week labels and column N onward keeps your
+        formulas. Preview first, it prints every row it would write.</p>
+      <div class="ctl">
+        <button class="btn ghost" data-run="push-preview">Preview the push</button>
+        <button class="btn danger" data-run="push-live"
+          data-confirm="Write B2:M20 now">Write to the Sheet</button>
+      </div>
+    </div>
+    <div class="card"><h3>CMS tables <span class="tag">seven tables</span></h3>
+      <p class="muted tiny" style="line-height:1.6">The tables Framer reads. Columns are
+        appended and never inserted, so a preview is worth reading before a write.</p>
+      <div class="ctl">
+        <button class="btn ghost" data-run="cms-preview">Preview</button>
+        <button class="btn ghost" data-run="cms-csv">Export CSVs</button>
+        <button class="btn danger" data-run="cms-live"
+          data-confirm="Write the tables now">Write the tables</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt"><h3>The season file <span class="tag" id="ctlGit"></span></h3>
+    <p class="muted tiny" style="line-height:1.6"><code>data/season_2026.json</code> is the
+      only thing here that cannot be rebuilt from anything else. Every run commits it and
+      sends it to GitHub; this is the button for when a push could not go out at the time.</p>
+    <div class="ctl">
+      <button class="btn ghost" data-run="backup">Save and back up</button>
+      <button class="btn ghost" id="ctlQuit" title="Stop the server. The page stays open but its buttons stop working.">Quit the app</button>
+    </div>
+    <div class="drop" id="ctlDrop">
+      <b>Load a pick sheet</b><br>Drop a CSV here, or click to choose one.
+      <span id="ctlOutstanding"></span>
+    </div>
+    <input type="file" id="ctlFile" accept=".csv,text/csv" hidden>
+  </div>
+
+  <pre class="log" id="ctlLog" hidden></pre>`;
+}
+
+function paintState(){
+  if(!STATE) return;
+  const sheet=document.getElementById('ctlSheet');
+  if(sheet) sheet.textContent = STATE.sheet && STATE.sheet.appsscript ? 'Apps Script ready'
+    : (STATE.sheet && STATE.sheet.credentials ? 'service account' : 'nothing configured');
+  const git=document.getElementById('ctlGit');
+  if(git){
+    const g=STATE.git||{};
+    git.textContent = !g.dirty && !g.ahead ? 'saved and pushed'
+      : [g.dirty?g.dirty+' uncommitted':'', g.ahead?g.ahead+' to push':'']
+        .filter(Boolean).join(', ');
+  }
+  const out=document.getElementById('ctlOutstanding'), miss=(STATE.season||{}).outstanding||[];
+  if(out) out.innerHTML = miss.length
+    ? `<br><span style="color:var(--amber)">Still waiting on ${miss.join(', ')}.</span>`
+    : `<br>All ${(STATE.season||{}).roster||12} sheets are in.`;
+}
+
+/* ---- wiring, once, for everything the control room renders later ---- */
+if(LIVE){
+  // A write that leaves this machine gets a second press rather than a browser
+  // dialog: the button says what it is about to do and waits five seconds.
+  document.body.addEventListener('click', e=>{
+    const b=e.target.closest('[data-run]'); if(!b || b.disabled) return;
+    const confirmText=b.dataset.confirm;
+    if(confirmText && !b.classList.contains('armed')){
+      const original=b.textContent;
+      b.classList.add('armed'); b.textContent=confirmText;
+      clearTimeout(b._arm);
+      b._arm=setTimeout(()=>{b.classList.remove('armed');b.textContent=original;},5000);
+      return;
+    }
+    if(b._arm){clearTimeout(b._arm);b.classList.remove('armed');}
+    run(b.dataset.run, null, b.textContent.trim());
+  });
+
+  document.body.addEventListener('click', e=>{
+    if(e.target.closest('#ctlDrop')) document.getElementById('ctlFile').click();
+    if(e.target.closest('#ctlQuit')){
+      fetch('/api/quit',{method:'POST',headers:{'X-FEP-Token':window.FEP_LIVE.token}})
+        .catch(()=>{});
+      logOut("The app is closed. This page is a viewer again until you\nreopen it from FEP.app.");
+      toast("Closed");
+    }
+  });
+
+  document.body.addEventListener('change', e=>{
+    if(e.target.id!=='ctlFile' || !e.target.files.length) return;
+    const file=e.target.files[0], reader=new FileReader();
+    reader.onload=()=>run('picks',{csv:reader.result}, 'Loading '+file.name);
+    reader.readAsText(file);
+    e.target.value='';
+  });
+
+  ['dragover','dragleave','drop'].forEach(type=>{
+    document.body.addEventListener(type, e=>{
+      const zone=e.target.closest('#ctlDrop'); if(!zone) return;
+      e.preventDefault();
+      zone.classList.toggle('over', type==='dragover');
+      if(type!=='drop') return;
+      const file=(e.dataTransfer.files||[])[0]; if(!file) return;
+      const reader=new FileReader();
+      reader.onload=()=>run('picks',{csv:reader.result}, 'Loading '+file.name);
+      reader.readAsText(file);
+    });
+  });
+
+  const rb=document.getElementById('runBtn');
+  rb.className='btn'; rb.textContent='Run the week'; rb.dataset.run='week';
+  rb.title='ESPN, the model, the snapshot, the stat pack, the chart, this page, and git';
+
+  fetch('/api/state').then(r=>r.json()).then(s=>{STATE=s;paintState();}).catch(()=>{});
+}
+
 document.getElementById('nav').onclick = e => {
   const b = e.target.closest('button[data-v]'); if(!b) return; show(b.dataset.v);
 };
@@ -559,6 +780,9 @@ function show(v){
   document.getElementById('hTitle').textContent=VIEW_META[v][0];
   document.getElementById('hSub').textContent=`${D.year} FEP · Week ${D.week} · ${VIEW_META[v][1]}`;
   document.querySelector('.scroll').scrollTop=0;
+  // A run reloads the page to pick up the new season file, so the tab you were
+  // on has to survive in the one place a reload cannot clear.
+  try{history.replaceState(null,'','#'+v);}catch(_){}
 }
 addEventListener('keydown',e=>{
   if(e.target.matches('input,textarea')) return;
@@ -655,13 +879,15 @@ function rankAt(week,name){
     </div>
   </div>
 
+  ${LIVE ? controlPanel() : `
   <div class="attn" style="opacity:.75">
     <div class="amark" style="background:#2A3035;color:var(--muted)">i</div>
     <div><div class="t">This page is a viewer, not a runner</div>
       <div class="d">It shows the data that was baked into it when it was built. Fetching
       from ESPN, refreshing weights, saving a snapshot, publishing the chart and pushing to
-      the Sheet all happen in <code>cli.py</code>, and none of them run from this page.</div></div>
-  </div>
+      the Sheet all happen in <code>cli.py</code>, and none of them run from this page.
+      Open it through <code>FEP.app</code> and these become buttons.</div></div>
+  </div>`}
 
   ${attention.map(a=>`<div class="attn">
       <div class="amark">!</div>
@@ -1060,7 +1286,12 @@ document.getElementById('v-chart').innerHTML=`
       <p class="muted tiny" style="margin-top:12px;line-height:1.6">Each week is its own immutable file, so an old newsletter can never start showing future data.</p>
     </div>
   </div>`;
-  document.getElementById('pushBtn').onclick=()=>copy("python3 cli.py push --live","Push command copied");
+  // Live, this is the real write and it arms before it fires. As a file it can
+  // still only hand over the command.
+  const pb=document.getElementById('pushBtn');
+  if(LIVE){ pb.className='btn danger'; pb.textContent='Write to the Sheet';
+    pb.dataset.run='push-live'; pb.dataset.confirm='Write B2:M20 now'; }
+  else pb.onclick=()=>copy("python3 cli.py push --live","Push command copied");
   document.getElementById('pasteBtn').onclick=()=>copy(rows.map(r=>r.join('\t')).join('\n'),"Paste block copied");
 })();
 
@@ -1168,9 +1399,14 @@ document.getElementById('drawer').addEventListener('keydown', e=>{
 document.getElementById('scrim').onclick=closeDrawer;
 document.body.addEventListener('click',e=>{const n=e.target.closest('[data-n]');if(n)openDrawer(n.dataset.n);});
 
-// This page cannot run the model; it hands over the command that can.
-document.getElementById('runBtn').onclick=()=>
+// Served, the header button runs the week (wired in the live layer above).
+// Opened as a file it can only hand over the command that would.
+if(!LIVE) document.getElementById('runBtn').onclick=()=>
   copy(`python3 cli.py week && python3 cli.py dashboard`,"Rebuild command copied");
+
+// Every view has rendered by now, so a tab remembered from before a reload can
+// be restored without racing whatever was still painting itself.
+(function(){const v=(location.hash||'').replace('#','');if(VIEW_META[v])show(v);})();
 </script>
 <script id="chartJs">__CHART__</script>
 </body>

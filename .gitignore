@@ -17,3 +17,7 @@ dashboard/index.html
 
 # generated CSV exports, regenerate with: python3 cli.py cms --csv
 exports/
+
+# The dashboard payload is a cache of the model, not a source of truth.
+# Rebuilt whenever the season file or the code that reads it changes.
+data/dashboard_cache/

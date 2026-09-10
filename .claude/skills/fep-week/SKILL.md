@@ -14,21 +14,33 @@ see the `fep-dev` skill. For newsletter *writing*, see `fep-master`.
 
 ## The normal week
 
-Almost always this is one action: **double-click the FEP Week icon** in the
-Dock, or `~/Desktop/FEP Week.command`.
+Two icons do the same week, and which one to use depends on whether you want to
+watch it happen or just have it done.
 
-It runs `scripts/fep-week.command`, which does four things in order:
+**The FEP icon** opens the dashboard as an application, and the week is the
+button in its top right. The page stays open afterwards showing the board the
+run produced, and the rest of the week -- the Sheet push, the CMS tables, a
+late pick sheet -- is a button in its Build & share tab. This is the one to
+reach for when there is any chance you will want to look at something or push
+somewhere afterwards.
+
+**The FEP Week icon** runs the week unattended in a Terminal window and opens
+the finished dashboard at the end. Nothing to click, nothing to leave running.
+
+Both do the same four things in order, and neither is doing them itself: they
+run `cli.py`, which is the only implementation there is.
 
 1. `cli.py week` -- pull results, scores and ESPN matchup-predictor weights,
    run the model pinned to that NFL week, freeze a snapshot, write the stat pack
    and chart, publish the week's chart data
 2. `cli.py dashboard` -- rebuild the single-file dashboard
 3. commit the season file and push it to GitHub
-4. open the dashboard
+4. show the dashboard
 
-A Terminal window shows the run. On failure it prints what went wrong and waits
-for a keypress, so an error cannot scroll past unread. Success ends with the
-dashboard opening in the browser.
+A failed step stops the ones after it, so a run that could not finish is never
+the run that gets committed and pushed. In the app the output of every step
+appears in the page; in the Terminal window it waits for a keypress, so an
+error cannot scroll past unread.
 
 The equivalent by hand, if something needs doing step by step:
 
