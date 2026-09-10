@@ -13,6 +13,8 @@ cli.py's and is tested where it lives.
   TestPaths            the asset route cannot be walked out of
   TestRendering        a page built to a file never claims to have a server
   TestOffline          the built copy still works with nothing behind it
+  TestBackupHonesty    a backup that failed must not report success, and must
+                       stage only what the run itself wrote
 """
 
 from __future__ import annotations
@@ -570,6 +572,147 @@ class TestProse(unittest.TestCase):
                 text = fh.read()
             self.assertNotIn("—", text, path)
             self.assertNotIn("–", text, path)
+
+
+# ---------------------------------------------------------------------------
+# September 2026, finding 4: a failed backup could report success
+# ---------------------------------------------------------------------------
+
+class TestBackupHonesty(unittest.TestCase):
+    """The page said the week was on GitHub when nothing had been committed.
+
+    `git add` was unchecked and a failed `git commit` was only logged; with
+    nothing then waiting ahead of origin/main the next branch returned success.
+    So an index lock read as a finished, archived week.
+    """
+
+    def setUp(self):
+        self.calls = []
+        self.original = serve._git
+        self.manifest = serve.manifest.read
+
+    def tearDown(self):
+        serve._git = self.original
+        serve.manifest.read = self.manifest
+
+    def fake_git(self, **fail):
+        """A git that answers plausibly, failing whichever verbs are named."""
+        def run(*args):
+            self.calls.append(args)
+            verb = args[0]
+            if verb in fail:
+                return 1, fail[verb]
+            if verb == "status":
+                return 0, " M data/season_2026.json"
+            if verb == "log":
+                return 0, ""          # nothing waiting: the dangerous case
+            return 0, ""
+        serve._git = run
+
+    def test_a_failed_stage_is_a_failure(self):
+        self.fake_git(add="fatal: Unable to create '.git/index.lock': File exists.")
+        result = serve._backup()
+        self.assertFalse(result["ok"])
+        self.assertIn("stage", result["error"])
+        self.assertIn("index.lock", result["log"])
+
+    def test_a_failed_stage_never_reaches_the_commit(self):
+        self.fake_git(add="fatal: index.lock")
+        serve._backup()
+        self.assertNotIn("commit", [c[0] for c in self.calls])
+
+    def test_a_failed_commit_is_not_reported_as_up_to_date(self):
+        # Codex's reproduction, exactly: commit fails, nothing is ahead of
+        # origin/main, and the old code returned ok=True saying GitHub had it.
+        self.fake_git(commit="fatal: Unable to create '.git/index.lock': File exists.")
+        result = serve._backup()
+        self.assertFalse(result["ok"])
+        self.assertNotIn("up to date", result["log"])
+        self.assertIn("Nothing was committed", result["log"])
+
+    def test_a_failed_commit_never_reaches_the_push(self):
+        self.fake_git(commit="fatal: index.lock")
+        serve._backup()
+        self.assertNotIn("push", [c[0] for c in self.calls])
+
+    def test_being_unable_to_see_github_is_not_being_up_to_date(self):
+        self.fake_git(log="fatal: bad revision 'origin/main'")
+        result = serve._backup()
+        self.assertFalse(result["ok"])
+        self.assertIn("compare", result["error"])
+
+    def test_a_clean_tree_is_still_success(self):
+        def run(*args):
+            self.calls.append(args)
+            return 0, ""      # nothing dirty, nothing ahead
+        serve._git = run
+        result = serve._backup()
+        self.assertTrue(result["ok"])
+        self.assertIn("Nothing new to commit", result["log"])
+
+
+class TestBackupStagesOnlyTheRun(unittest.TestCase):
+    """Staging three whole directories can commit another session's work."""
+
+    def setUp(self):
+        self.original = serve.manifest.read
+
+    def tearDown(self):
+        serve.manifest.read = self.original
+
+    def test_the_run_manifest_decides_what_is_staged(self):
+        serve.manifest.read = lambda: {
+            "week": 4, "paths": ["data/season_2026.json",
+                                 "newsletters/week-04/statpack.md"]}
+        self.assertEqual(serve._backup_paths(),
+                         ["data/season_2026.json",
+                          "newsletters/week-04/statpack.md"])
+
+    def test_without_a_manifest_it_falls_back_to_the_directories(self):
+        serve.manifest.read = lambda: None
+        self.assertEqual(serve._backup_paths(), list(serve.BACKUP_PATHS))
+
+    def test_an_empty_manifest_falls_back_rather_than_staging_nothing(self):
+        serve.manifest.read = lambda: {"week": 4, "paths": []}
+        self.assertEqual(serve._backup_paths(), list(serve.BACKUP_PATHS))
+
+
+class TestRunManifest(unittest.TestCase):
+    """What the run wrote down about itself."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.path = os.path.join(self.dir, "last_run.json")
+
+    def tearDown(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def test_paths_are_recorded_relative_to_the_repository(self):
+        target = os.path.join(ROOT, "cli.py")
+        serve.manifest.write(4, [target], path=self.path)
+        self.assertEqual(serve.manifest.read(self.path)["paths"], ["cli.py"])
+
+    def test_a_path_that_no_longer_exists_is_dropped(self):
+        serve.manifest.write(4, [os.path.join(ROOT, "cli.py")], path=self.path)
+        with open(self.path) as fh:
+            data = json.load(fh)
+        data["paths"].append("newsletters/week-99/gone.md")
+        with open(self.path, "w") as fh:
+            json.dump(data, fh)
+        self.assertEqual(serve.manifest.read(self.path)["paths"], ["cli.py"])
+
+    def test_a_corrupt_manifest_is_ignored_rather_than_raised(self):
+        with open(self.path, "w") as fh:
+            fh.write("{not json")
+        self.assertIsNone(serve.manifest.read(self.path))
+
+    def test_a_missing_manifest_is_ignored(self):
+        self.assertIsNone(serve.manifest.read(self.path))
+
+    def test_a_manifest_that_cannot_be_written_is_not_fatal(self):
+        # A run that has already succeeded must not fail over its own notes.
+        self.assertIsNone(
+            serve.manifest.write(4, ["cli.py"], path="/nope/last_run.json"))
 
 
 if __name__ == "__main__":

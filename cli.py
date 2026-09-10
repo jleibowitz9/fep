@@ -30,7 +30,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from fep import (analytics, chart, engine, espn, history, publish,
+from fep import (analytics, chart, engine, espn, history, manifest, publish,
                  season as season_mod, sheets, statpack)
 
 YEAR = int(os.environ.get("FEP_YEAR", "2026"))
@@ -151,7 +151,7 @@ def cmd_week(argv):
     board = season_mod.run(season, through_week=week)
     entry, status = season_mod.snapshot(season, week, board,
                                         correction=correction)
-    season_mod.save(season)
+    season_path = season_mod.save(season)
 
     pack = analytics.full_pack(season, board, week, through_week=week)
 
@@ -165,6 +165,11 @@ def cmd_week(argv):
 
     published = publish.publish_from_season(season, week=week,
                                             correction=correction)
+
+    # Write down exactly what this run produced, so whatever archives it stages
+    # these files rather than three whole directories that may also be holding
+    # somebody else's work in progress.
+    manifest.write(week, [season_path, pack_path, chart_path] + list(published))
 
     print("\n{} FEP | Week {}{}{}".format(
         YEAR, week, "  (bye week)" if pack["is_bye"] else "",

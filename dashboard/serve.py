@@ -44,7 +44,8 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 
 import cli  # noqa: E402  (needs ROOT on the path first)
-from fep import espn, engine, history, season as season_mod, sheets  # noqa: E402
+from fep import (espn, engine, history, manifest,  # noqa: E402
+                 season as season_mod, sheets)
 
 YEAR = cli.YEAR
 DEFAULT_PORT = int(os.environ.get("FEP_PORT", "8765"))
@@ -226,6 +227,20 @@ def _git(*args):
     return done.returncode, (done.stdout + done.stderr).strip()
 
 
+def _backup_paths():
+    """The files to archive: the run's own, or the directories as a fallback.
+
+    A manifest names exactly what the last run wrote. Without one -- a run from
+    before manifests existed, or a bare "Save to git" press with no run behind
+    it -- fall back to the directories, which is the old behaviour and still
+    better than nothing.
+    """
+    recorded = manifest.read()
+    if recorded and recorded["paths"]:
+        return recorded["paths"]
+    return list(BACKUP_PATHS)
+
+
 def _backup(payload=None):
     """Commit the run's outputs and send them to GitHub.
 
@@ -233,22 +248,47 @@ def _backup(payload=None):
     here so that finishing a week from the page leaves the same trail as
     finishing one from the terminal, rather than a season file that only exists
     on this laptop.
+
+    EVERY STEP IS CHECKED
+    ---------------------
+    This used to discard the result of `git add` and treat a failed `git commit`
+    as merely something to log. With nothing then waiting ahead of origin/main,
+    the next branch reported "GitHub is already up to date" and returned
+    success -- so an index lock, or a full disk, read on the page as a finished,
+    archived week. A backup that cannot say truthfully whether it worked is
+    worse than no backup, because it stops you checking.
     """
     log = []
-    code, dirty = _git("status", "--porcelain", *BACKUP_PATHS)
+    paths = _backup_paths()
+    code, dirty = _git("status", "--porcelain", *paths)
     if code != 0:
         return Result(ok=False, error="git could not read the tree.", log=dirty)
 
     if dirty.strip():
-        _git("add", *BACKUP_PATHS)
+        code, out = _git("add", *paths)
+        if code != 0:
+            log.append(out)
+            return Result(ok=False, error="git could not stage the run.",
+                          log="\n".join(log))
         code, out = _git("commit", "-q", "-m",
                          "The weekly run, {}".format(time.strftime("%Y-%m-%d")))
-        log.append("Committed the run." if code == 0 else out)
+        if code != 0:
+            log.append(out)
+            log.append("Nothing was committed, so nothing was pushed.")
+            return Result(ok=False, error="git could not commit the run.",
+                          log="\n".join(log))
+        log.append("Committed {} path(s).".format(len(paths)))
     else:
         log.append("Nothing new to commit.")
 
     code, ahead = _git("log", "origin/main..HEAD", "--oneline")
-    if code != 0 or not ahead.strip():
+    if code != 0:
+        # Cannot see origin/main, so cannot know whether anything is waiting.
+        # Saying "up to date" here would be the same lie in a quieter place.
+        log.append(ahead)
+        return Result(ok=False, error="git could not compare against GitHub.",
+                      log="\n".join(log))
+    if not ahead.strip():
         log.append("GitHub is already up to date.")
         return Result(ok=True, error=None, log="\n".join(log))
 
@@ -400,7 +440,7 @@ def _state():
         "appsscript": sheets.appsscript_available(),
         "credentials": sheets.credentials_available(),
     }
-    code, dirty = _git("status", "--porcelain", *BACKUP_PATHS)
+    code, dirty = _git("status", "--porcelain", *_backup_paths())
     ahead_code, ahead = _git("log", "origin/main..HEAD", "--oneline")
     state["git"] = {
         "dirty": len([l for l in dirty.splitlines() if l.strip()]) if code == 0 else 0,

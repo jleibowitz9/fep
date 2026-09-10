@@ -32,10 +32,27 @@ python3 cli.py dashboard || pause_and_exit "The board updated, but the dashboard
 
 # The season file is the one thing here that cannot be regenerated, so every
 # run is recorded and sent off the machine. Only the run's own outputs are
-# staged: anything half-finished elsewhere in the tree stays where it is.
-if [ -n "$(git status --porcelain data newsletters chart-data 2>/dev/null)" ]; then
-  git add data newsletters chart-data
-  git commit -q -m "The weekly run, $(date '+%Y-%m-%d')" && echo "  saved to git"
+# staged, and it is the run that says which those are: staging the three
+# directories whole would sweep up whatever another session had part-finished
+# in them. Without a manifest -- an older run, or a failure before it was
+# written -- fall back to the directories, which is what this always did.
+PATHS="$(python3 -c 'from fep import manifest
+m = manifest.read()
+print(" ".join(m["paths"]) if m and m["paths"] else "data newsletters chart-data")' 2>/dev/null)"
+[ -z "$PATHS" ] && PATHS="data newsletters chart-data"
+
+# Every step is checked. This used to run `git commit ... && echo saved`, which
+# printed nothing at all on failure and carried straight on to the push, so a
+# run that committed nothing looked exactly like one that had.
+if [ -n "$(git status --porcelain $PATHS 2>/dev/null)" ]; then
+  if ! git add $PATHS; then
+    pause_and_exit "The run finished, but git could not stage it. Nothing was saved."
+  fi
+  if git commit -q -m "The weekly run, $(date '+%Y-%m-%d')"; then
+    echo "  saved to git"
+  else
+    pause_and_exit "The run finished, but git could not commit it. Nothing was saved."
+  fi
 fi
 
 # This is a personal repo, but the machine's active gh account is the work one,
