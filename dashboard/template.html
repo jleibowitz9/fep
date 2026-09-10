@@ -613,6 +613,8 @@ function runLabel(){
 function setBusy(on,label){
   BUSY=on;
   document.querySelectorAll('[data-run]').forEach(b=>{b.disabled=on;});
+  // Re-enabling every button afterwards would re-open the ones health closed.
+  if(!on) paintHealth();
   const rb=document.getElementById('runBtn');
   if(rb && rb.dataset.run) rb.innerHTML = on
     ? `<span class="spin"></span>${label||'Working'}`
@@ -666,14 +668,26 @@ function controlPanel(){
     </div>
   </div>
 
+  <div class="card mt"><h3>The deployments <span class="tag" id="ctlSheet"></span></h3>
+    <p class="muted tiny" style="line-height:1.6">Editing
+      <code>appsscript/Code.gs</code> does not deploy it, so the code in this
+      checkout and the code Google is running can differ with nothing to show
+      for it. This asks them. Until it has been asked, the answer is not known
+      -- a config file on this laptop is not a fact about a spreadsheet.</p>
+    <div id="ctlHealth" class="muted tiny" style="line-height:1.8"></div>
+    <div class="ctl">
+      <button class="btn ghost" data-run="health">Check the deployments</button>
+    </div>
+  </div>
+
   <div class="grid g2 mt">
-    <div class="card"><h3>The Sheet <span class="tag" id="ctlSheet"></span></h3>
+    <div class="card"><h3>The Sheet <span class="tag" id="ctlSheetTag"></span></h3>
       <p class="muted tiny" style="line-height:1.6">The push writes <code>B2:M20</code>
         and nothing else: column A keeps the week labels and column N onward keeps your
         formulas. Preview first, it prints every row it would write.</p>
       <div class="ctl">
         <button class="btn ghost" data-run="push-preview">Preview the push</button>
-        <button class="btn danger" data-run="push-live"
+        <button class="btn danger" data-run="push-live" data-needs="legacy"
           data-confirm="Write B2:M20 now">Write to the Sheet</button>
       </div>
     </div>
@@ -683,7 +697,7 @@ function controlPanel(){
       <div class="ctl">
         <button class="btn ghost" data-run="cms-preview">Preview</button>
         <button class="btn ghost" data-run="cms-csv">Export CSVs</button>
-        <button class="btn danger" data-run="cms-live"
+        <button class="btn danger" data-run="cms-live" data-needs="cms"
           data-confirm="Write the tables now">Write the tables</button>
       </div>
     </div>
@@ -707,13 +721,77 @@ function controlPanel(){
   <pre class="log" id="ctlLog" hidden></pre>`;
 }
 
+// What each deployment is actually running.
+//
+// The old version of this said "Apps Script ready" whenever a credentials file
+// existed on this laptop, which is a claim about this disk wearing the clothes
+// of a claim about Google. Two silent divergences came out of that gap, so
+// nothing here is inferred: unchecked says unchecked, and the buttons that
+// reach a spreadsheet stay shut until the check has actually been run.
+const DEPLOY_NAMES={legacy:'Legacy sheet', cms:'CMS tables'};
+
+function deployment(name){
+  return ((STATE&&STATE.sheet&&STATE.sheet.deployments)||[])
+    .find(d=>d.name===name);
+}
+
+function paintHealth(){
+  const s=(STATE||{}).sheet||{};
+  const tag=document.getElementById('ctlSheet');
+  const tag2=document.getElementById('ctlSheetTag');
+  const panel=document.getElementById('ctlHealth');
+
+  if(!s.checked){
+    const label = s.configured ? 'not checked yet' : 'nothing configured';
+    if(tag) tag.textContent=label;
+    if(tag2) tag2.textContent=label;
+    if(panel) panel.innerHTML = s.configured
+      ? `<span class="muted">Press Check the deployments to find out what Google is
+         running. Writing to a spreadsheet stays closed until then.</span>`
+      : `<span style="color:var(--amber)">No Apps Script config on this machine.</span>`;
+  } else {
+    const rows=s.deployments||[];
+    const stale=rows.filter(d=>d.configured&&!d.current).length;
+    const label = !rows.length ? 'nothing configured'
+      : stale ? `${stale} need${stale===1?'s':''} redeploying` : 'both current';
+    if(tag) tag.textContent=label;
+    if(tag2){
+      const legacy=deployment('legacy');
+      tag2.textContent = !legacy||!legacy.configured ? 'not configured'
+        : legacy.current ? 'current' : 'needs redeploying';
+    }
+    if(panel) panel.innerHTML = rows.map(d=>{
+      const name=DEPLOY_NAMES[d.name]||d.name;
+      if(!d.configured) return `<div><b>${name}</b> &mdash; <span class="muted">not configured</span></div>`;
+      if(!d.reachable)  return `<div><b>${name}</b> &mdash; <span style="color:var(--red,#e5534b)">did not answer</span></div>`;
+      if(d.current)     return `<div><b>${name}</b> &mdash; <span style="color:var(--green,#3fb950)">running ${d.version}</span></div>`;
+      const running = d.version || 'an older version, with no version stamp';
+      return `<div><b>${name}</b> &mdash; <span style="color:var(--amber)">running ${running},
+              this checkout is ${d.local}</span></div>`;
+    }).join('') + (stale
+      ? `<div class="muted" style="margin-top:.5em">Editing <code>Code.gs</code> does not
+         deploy it. Paste it into the editor, save, then Deploy &gt; Manage deployments
+         &gt; edit &gt; Version: New version.</div>`
+      : '');
+  }
+
+  // A write to a stale deployment is the thing the version check exists to
+  // stop. Shut the button rather than letting it fail at the far end.
+  document.querySelectorAll('[data-needs]').forEach(b=>{
+    const d=deployment(b.dataset.needs);
+    const ok = s.checked && d && d.configured && d.current;
+    b.disabled = !ok;
+    b.title = ok ? '' : (s.checked
+      ? 'That deployment is not running this checkout. Redeploy it first.'
+      : 'Check the deployments first.');
+  });
+}
+
 function paintState(){
   if(!STATE) return;
   if(!BUSY) document.querySelectorAll('[data-run="week"]')
     .forEach(b=>{b.textContent=runLabel();});
-  const sheet=document.getElementById('ctlSheet');
-  if(sheet) sheet.textContent = STATE.sheet && STATE.sheet.appsscript ? 'Apps Script ready'
-    : (STATE.sheet && STATE.sheet.credentials ? 'service account' : 'nothing configured');
+  paintHealth();
   const git=document.getElementById('ctlGit');
   if(git){
     const g=STATE.git||{};

@@ -198,10 +198,47 @@ Error: the deployment is running an older version (no version stamp)
 but this checkout is 2026.09.07-a.
 ```
 
-To redeploy: paste `appsscript/Code.gs`, save, then **Deploy > Manage
-deployments > edit > Version: New version**. Editing an existing deployment
-keeps the URL; a *new* deployment gives you a different one, which then has to
-go into `credentials/appsscript.json`.
+Both writers check this now. The CMS writer always did; the weekly percentage
+push did not, and that was the one that runs every week.
+
+### Which deployments, and how to tell
+
+There are **two**, and `credentials/appsscript.json` names both:
+
+| Config key | Spreadsheet | Written by |
+|---|---|---|
+| `url` | the legacy one published newsletters still read | `cli.py push` |
+| `cms_url` | the CMS tables Framer reads | `cli.py cms` |
+
+They are separate deployments in separate spreadsheets, so **redeploying one
+does not redeploy the other**. A `Code.gs` change means doing this twice.
+
+To see where they stand without pushing anything, press **Check the
+deployments** in the dashboard's Run tab, or:
+
+```bash
+cd "/Users/jacobleibowitz/FEP Data Center/2026" && python3 -c "from fep import sheets; [print(d) for d in sheets.deployment_health()]"
+```
+
+The dashboard keeps the two write buttons shut until that check has been run
+and passes. It never infers readiness from a config file existing on this
+laptop -- that is a fact about this disk, not about a spreadsheet.
+
+### The redeploy itself
+
+Per spreadsheet:
+
+1. Open the spreadsheet, then **Extensions > Apps Script**.
+2. Paste the current `appsscript/Code.gs` over what is there, and save.
+3. **Deploy > Manage deployments**, then the pencil on the existing deployment.
+4. Set **Version: New version**, then Deploy.
+
+Step 4 is the one that is easy to skip, and skipping it is the entire failure
+this check exists to catch: saving in the editor changes nothing about what the
+web app serves.
+
+Edit the *existing* deployment. A **new** deployment gives you a different URL,
+which then has to go into `credentials/appsscript.json`.
 
 ## Frozen tables, and correcting one
 

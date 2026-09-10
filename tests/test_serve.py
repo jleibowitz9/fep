@@ -15,6 +15,8 @@ cli.py's and is tested where it lives.
   TestOffline          the built copy still works with nothing behind it
   TestBackupHonesty    a backup that failed must not report success, and must
                        stage only what the run itself wrote
+  TestDeploymentHealth the page said "Apps Script ready" because a file existed
+                       on this laptop, which is not a fact about a spreadsheet
 """
 
 from __future__ import annotations
@@ -713,6 +715,110 @@ class TestRunManifest(unittest.TestCase):
         # A run that has already succeeded must not fail over its own notes.
         self.assertIsNone(
             serve.manifest.write(4, ["cli.py"], path="/nope/last_run.json"))
+
+
+# ---------------------------------------------------------------------------
+# September 2026, finding 1: readiness was inferred from a file existing
+# ---------------------------------------------------------------------------
+
+class TestDeploymentHealth(unittest.TestCase):
+    """Nothing about a deployment is inferred; it is asked, or it is unknown."""
+
+    def setUp(self):
+        self.health = serve.sheets.deployment_health
+        serve._health_memo.update(at=0.0, data=None)
+
+    def tearDown(self):
+        serve.sheets.deployment_health = self.health
+        serve._health_memo.update(at=0.0, data=None)
+
+    def stub(self, *rows):
+        serve.sheets.deployment_health = lambda *a, **k: list(rows)
+
+    def row(self, name, **over):
+        base = {"name": name, "configured": True, "reachable": True,
+                "version": "2026.09.09-a", "local": "2026.09.09-a",
+                "current": True, "error": None, "checked_at": "now"}
+        base.update(over)
+        return base
+
+    def test_unchecked_is_reported_as_unchecked(self):
+        # Never "ready". The old page said that whenever a config file existed.
+        state = serve._health_state()
+        self.assertFalse(state["checked"])
+        self.assertEqual(state["deployments"], [])
+
+    def test_the_state_never_probes_the_network_on_its_own(self):
+        serve.sheets.deployment_health = lambda *a, **k: self.fail(
+            "a page load must not wait on Google")
+        serve._health_state()
+
+    def test_a_check_fills_the_state_in(self):
+        self.stub(self.row("legacy"), self.row("cms"))
+        serve._health()
+        state = serve._health_state()
+        self.assertTrue(state["checked"])
+        self.assertEqual([d["name"] for d in state["deployments"]],
+                         ["legacy", "cms"])
+
+    def test_a_stale_check_is_not_believed(self):
+        self.stub(self.row("legacy"))
+        serve._health()
+        serve._health_memo["at"] -= serve.HEALTH_TTL + 1
+        self.assertFalse(serve._health_state()["checked"])
+
+    def test_a_deployment_with_no_version_stamp_is_named_as_older(self):
+        self.stub(self.row("legacy", version=None, current=False))
+        result = serve._health()
+        self.assertIn("no version stamp", result["log"])
+        self.assertIn("Manage deployments", result["log"])
+
+    def test_a_deployment_that_did_not_answer_is_told_apart_from_a_stale_one(self):
+        # Different problems, different first thing to try.
+        self.stub(self.row("cms", reachable=False, version=None, current=False,
+                           error="URLError: timed out"))
+        self.assertIn("did not answer", serve._health()["log"])
+
+    def test_a_current_pair_says_so_and_asks_for_nothing(self):
+        self.stub(self.row("legacy"), self.row("cms"))
+        log = serve._health()["log"]
+        self.assertIn("running 2026.09.09-a", log)
+        self.assertNotIn("redeploying", log)
+
+    def test_checking_writes_nothing_so_it_asks_for_no_confirmation(self):
+        self.assertIn("health", serve.ACTIONS)
+        self.assertNotIn("health", serve.CONFIRM)
+
+
+class TestTheWeeklyPushIsGuardedToo(unittest.TestCase):
+    """The CMS writer checked the deployment version; the weekly push did not.
+
+    The unguarded one is the path that runs every week.
+    """
+
+    def setUp(self):
+        self.season = serve.season_mod.load(2026)
+        self.probe = serve.sheets.deployed_code_version
+
+    def tearDown(self):
+        serve.sheets.deployed_code_version = self.probe
+
+    def test_a_stale_deployment_refuses_the_weekly_push(self):
+        serve.sheets.deployed_code_version = lambda *a, **k: "2020.01.01-a"
+        with self.assertRaises(serve.sheets.SheetError) as caught:
+            serve.sheets.push_via_appsscript(self.season)
+        self.assertIn("does not redeploy", str(caught.exception))
+
+    def test_a_deployment_with_no_stamp_refuses_the_weekly_push(self):
+        serve.sheets.deployed_code_version = lambda *a, **k: None
+        with self.assertRaises(serve.sheets.SheetError):
+            serve.sheets.push_via_appsscript(self.season)
+
+    def test_a_dry_run_never_asks_the_network(self):
+        serve.sheets.deployed_code_version = lambda *a, **k: self.fail(
+            "a preview must not reach outside this machine")
+        result = serve.sheets.push_via_appsscript(self.season, dry_run=True)
+        self.assertTrue(result["dry_run"])
 
 
 if __name__ == "__main__":

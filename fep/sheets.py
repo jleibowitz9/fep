@@ -48,6 +48,7 @@ import csv
 import io
 import os
 import re
+import time
 from typing import Dict, List, Optional, Sequence
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -409,6 +410,12 @@ def push_via_appsscript(season: dict, config_path: str = APPSSCRIPT_CONFIG,
                 "rows": len(rows), "columns": bounds["width"], "values": rows}
 
     config = load_appsscript_config(config_path)
+    # The same guard the CMS writer has had all along. This is the path that
+    # runs every week, and it was the unguarded one: editing Code.gs does not
+    # redeploy it, so the code here and the code running can differ with no
+    # visible sign, and a stale deployment silently rewrote rows a newer guard
+    # would have refused.
+    assert_deployment_current(config["url"])
     payload["token"] = config["token"]
     result = _call_appsscript(config["url"], payload)
     return {
@@ -477,15 +484,36 @@ def local_code_version(path: str = CODE_GS) -> Optional[str]:
     return match.group(1) if match else None
 
 
-def deployed_code_version(url: str, timeout: float = 60.0) -> Optional[str]:
-    """The CODE_VERSION the deployment is actually running."""
+def deployed_code_version(url: str, timeout: float = 60.0,
+                          attempts: int = 2) -> Optional[str]:
+    """The CODE_VERSION the deployment is actually running.
+
+    Tried more than once. An Apps Script web app that has not been called
+    recently is cold and can take seconds to wake, and a single short attempt
+    reports a perfectly healthy deployment as dead -- which is exactly what
+    happened during the September review, and a check that cries wolf is a
+    check that gets ignored.
+
+    None means "did not answer, or answered without a version". The two are
+    genuinely different and `deployment_health` tells them apart; this function
+    is only asked for the version.
+    """
+    return _probe(url, timeout=timeout, attempts=attempts)[0]
+
+
+def _probe(url: str, timeout: float = 60.0, attempts: int = 2):
+    """(version, error) from a deployment's health endpoint."""
     import json as _json
     import urllib.request
-    try:
-        with urllib.request.urlopen(url + "?v=1", timeout=timeout) as response:
-            return (_json.loads(response.read().decode()) or {}).get("version")
-    except Exception:
-        return None
+    error = None
+    for attempt in range(max(1, attempts)):
+        try:
+            with urllib.request.urlopen(url + "?v=1", timeout=timeout) as response:
+                body = _json.loads(response.read().decode()) or {}
+            return body.get("version"), None
+        except Exception as exc:  # noqa: BLE001  any failure is "did not answer"
+            error = "{}: {}".format(type(exc).__name__, exc)
+    return None, error
 
 
 def assert_deployment_current(url: str) -> None:
@@ -510,6 +538,53 @@ def assert_deployment_current(url: str) -> None:
         "  Version: New version.".format(
             "an older version (no version stamp)" if live is None else live,
             local))
+
+
+def deployment_health(config_path: str = APPSSCRIPT_CONFIG,
+                      timeout: float = 30.0) -> List[dict]:
+    """What each configured deployment is actually running, right now.
+
+    `appsscript_available()` answers a much smaller question -- is there a
+    config file on this disk -- and the dashboard was reading that as
+    "Apps Script ready". A credentials file says nothing about whether either
+    deployment answers, or whether it is running the code in this checkout. Two
+    silent divergences have already come out of that gap.
+
+    Reachable and current are kept apart on purpose. A deployment that does not
+    answer needs a different fix from one answering with last month's code, and
+    a panel that renders both as a red light will get the wrong one tried first.
+    """
+    local = local_code_version()
+    try:
+        config = load_appsscript_config(config_path)
+    except SheetError as exc:
+        return [{"name": "config", "configured": False, "reachable": False,
+                 "version": None, "local": local, "current": False,
+                 "error": str(exc), "checked_at": time.strftime("%Y-%m-%dT%H:%M:%S")}]
+
+    out = []
+    for name, url_key in (("legacy", "url"), ("cms", "cms_url")):
+        url = config.get(url_key)
+        if not url:
+            out.append({"name": name, "configured": False, "reachable": False,
+                        "version": None, "local": local, "current": False,
+                        "error": None,
+                        "checked_at": time.strftime("%Y-%m-%dT%H:%M:%S")})
+            continue
+        version, error = _probe(url, timeout=timeout)
+        out.append({
+            "name": name,
+            "configured": True,
+            "reachable": error is None,
+            "version": version,
+            "local": local,
+            # Unknown is not current. A deployment with no version stamp at all
+            # is running code from before the stamp existed.
+            "current": bool(local) and version == local,
+            "error": error,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        })
+    return out
 
 
 def table_config(config_path: str = APPSSCRIPT_CONFIG) -> dict:

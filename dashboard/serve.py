@@ -313,6 +313,52 @@ def _backup(payload=None):
     return Result(ok=False, error="The push was refused.", log="\n".join(log))
 
 
+# The last deployment check, and how long it stays worth believing. A
+# deployment does not change under you often, but it changes exactly when
+# someone redeploys it, which is precisely when this is being watched.
+_health_memo = {"at": 0.0, "data": None}
+HEALTH_TTL = 300.0
+
+
+def _health_state():
+    """The cached deployment check, in the shape the page renders."""
+    data = _health_memo["data"]
+    if not data or (time.time() - _health_memo["at"]) > HEALTH_TTL:
+        return {"checked": False, "deployments": []}
+    return {"checked": True, "deployments": data,
+            "checked_age": int(time.time() - _health_memo["at"])}
+
+
+def _health(payload=None):
+    """Ask both deployments what they are actually running.
+
+    Its own button rather than something the page does on load, because it is
+    two network calls to Google and either can be slow to wake.
+    """
+    def work(argv):
+        rows = sheets.deployment_health()
+        _health_memo.update(at=time.time(), data=rows)
+        for row in rows:
+            if not row["configured"]:
+                print("  {:7} not configured".format(row["name"]))
+            elif not row["reachable"]:
+                print("  {:7} did not answer -- {}".format(row["name"], row["error"]))
+            elif row["current"]:
+                print("  {:7} running {}".format(row["name"], row["version"]))
+            else:
+                print("  {:7} running {}, this checkout is {}".format(
+                    row["name"],
+                    row["version"] or "an older version (no version stamp)",
+                    row["local"]))
+        stale = [r["name"] for r in rows if r["configured"] and not r["current"]]
+        if stale:
+            print("\n  {} {} redeploying. Editing Code.gs does not deploy it:".format(
+                " and ".join(stale), "needs" if len(stale) == 1 else "need"))
+            print("  paste appsscript/Code.gs into the editor, save, then")
+            print("  Deploy > Manage deployments > edit > Version: New version.")
+    return _capture(work, [])
+
+
 def _rebuild(payload=None):
     """Write the offline copy, from the payload the served page will use.
 
@@ -393,6 +439,7 @@ ACTIONS = {
     "cms-preview": ("Preview the CMS tables", _command("cms"), False),
     "cms-live": ("Write the CMS tables", _command("cms", ["--live"]), True),
     "cms-csv": ("Export the CMS tables", _command("cms", ["--csv"]), False),
+    "health": ("Check the deployments", _health, False),
     "backup": ("Save to git", _backup, True),
     "picks": ("Load a pick sheet", _picks, True),
     "board": ("Run the model", _command("board"), False),
@@ -437,8 +484,14 @@ def _state():
         "ready": season_mod.has_picks(season),
     }
     state["sheet"] = {
-        "appsscript": sheets.appsscript_available(),
+        "configured": sheets.appsscript_available(),
         "credentials": sheets.credentials_available(),
+        # Deliberately whatever the last check found, never a fresh probe: a
+        # page load must not wait on two round trips to Google. Absent means
+        # "not checked", which the page says in those words -- the old
+        # behaviour was to read a file existing on disk as "Apps Script ready",
+        # which is a claim about this laptop dressed up as one about Google.
+        **_health_state(),
     }
     code, dirty = _git("status", "--porcelain", *_backup_paths())
     ahead_code, ahead = _git("log", "origin/main..HEAD", "--oneline")

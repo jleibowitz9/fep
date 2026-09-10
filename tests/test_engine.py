@@ -540,7 +540,17 @@ class TestAppsScriptPush(unittest.TestCase):
                 self.end_headers()
 
             def do_GET(self):
-                body = state.get("body", "{}").encode()
+                # A GET is the health check, and a real deployment answers it
+                # with the version it is running. The push refuses against a
+                # deployment that disagrees with this checkout, so the mock has
+                # to stand in for that half of the contract too. `state`
+                # decides what it claims, which is what lets a test put a
+                # stale deployment behind it.
+                if "v=1" in self.path:
+                    version = state.get("version", sheets.local_code_version())
+                    body = _json.dumps({"version": version}).encode()
+                else:
+                    body = state.get("body", "{}").encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(body)))
@@ -560,6 +570,7 @@ class TestAppsScriptPush(unittest.TestCase):
     def setUp(self):
         self.state["mode"] = "ok"
         self.state.pop("payload", None)
+        self.state.pop("version", None)     # current unless a test says otherwise
         self.roster = ["Amir", "Andy", "Buhduh", "Emer", "Hanan", "Jacob",
                        "Jay", "Jen", "Marsha", "Nathan", "Pop", "Sarah"]
         self.season = {
@@ -592,6 +603,19 @@ class TestAppsScriptPush(unittest.TestCase):
     def test_surfaces_a_refusal_from_the_script(self):
         self.state["mode"] = "refuse"
         with self.assertRaisesRegex(sheets.SheetError, "bad token"):
+            sheets.push_via_appsscript(self.season)
+
+    def test_a_stale_deployment_refuses_the_push(self):
+        # The weekly push went unguarded while the CMS writer checked. This is
+        # the path that runs every week.
+        self.state["version"] = "2020.01.01-a"
+        with self.assertRaisesRegex(sheets.SheetError, "does not redeploy"):
+            sheets.push_via_appsscript(self.season)
+        self.assertNotIn("payload", self.state)   # and wrote nothing
+
+    def test_a_deployment_with_no_version_stamp_refuses_the_push(self):
+        self.state["version"] = None
+        with self.assertRaisesRegex(sheets.SheetError, "no version stamp"):
             sheets.push_via_appsscript(self.season)
 
     def test_detects_a_non_public_deployment(self):
