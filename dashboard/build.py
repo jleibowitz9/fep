@@ -154,6 +154,14 @@ def script_json(data: dict) -> str:
 
 
 def build(data: dict, output: str = OUTPUT) -> str:
+    from fep import teams
+
+    # The team table is a constant, not season data, so it is attached here
+    # rather than in collect(): a prepared dataset built by --mock gets the
+    # real abbreviations and colours too, without carrying a stale copy of
+    # them in the file.
+    data = dict(data, teams=teams.payload())
+
     with open(TEMPLATE) as fh:
         template = fh.read()
     page = (template

@@ -373,9 +373,13 @@ tbody tr:hover{background:#1A1E21}
 .pickmatrix td{padding:5px 6px;border-bottom:1px solid #1B1F23}
 .pickmatrix .wknum{color:var(--dim2);width:26px}
 .pickmatrix .matchup{white-space:nowrap;display:flex;align-items:center;gap:5px;padding-right:14px}
+/* Fill comes from the team table inline; every colour in it is chosen so
+   white clears AA here, so the ink is fixed. The hairline is what keeps the
+   near-black teams -- Raiders, Bengals, Saints, Steelers, Panthers -- reading
+   as a chip rather than as a hole in a card that is itself nearly black. */
 .team{display:inline-grid;place-items:center;min-width:38px;padding:2px 5px;border-radius:4px;
-  background:#22282C;color:var(--dim);font-size:9.5px;font-weight:700;font-family:var(--mono)}
-.team.phl{background:var(--eagles);color:#fff}
+  background:#22282C;color:#fff;font-size:9.5px;font-weight:700;font-family:var(--mono);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
 .pickmatrix .res{margin-left:2px}
 .pk{text-align:center;font-weight:700;font-family:var(--mono);font-size:10.5px;width:38px}
 .pk-hit{color:#5FE0A6}.pk-miss{color:#FF8A93}.pk-todo{color:#454B50}
@@ -469,6 +473,22 @@ const sgn = v => (v>0?"+":"")+v.toFixed(1);
 // all over this file, so both get escaped at the point of use.
 const esc = v => String(v==null?'':v).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// The 32 NFL teams, baked in from fep/teams.py: ESPN's scoreboard abbreviation
+// and a primary colour that white text clears AA against. This page used to
+// take the first three letters of a nickname instead, which reads COM, STE and
+// 49E -- none of which is what a scoreboard says.
+const TEAMS = D.teams || {};
+// "vs. Jaguars (London)" and "@ Titans" each name one team; the rest of the
+// label is schedule, so it comes off before the lookup.
+const teamName = v => String(v==null?'':v).replace(/\([^)]*\)/g,'')
+  .replace(/^\s*(vs\.?|@|at)\s+/i,'').trim();
+const teamAbbr = t => (TEAMS[teamName(t)]||{}).abbr || teamName(t).slice(0,3).toUpperCase();
+// A team the table does not know reads as plainly unstyled rather than
+// borrowing somebody else's colour.
+const teamColor = t => (TEAMS[teamName(t)]||{}).color || '#22282C';
+const teamChip = t =>
+  `<span class="team" style="background:${teamColor(t)}">${esc(teamAbbr(t))}</span>`;
 
 /* ---------- shell ---------- */
 const played = D.games.filter(g=>g.result!=='A');
@@ -770,12 +790,12 @@ function rankAt(week,name){
       continue;
     }
     const g=D.games.find(x=>x.week===w); if(!g) continue;
-    const away = g.label.startsWith('@') ? g.label.replace('@ ','') : 'Eagles';
-    const home = g.label.startsWith('@') ? 'Eagles' : g.label.replace('vs. ','');
-    const chip = t => `<span class="team ${t==='Eagles'?'phl':''}">${t==='Eagles'?'PHL':esc(t.slice(0,3).toUpperCase())}</span>`;
+    // teamChip names the team itself, so the label goes in whole.
+    const away = g.label.startsWith('@') ? g.label : 'Eagles';
+    const home = g.label.startsWith('@') ? 'Eagles' : g.label;
     rows.push(`<tr>
       <td class="wknum num">${w}</td>
-      <td class="matchup">${chip(away)}${chip(home)}
+      <td class="matchup">${teamChip(away)}${teamChip(home)}
         <span class="res">${g.result==='A'?'':`<span class="wl ${g.result}">${g.result}</span>`}</span>
         ${DIVW.includes(g.i)?'<span class="tiny muted">DIV</span>':''}</td>
       ${D.roster.map(n=>cell(n,g)).join('')}</tr>`);
