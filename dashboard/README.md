@@ -4,15 +4,35 @@ The same page in two modes, decided by one fact: whether anything is behind it.
 
 **Served** (`scripts/FEP.app`, or `python3 dashboard/serve.py`) it is the
 application. Tapping the icon starts the server and opens the page: no Terminal
-window, and no model run until a button asks for one. The bundle's executable
-*is* the app, so the Dock icon stays lit while it runs and quitting it stops
-the server. `scripts/fep-app.command` is the same thing with a window, for when
-you want to watch it start. `serve.py` renders the page from the season file on every load and
+window, and no model run until a button asks for one. About a second, cold.
+
+The launcher starts the server detached and then exits, which is deliberate.
+macOS treats a bundle as running for as long as its executable lives, and a tap
+on a running app only activates it: the executable never runs again. The first
+version stayed alive to own the server, so closing the window left an app that
+was still "running" and could not be reopened by tapping it. Exiting instead
+means every tap does the same thing, and `serve.py` covers both cases by
+opening the window and stopping when a server is already answering. Quit from
+the page, which shuts the server down properly.
+
+The bundle is ad-hoc signed (`codesign --force --deep --sign -`). An unsigned
+one is assessed on every launch and that alone was over a second. Re-sign it
+after editing anything inside it.
+
+`scripts/fep-app.command` is the same thing with a window, for when you want to
+watch it start. `serve.py` renders the page from the season file on every load and
 exposes the `cli.py` commands as routes, so the buttons run the weekly run, the
 ESPN refresh, the Sheet push, the CMS tables, the pick-sheet load and the git
 commit. Nothing is reimplemented there: each action is a call into `cli.py`
 with its output captured and handed back to the page, so a button and the
 command it replaces cannot drift apart.
+
+The page is handed to Chrome with `--app`, which gives a plain window: no tab
+strip, no address bar, and none of the localhost developer chrome a browser
+adds around a `127.0.0.1` page. Without it the dashboard opened inside Arc's
+localhost toolbar and read as a browser looking at a page rather than as an
+app. A machine without Chrome falls back to the default browser, and
+`FEP_BROWSER=default` turns the preference off.
 
 **Opened as a file** it is a viewer, exactly as it always was. A `file://` page
 has no origin, so it cannot reach the season file or start a process, and every

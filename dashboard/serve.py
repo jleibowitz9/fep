@@ -27,6 +27,7 @@ import io
 import json
 import os
 import secrets
+import signal
 import socket
 import subprocess
 import sys
@@ -80,6 +81,12 @@ _LOCK = threading.Lock()
 
 CACHE_DIR = os.path.join(ROOT, "data", "dashboard_cache")
 CACHE_FILE = os.path.join(CACHE_DIR, "payload.json")
+
+# Where the running server says it can be reached. The port is not reliably the
+# default one, so nothing may assume it: the launcher polls this to know when
+# the app is up, and a second tap of the icon reads it to find the server that
+# is already running rather than starting a second one beside it.
+URL_FILE = os.path.join(CACHE_DIR, "url.txt")
 
 _payload_lock = threading.Lock()
 _payload_memo = {"key": None, "data": None}
@@ -563,19 +570,94 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, fh.read(), kind)
 
 
-def _running_at(port):
-    """An FEP server already on this port, as opposed to something else.
-
-    Tapping the icon twice should raise the window that is already open, not
-    start a second app on the next port up with its own copy of the state.
-    """
+def _answers(url):
+    """An FEP server at this URL, as opposed to something else or nothing."""
     try:
-        request = urllib.request.Request(
-            "http://127.0.0.1:{}/api/state".format(port))
+        request = urllib.request.Request(url.rstrip("/") + "/api/state")
         with urllib.request.urlopen(request, timeout=1) as response:
             return response.headers.get("Server", "").startswith("FEP")
     except Exception:  # noqa: BLE001  anything at all means "not ours"
         return False
+
+
+def _running_url(port):
+    """The URL of a server that is already up, or None.
+
+    Checked against the file the running server wrote rather than against the
+    default port, because the port it actually got is not always the one it
+    asked for. Missing that made a second tap of the icon start a second server
+    on the next port up, and made the launcher report a failure while the app
+    was running perfectly well one port over.
+    """
+    for url in (_recorded_url(), "http://127.0.0.1:{}/".format(port)):
+        if url and _answers(url):
+            return url
+    return None
+
+
+# Chrome's --app mode is the only reliably chrome-less window on this machine.
+CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+
+
+def _open_window(url):
+    """Show the dashboard in a window that looks like an application.
+
+    Handing the URL to the default browser put the page inside Arc's localhost
+    developer toolbar, which makes it a browser looking at a page rather than
+    an app. --app gives a plain window: no tab strip, no address bar, no
+    developer chrome, and its own entry in the window list.
+
+    Launching the binary while Chrome is already running hands the flag to the
+    existing instance, which opens the app window there. `open -na` would not:
+    the second instance finds the first holding the profile and drops its
+    arguments on the way past.
+
+    FEP_BROWSER=default turns the whole preference off, and a machine without
+    Chrome never sees it in the first place.
+    """
+    if os.environ.get("FEP_BROWSER") != "default" and os.path.exists(CHROME):
+        try:
+            subprocess.Popen([CHROME, "--app=" + url, "--window-size=1440,900"],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return "chrome-app"
+        except OSError:
+            pass
+    webbrowser.open(url)
+    return "default-browser"
+
+
+def _write_url(url):
+    """Record where this server is, and which process is answering there.
+
+    The pid matters as much as the url. A server killed with SIGTERM does not
+    run its cleanup, so this file outlives it, and a stale one pointing at a
+    port something else has since taken would have the next launch decide the
+    app was already open and exit without starting anything.
+    """
+    try:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        with open(URL_FILE, "w") as fh:
+            fh.write("{}\n{}".format(os.getpid(), url))
+    except OSError:
+        pass  # the launcher falls back to the default port
+
+
+def _recorded_url():
+    """The url from that file, if the process that wrote it is still alive."""
+    try:
+        with open(URL_FILE) as fh:
+            pid, url = fh.read().strip().split("\n", 1)
+        os.kill(int(pid), 0)
+    except (OSError, ValueError):
+        return None
+    return url.strip()
+
+
+def _clear_url():
+    try:
+        os.remove(URL_FILE)
+    except OSError:
+        pass
 
 
 def _warm():
@@ -593,6 +675,11 @@ def _free_port(preferred):
     """
     for port in range(preferred, preferred + 12):
         with socket.socket() as probe:
+            # The same option the server itself sets. Without it a port left in
+            # TIME_WAIT by the previous run looks taken, the app quietly moves
+            # to the next one, and everything that expected it on the usual
+            # port stops finding it.
+            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 probe.bind(("127.0.0.1", port))
                 return port
@@ -603,12 +690,19 @@ def _free_port(preferred):
 
 
 def serve(port=DEFAULT_PORT, open_browser=True):
-    if _running_at(port):
-        url = "http://127.0.0.1:{}/".format(port)
-        print("Already open at {}".format(url))
-        if open_browser:
-            webbrowser.open(url)
-        return
+    running = _running_url(port)
+    if running:
+        # A server on its way out still answers for a moment. Looking once meant
+        # a launch that landed during a shutdown handed the window to a server
+        # about to stop and exited without starting one, so the tap produced
+        # nothing at all. Look twice, a beat apart, and start one if the first
+        # answer does not hold.
+        time.sleep(0.35)
+        if _answers(running):
+            print("Already open at {}".format(running), flush=True)
+            if open_browser:
+                _open_window(running)
+            return
 
     Handler.token = secrets.token_urlsafe(24)
     port = _free_port(port)
@@ -617,6 +711,7 @@ def serve(port=DEFAULT_PORT, open_browser=True):
     # coffee shop's network.
     httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = "http://127.0.0.1:{}/".format(port)
+    _write_url(url)
     print("FEP {}".format(YEAR))
     print(url)
     print("\nLeave this window open while you use it. Ctrl-C, or Quit in the")
@@ -626,14 +721,26 @@ def serve(port=DEFAULT_PORT, open_browser=True):
     # that slow when the season file has changed since the last time.
     threading.Thread(target=_warm, daemon=True).start()
     if open_browser:
-        threading.Timer(0.4, webbrowser.open, args=(url,)).start()
+        threading.Timer(0.4, _open_window, args=(url,)).start()
+    # Quit from the page, a kill, and Ctrl-C all have to clear the url file, or
+    # the next launch reads it and believes a dead server is still answering.
+    def stop(signum, frame):
+        threading.Thread(target=httpd.shutdown, daemon=True).start()
+
+    for received in (signal.SIGTERM, signal.SIGINT):
+        try:
+            signal.signal(received, stop)
+        except ValueError:
+            pass  # not the main thread, which only happens under the tests
+
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
         httpd.server_close()
-        print("Closed.")
+        _clear_url()
+        print("Closed.", flush=True)
 
 
 if __name__ == "__main__":

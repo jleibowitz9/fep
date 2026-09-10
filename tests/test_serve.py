@@ -235,6 +235,94 @@ class TestRequiredKeys(unittest.TestCase):
                          "the cache guard names keys collect() does not produce")
 
 
+class TestWindow(unittest.TestCase):
+    """The page should arrive in a window, not inside a browser's furniture."""
+
+    def setUp(self):
+        self.real_chrome = serve.CHROME
+        self.real_popen = serve.subprocess.Popen
+        self.real_webbrowser = serve.webbrowser.open
+        self.opened = []
+        serve.webbrowser.open = lambda url: self.opened.append(("browser", url))
+        serve.subprocess.Popen = lambda cmd, **kw: self.opened.append(("chrome", cmd))
+        self.env = os.environ.get("FEP_BROWSER")
+        os.environ.pop("FEP_BROWSER", None)
+
+    def tearDown(self):
+        serve.CHROME = self.real_chrome
+        serve.subprocess.Popen = self.real_popen
+        serve.webbrowser.open = self.real_webbrowser
+        if self.env is None:
+            os.environ.pop("FEP_BROWSER", None)
+        else:
+            os.environ["FEP_BROWSER"] = self.env
+
+    def test_chrome_gets_the_app_flag_when_it_is_installed(self):
+        serve.CHROME = __file__  # any path that exists
+        self.assertEqual(serve._open_window("http://127.0.0.1:8765/"), "chrome-app")
+        kind, cmd = self.opened[0]
+        self.assertEqual(kind, "chrome")
+        self.assertIn("--app=http://127.0.0.1:8765/", cmd)
+
+    def test_a_machine_without_chrome_uses_the_default_browser(self):
+        serve.CHROME = "/nowhere/Google Chrome"
+        self.assertEqual(serve._open_window("http://x/"), "default-browser")
+        self.assertEqual(self.opened, [("browser", "http://x/")])
+
+    def test_the_preference_can_be_turned_off(self):
+        serve.CHROME = __file__
+        os.environ["FEP_BROWSER"] = "default"
+        self.assertEqual(serve._open_window("http://x/"), "default-browser")
+        self.assertEqual(self.opened, [("browser", "http://x/")])
+
+    def test_a_chrome_that_will_not_start_falls_back(self):
+        serve.CHROME = __file__
+        def boom(cmd, **kw):
+            raise OSError("no")
+        serve.subprocess.Popen = boom
+        self.assertEqual(serve._open_window("http://x/"), "default-browser")
+        self.assertEqual(self.opened, [("browser", "http://x/")])
+
+
+class TestRunningServer(CacheIsolated):
+    """Finding the server that is already up, and not finding a dead one."""
+
+    def setUp(self):
+        super().setUp()
+        self.real_url_file = serve.URL_FILE
+        serve.URL_FILE = os.path.join(self.temp, "url.txt")
+
+    def tearDown(self):
+        serve.URL_FILE = self.real_url_file
+        super().tearDown()
+
+    def test_a_url_written_by_a_live_process_is_read_back(self):
+        serve._write_url("http://127.0.0.1:9999/")
+        self.assertEqual(serve._recorded_url(), "http://127.0.0.1:9999/")
+
+    def test_a_url_left_by_a_dead_process_is_ignored(self):
+        # SIGTERM skips the cleanup, so this file routinely outlives its
+        # server. Trusting it made the next launch decide the app was already
+        # open and exit without starting anything.
+        with open(serve.URL_FILE, "w") as fh:
+            fh.write("999999\nhttp://127.0.0.1:9999/")
+        self.assertIsNone(serve._recorded_url())
+
+    def test_a_malformed_url_file_is_ignored(self):
+        for junk in ("", "not a pid", "123", "abc\nhttp://x/"):
+            with open(serve.URL_FILE, "w") as fh:
+                fh.write(junk)
+            self.assertIsNone(serve._recorded_url(), junk)
+
+    def test_a_missing_url_file_is_ignored(self):
+        self.assertIsNone(serve._recorded_url())
+
+    def test_clearing_removes_it(self):
+        serve._write_url("http://127.0.0.1:9999/")
+        serve._clear_url()
+        self.assertIsNone(serve._recorded_url())
+
+
 class TestLauncher(unittest.TestCase):
     """The icon starts an app, not a terminal and not a weekly run."""
 
@@ -253,12 +341,21 @@ class TestLauncher(unittest.TestCase):
                         "fep-week.command"):
             self.assertNotIn(command, self.script)
 
-    def test_it_starts_the_server_and_waits_for_it(self):
+    def test_it_starts_the_server(self):
         self.assertIn("serve.py", self.script)
-        self.assertIn("wait ", self.script)
 
-    def test_quitting_the_app_stops_the_server(self):
-        self.assertIn("trap ", self.script)
+    def test_it_detaches_the_server_and_exits(self):
+        # macOS only re-runs a bundle's executable when the app is not already
+        # running, so a launcher that stays alive to own the server makes the
+        # second tap of the icon do nothing at all. The server is detached and
+        # this exits.
+        self.assertIn("nohup", self.script)
+        self.assertNotIn('wait "$PID"', self.script)
+
+    def test_it_stops_waiting_once_the_server_answers(self):
+        # Rather than a fixed sleep, which is either too short to catch a
+        # failure or long enough to be the slowest part of the launch.
+        self.assertIn("/api/state", self.script)
 
 
 class TestWeeklySequence(CacheIsolated):
