@@ -2,9 +2,10 @@
 """
 Generate the synthetic front-end fixture, `sample-data.json`.
 
-    python3 dashboard/make_fixture.py            # rewrite sample-data.json
-    python3 dashboard/make_fixture.py --week 12  # a different week
-    python3 dashboard/make_fixture.py --check    # verify it is reproducible
+    python3 dashboard/make_fixture.py                  # rewrite sample-data.json
+    python3 dashboard/make_fixture.py --week 12        # a different week
+    python3 dashboard/make_fixture.py --check          # verify it is reproducible
+    python3 dashboard/make_fixture.py --refresh-inputs # re-freeze the inputs
 
 WHY THIS EXISTS
 ---------------
@@ -25,6 +26,22 @@ season forward into it. Anything `collect()` stops emitting disappears here too.
 
 The results are drawn from the ESPN win probabilities with a fixed seed, so the
 file is reproducible: same seed, same fixture, byte for byte.
+
+WHY THE INPUTS ARE FROZEN
+-------------------------
+That reproducibility was a fiction for as long as this read the live season
+file. Two things underneath it move. Pick sheets arrive through the season, so
+a fixture generated in August and checked in September is built from different
+picks. And `refresh` pulls new ESPN weights every week, and the seeded coin
+flips are `rng.random() < weight` -- so the check broke on a schedule, roughly
+every Sunday, no matter how recently it had been regenerated.
+
+So the inputs are frozen into `fixture_season.json` beside this script: the
+schedule, the roster, the colours, and weights as they stood when it was
+written. Picks and points guesses are generated from the seed and never copied
+from live participation, because a synthetic season should not contain twelve
+real people's actual predictions. `--refresh-inputs` re-freezes deliberately,
+which is a thing to do for a new season and not otherwise.
 """
 
 from __future__ import annotations
@@ -41,21 +58,62 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, HERE)
 
 OUTPUT = os.path.join(HERE, "sample-data.json")
+INPUTS = os.path.join(HERE, "fixture_season.json")
 SEED = 2026
+
+# What the fixture takes from a season. Everything here is schedule or
+# presentation; nothing in it changes on its own between two runs of --check.
+# `picks`, `points_guess` and `snapshots` are deliberately absent: the fixture
+# invents its own, so no real participation reaches it.
+FROZEN_INPUT_FIELDS = (
+    "year", "roster", "colors", "games", "division_indices",
+    "week_to_game_index", "bye_week", "bye_weeks", "sheet", "model",
+)
+
+
+def freeze_inputs(year: int, path: str = INPUTS) -> str:
+    """Take the schedule and roster out of the live season file, once."""
+    from fep import season as season_mod
+
+    live = season_mod.load(year)
+    frozen = {field: live[field] for field in FROZEN_INPUT_FIELDS if field in live}
+    frozen["frozen_from"] = "data/season_{}.json".format(year)
+    frozen["note"] = ("Inputs for dashboard/make_fixture.py, frozen so the "
+                      "fixture does not change when picks arrive or ESPN moves "
+                      "a line. Refresh with --refresh-inputs.")
+    with open(path, "w") as fh:
+        json.dump(frozen, fh, indent=1, sort_keys=True)
+        fh.write("\n")
+    return path
+
+
+def frozen_inputs(year: int, path: str = INPUTS) -> dict:
+    """The frozen season inputs, or the live file if none have been frozen yet."""
+    from fep import season as season_mod
+
+    if not os.path.exists(path):
+        return season_mod.load(year)
+    with open(path) as fh:
+        season = json.load(fh)
+    # A fixture needs the keys a season has, even the ones it fills in itself.
+    season.setdefault("picks", {})
+    season.setdefault("points_guess", {})
+    season.setdefault("snapshots", [])
+    return season
 
 
 def synthetic_season(year: int, week: int, seed: int = SEED) -> dict:
-    """The live season file, played forward through `week` with a fixed seed."""
+    """The frozen season inputs, played forward through `week` with a fixed seed."""
     from fep import season as season_mod
 
-    season = season_mod.load(year)
+    season = frozen_inputs(year)
     rng = random.Random(seed)
     games = len(season["games"])
 
-    # The live season file is filled in as sheets arrive, so out of season some
-    # competitors have no picks and no points guess yet. A fixture needs a full
-    # roster, so the gaps are invented here -- from the same seeded generator,
-    # which keeps the file reproducible.
+    # Every sheet is invented. The frozen inputs carry no picks at all, and that
+    # is on purpose twice over: it keeps twelve real people's actual predictions
+    # out of a synthetic season, and it stops the fixture changing shape as real
+    # sheets arrive through September.
     for name in season["roster"]:
         sheet = season["picks"].get(name) or []
         if len(sheet) != games:
@@ -129,7 +187,17 @@ def main():
     parser.add_argument("--out", default=OUTPUT)
     parser.add_argument("--check", action="store_true",
                         help="regenerate and compare, without writing")
+    parser.add_argument("--refresh-inputs", action="store_true",
+                        help="re-freeze the schedule and roster from the live "
+                             "season file. A new-season thing, not a weekly one.")
     args = parser.parse_args()
+
+    if args.refresh_inputs:
+        path = freeze_inputs(args.year)
+        print("Froze {} from the {} season file.".format(
+            os.path.relpath(path, ROOT), args.year))
+        print("Now rerun without --refresh-inputs to rebuild the fixture.")
+        return 0
 
     data = build_fixture(args.year, args.week, args.seed)
     payload = json.dumps(data, indent=1, sort_keys=True) + "\n"

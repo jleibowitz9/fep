@@ -27,11 +27,15 @@ Two skills carry the detail. Read the relevant one before working:
    it used to be read from outside and it failed silently. If you find yourself
    writing a path with `..` or `~/Library` in it, that is the bug.
 
-4. **There are five test files, 230 tests.** `test_engine.py` is a third of the
-   suite. Run all of them:
+4. **Run the whole suite, not the file you touched.** The count moves, so do
+   not memorise one; the runner finds every file itself:
    ```bash
-   for t in test_engine test_review_fixes test_cms test_backfill test_serve; do python3 tests/$t.py; done
+   python3 -m pytest tests -q && node appsscript/test_code.js
    ```
+   `test_engine.py` is the biggest by some way. `test_review_fixes.py` and
+   `test_serve.py` hold the regressions from external reviews, each pinned to
+   one finding, and `test_fixture.py` is the one that catches
+   `dashboard/sample-data.json` going stale.
 
 5. **Pushing needs the personal GitHub account.** This machine's active `gh`
    account is the work one, so a plain `git push` 403s. Use
@@ -43,7 +47,17 @@ Two skills carry the detail. Read the relevant one before working:
 - **Facts are stored, statistics are not.** Never cache a computed number in the
   season file; it will silently disagree with the board after a correction.
 - **Snapshots freeze.** A row published in week N is identical in week N+1.
-  `tests/test_cms.py` asserts this.
+  Enforced, not just asserted: an identical replay is a no-op, a changed one is
+  refused by name, and a rewrite needs `--correction "why"`, which is recorded
+  on the entry. Chart files in `chart-data/` get the same rule. This is the
+  contract `FROZEN_TABS` enforces in `Code.gs`; both halves keep it.
+- **A run that changed nothing leaves no trace.** `save()` ignores the
+  bookkeeping timestamps when deciding whether to write, so re-running a week
+  does not produce a commit that only moves `updated_at`.
+- **Deployment readiness is asked, never inferred.** A config file existing on
+  this laptop says nothing about what Google is running. Press "Check the
+  deployments", or `sheets.deployment_health()`. There are two deployments and
+  redeploying one does not redeploy the other -- see `docs/CMS.md`.
 - The Sheet push touches `B2:M20` and nothing else. Both guards, Python and
   Apps Script, stay.
 - Standard library only, system Python 3.9.
