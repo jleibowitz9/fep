@@ -289,7 +289,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.6647,
+      "weight": 0.6573,
       "weight_source": "espn"
     },
     {
@@ -308,7 +308,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.673,
+      "weight": 0.6615,
       "weight_source": "espn"
     },
     {
@@ -327,7 +327,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.4994,
+      "weight": 0.4906,
       "weight_source": "espn"
     },
     {
@@ -346,7 +346,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.4119,
+      "weight": 0.4036,
       "weight_source": "espn"
     },
     {
@@ -365,7 +365,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.5307,
+      "weight": 0.5242,
       "weight_source": "espn"
     },
     {
@@ -384,7 +384,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.6999,
+      "weight": 0.7068,
       "weight_source": "espn"
     },
     {
@@ -403,7 +403,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.5546,
+      "weight": 0.5402,
       "weight_source": "espn"
     },
     {
@@ -422,7 +422,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.5698,
+      "weight": 0.5578,
       "weight_source": "espn"
     },
     {
@@ -441,7 +441,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.6566,
+      "weight": 0.6545,
       "weight_source": "espn"
     },
     {
@@ -460,7 +460,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.6265,
+      "weight": 0.6317,
       "weight_source": "espn"
     },
     {
@@ -479,7 +479,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.4669,
+      "weight": 0.4567,
       "weight_source": "espn"
     },
     {
@@ -498,7 +498,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.7102,
+      "weight": 0.6862,
       "weight_source": "espn"
     },
     {
@@ -517,7 +517,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.6223,
+      "weight": 0.6194,
       "weight_source": "espn"
     },
     {
@@ -536,7 +536,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.5036,
+      "weight": 0.5118,
       "weight_source": "espn"
     },
     {
@@ -555,7 +555,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.5642,
+      "weight": 0.5623,
       "weight_source": "espn"
     },
     {
@@ -574,7 +574,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.4322,
+      "weight": 0.4181,
       "weight_source": "espn"
     },
     {
@@ -593,7 +593,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.5796,
+      "weight": 0.5712,
       "weight_source": "espn"
     }
   ],
@@ -761,10 +761,28 @@
     "points_model": "shrunk"
   },
   "created_at": "2026-09-02T22:02:30",
-  "updated_at": "2026-09-09T22:00:53",
+  "updated_at": "2026-09-10T20:36:50",
   "bye_weeks": [
     10
   ],
-  "last_refresh": "2026-09-09T22:00:53",
-  "last_refresh_changes": []
+  "last_refresh": "2026-09-10T20:36:50",
+  "last_refresh_changes": [
+    "game 0 weight 0.6647 -> 0.6573",
+    "game 1 weight 0.673 -> 0.6615",
+    "game 2 weight 0.4994 -> 0.4906",
+    "game 3 weight 0.4119 -> 0.4036",
+    "game 4 weight 0.5307 -> 0.5242",
+    "game 5 weight 0.6999 -> 0.7068",
+    "game 6 weight 0.5546 -> 0.5402",
+    "game 7 weight 0.5698 -> 0.5578",
+    "game 8 weight 0.6566 -> 0.6545",
+    "game 9 weight 0.6265 -> 0.6317",
+    "game 10 weight 0.4669 -> 0.4567",
+    "game 11 weight 0.7102 -> 0.6862",
+    "game 12 weight 0.6223 -> 0.6194",
+    "game 13 weight 0.5036 -> 0.5118",
+    "game 14 weight 0.5642 -> 0.5623",
+    "game 15 weight 0.4322 -> 0.4181",
+    "game 16 weight 0.5796 -> 0.5712"
+  ]
 }
