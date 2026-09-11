@@ -23,8 +23,8 @@ That one command:
 Then:
 
 ```bash
-python3 cli.py push          # dry run: shows exactly what would be written
-python3 cli.py push --live   # writes B2:M20 and nothing else
+python3 cli.py cms           # dry run: shows exactly what would be written
+python3 cli.py cms --live    # writes the seven CMS tables
 ```
 
 **You no longer read percentages off ESPN.** The matchup predictor's
@@ -104,10 +104,8 @@ Refreshing never overwrites a manual override, so it is always safe to run.
 
 ## Pushing to the Sheet
 
-The push writes **only** the weekly competitor percentages, to `B2:M20`. It never
-touches column A, and never touches column N or anything right of it where the
-placement formulas live. It checks row 1 against the roster and aborts on a
-mismatch rather than writing misaligned columns into a live site.
+`python3 cli.py cms --live` writes the seven CMS tables Framer reads. See
+**`docs/CMS.md`** for what they are and how they stay frozen.
 
 It goes through an **Apps Script web app that lives inside the spreadsheet**, so
 there is no Google Cloud project, no service account and no key file to rotate.
@@ -122,10 +120,19 @@ token to `credentials/appsscript.json` (gitignored).
 
 The same guards are enforced twice, in the Python client and again in the script
 itself, because a guard that only exists on the caller is not a guard. The script
-also rejects any cell that is not a number or blank, so a formula string cannot
-be injected into the Sheet.
+refuses any tab outside the seven tables, refuses a row belonging to another
+season, and rejects any cell that could be read as a formula.
 
-Until it is set up, `python3 cli.py push` prints a paste-ready block for cell B2.
+### What used to be here
+
+A second writer put weekly percentages into `B2:M20` of a `Weighted - MASTER`
+tab. That tab fed the standings on the site and the per-week tabs beside it fed
+the chart. Both readers are gone -- the chart moved to the immutable
+`chart-data/*.json` files, the standings to the `standings` CMS table -- so in
+September 2026 the writer, its range guard, its row builders and the
+service-account transport were removed rather than kept working. It was a second
+deployment to keep current and a second health row to read, all for a tab nobody
+opened.
 
 ## The chart
 

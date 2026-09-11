@@ -8,7 +8,6 @@ The FEP weekly run, headless.
     python3 cli.py week [N]        the full weekly run (see below)
     python3 cli.py leverage        rank every remaining game by how much it matters
     python3 cli.py statpack [N]    print the stat pack for a week
-    python3 cli.py push [--live]   push weekly percentages to the Google Sheet
     python3 cli.py cms [--live]    build (and push) the seven CMS tables
     python3 cli.py token           generate a shared secret for the Apps Script
     python3 cli.py dashboard       build and open the weekly dashboard
@@ -185,8 +184,8 @@ def cmd_week(argv):
     print("\n  stat pack   {}".format(os.path.relpath(pack_path, ROOT)))
     print("  chart       {}".format(os.path.relpath(chart_path, ROOT)))
     print("  chart data  {}".format(os.path.relpath(published[0], ROOT)))
-    print("\nNext: python3 cli.py push        (dry run, shows what would be written)")
-    print("      python3 cli.py push --live  (writes B2:M20)")
+    print("\nNext: python3 cli.py cms         (dry run, shows what would be written)")
+    print("      python3 cli.py cms --live   (writes the seven CMS tables)")
 
 
 def cmd_statpack(argv):
@@ -195,54 +194,6 @@ def cmd_statpack(argv):
     week = int(argv[0]) if argv else season_mod.current_nfl_week(season)
     board = season_mod.run(season, through_week=week)
     print(statpack.render(season, board, week))
-
-
-def cmd_push(argv):
-    season = _load()
-    live = "--live" in argv
-    tab = None
-    for arg in argv:
-        if arg.startswith("--tab="):
-            tab = arg.split("=", 1)[1]
-
-    plan = sheets.targets(season)
-    if tab:
-        # An explicit tab means one target, whatever board it holds.
-        plan = [{"tab": tab, "board": plan[0]["board"]}]
-
-    if not live:
-        configured = ("Apps Script" if sheets.appsscript_available()
-                      else ("service account" if sheets.credentials_available()
-                            else "NOTHING CONFIGURED, paste the block below"))
-        first_week = season["sheet"].get("first_week", 0)
-        for target in plan:
-            result = sheets.push(season, tab=target["tab"],
-                                 board=target["board"], dry_run=True)
-            print("DRY RUN via {}. Would write {} rows x {} columns to {}\n".format(
-                configured, result["rows"], result["columns"], result["range"]))
-            for offset, row in enumerate(result["values"]):
-                if any(cell != "" for cell in row):
-                    print("  wk {:>2}  {}".format(
-                        first_week + offset,
-                        "  ".join("{:>5}".format(c) for c in row)))
-            print()
-        print("Column A and everything from column N rightward are never touched,")
-        print("by this tool and by the Apps Script independently.")
-        print("Blank rows above are written as blanks, so a push always leaves the")
-        print("tab holding this season and nothing else.")
-        if not (sheets.appsscript_available() or sheets.credentials_available()):
-            print("\nNothing is configured yet, so paste this block into cell B2:\n")
-            print(sheets.to_tsv_block(season))
-            print("\nOr run `python3 cli.py token` and see appsscript/README.md")
-            print("to set up the one-click push.")
-        else:
-            print("\nRe-run with --live to write. Use --tab=Scratch to target a copy first.")
-        return
-
-    for target in plan:
-        result = sheets.push(season, tab=target["tab"], board=target["board"])
-        print("Wrote {} cells to {}".format(
-            result["updated_cells"], result["updated_range"]))
 
 
 def cmd_cms(argv):
@@ -278,7 +229,7 @@ def cmd_cms(argv):
 
     failures = []
     for result in sheets.push_tables(
-            season, only=only, same_sheet="--same-sheet" in argv,
+            season, only=only,
             allow_correction="--allow-correction" in argv):
         if result.get("error"):
             failures.append(result)
@@ -536,7 +487,6 @@ COMMANDS = {
     "leverage": lambda a: cmd_leverage(),
     "week": cmd_week,
     "statpack": cmd_statpack,
-    "push": cmd_push,
     "cms": cmd_cms,
     "picks": cmd_picks,
     "token": cmd_token,

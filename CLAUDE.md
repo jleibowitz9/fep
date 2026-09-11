@@ -56,10 +56,13 @@ Two skills carry the detail. Read the relevant one before working:
   does not produce a commit that only moves `updated_at`.
 - **Deployment readiness is asked, never inferred.** A config file existing on
   this laptop says nothing about what Google is running. Press "Check the
-  deployments", or `sheets.deployment_health()`. There are two deployments and
-  redeploying one does not redeploy the other -- see `docs/CMS.md`.
-- The Sheet push touches `B2:M20` and nothing else. Both guards, Python and
-  Apps Script, stay.
+  deployments", or `sheets.deployment_health()`. There is one deployment,
+  `cms_url` -- see `docs/CMS.md`.
+- **The CMS tables are the only thing that leaves this machine for a
+  spreadsheet.** The `Weighted - MASTER` push was retired in September 2026
+  along with the service-account transport, because nothing read that tab any
+  more. `Code.gs` still carries its `B2:M20` branch; removing it would bump
+  CODE_VERSION and force a redeploy for dead code.
 - Standard library only, system Python 3.9.
 - No em dashes or en dashes in generated prose. Write `--`. There is a test.
 

@@ -175,10 +175,9 @@ newsletters still read. Nothing then shares a document with the old data.
 }
 ```
 
-If `cms_url` is absent the push is refused rather than falling back to the
-legacy deployment, which would put these tables in the spreadsheet the published
-newsletters read. `--same-sheet` overrides that, for anyone who genuinely wants
-them together.
+`cms_url` and `cms_token` are required. There used to be a second, legacy
+deployment to fall back to and a `--same-sheet` flag to choose it deliberately;
+both are gone, so there is one destination and no way to pick the wrong one.
 
 The tabs do not need to exist. `writeTable` creates them, writes the header, and
 refuses to write under a header that has drifted.
@@ -198,20 +197,20 @@ Error: the deployment is running an older version (no version stamp)
 but this checkout is 2026.09.07-a.
 ```
 
-Both writers check this now. The CMS writer always did; the weekly percentage
-push did not, and that was the one that runs every week.
+### Which deployment
 
-### Which deployments, and how to tell
+One: `cms_url` in `credentials/appsscript.json`, pointing at the spreadsheet
+holding the seven tables.
 
-There are **two**, and `credentials/appsscript.json` names both:
+There were two until September 2026. The other addressed a legacy spreadsheet
+whose `Weighted - MASTER` tab fed the standings on the site, until the standings
+moved to the `standings` table here and the chart moved to the `chart-data`
+files. Nothing read it, so it was retired rather than kept in step -- a second
+deployment to redeploy on every `Code.gs` change, and a second health row that
+sat permanently amber because redeploying it never mattered enough. A panel with
+a light nobody acts on is a panel nobody reads.
 
-| Config key | Spreadsheet | Written by |
-|---|---|---|
-| `url` | the legacy one published newsletters still read | `cli.py push` |
-| `cms_url` | the CMS tables Framer reads | `cli.py cms` |
-
-They are separate deployments in separate spreadsheets, so **redeploying one
-does not redeploy the other**. A `Code.gs` change means doing this twice.
+A config that still carries `url` and `token` is fine; they are ignored.
 
 To see where they stand without pushing anything, press **Check the
 deployments** in the dashboard's Run tab, or:

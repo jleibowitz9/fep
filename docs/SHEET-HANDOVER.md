@@ -1,5 +1,15 @@
 # Carrying the Sheet from one season to the next
 
+> **Superseded, September 2026.** This describes the `Weighted - MASTER` tab,
+> which was retired along with `cli.py push` once nothing read it: the chart had
+> moved to `chart-data/*.json` and the standings to the `standings` CMS table.
+> Seasons no longer move through a shared tab -- every CMS row carries its
+> season and the deployed script refuses a push that would cross the boundary,
+> so a new season adds rows rather than replacing them. See `docs/CMS.md`.
+>
+> Kept as the record of how the 2025 season was archived.
+
+
 ## The constraint
 
 Framer binds a collection to a specific tab, and every component is mapped to

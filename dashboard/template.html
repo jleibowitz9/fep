@@ -680,18 +680,8 @@ function controlPanel(){
     </div>
   </div>
 
-  <div class="grid g2 mt">
-    <div class="card"><h3>The Sheet <span class="tag" id="ctlSheetTag"></span></h3>
-      <p class="muted tiny" style="line-height:1.6">The push writes <code>B2:M20</code>
-        and nothing else: column A keeps the week labels and column N onward keeps your
-        formulas. Preview first, it prints every row it would write.</p>
-      <div class="ctl">
-        <button class="btn ghost" data-run="push-preview">Preview the push</button>
-        <button class="btn danger" data-run="push-live" data-needs="legacy"
-          data-confirm="Write B2:M20 now">Write to the Sheet</button>
-      </div>
-    </div>
-    <div class="card"><h3>CMS tables <span class="tag">seven tables</span></h3>
+  <div class="mt">
+    <div class="card"><h3>CMS tables <span class="tag" id="ctlSheetTag"></span></h3>
       <p class="muted tiny" style="line-height:1.6">The tables Framer reads. Columns are
         appended and never inserted, so a preview is worth reading before a write.</p>
       <div class="ctl">
@@ -721,14 +711,18 @@ function controlPanel(){
   <pre class="log" id="ctlLog" hidden></pre>`;
 }
 
-// What each deployment is actually running.
+// What the deployment is actually running.
+//
+// There is one. There were two until the legacy spreadsheet was retired, and
+// the second sat permanently amber because nothing needed it enough to be
+// worth redeploying -- which is how a panel teaches you to stop reading it.
 //
 // The old version of this said "Apps Script ready" whenever a credentials file
 // existed on this laptop, which is a claim about this disk wearing the clothes
 // of a claim about Google. Two silent divergences came out of that gap, so
 // nothing here is inferred: unchecked says unchecked, and the buttons that
 // reach a spreadsheet stay shut until the check has actually been run.
-const DEPLOY_NAMES={legacy:'Legacy sheet', cms:'CMS tables'};
+const DEPLOY_NAMES={cms:'CMS tables'};
 
 function deployment(name){
   return ((STATE&&STATE.sheet&&STATE.sheet.deployments)||[])
@@ -753,13 +747,9 @@ function paintHealth(){
     const rows=s.deployments||[];
     const stale=rows.filter(d=>d.configured&&!d.current).length;
     const label = !rows.length ? 'nothing configured'
-      : stale ? `${stale} need${stale===1?'s':''} redeploying` : 'both current';
+      : stale ? `${stale} need${stale===1?'s':''} redeploying` : 'current';
     if(tag) tag.textContent=label;
-    if(tag2){
-      const legacy=deployment('legacy');
-      tag2.textContent = !legacy||!legacy.configured ? 'not configured'
-        : legacy.current ? 'current' : 'needs redeploying';
-    }
+    if(tag2) tag2.textContent=label;
     if(panel) panel.innerHTML = rows.map(d=>{
       const name=DEPLOY_NAMES[d.name]||d.name;
       if(!d.configured) return `<div><b>${name}</b> &mdash; <span class="muted">not configured</span></div>`;
@@ -1356,14 +1346,12 @@ document.getElementById('v-chart').innerHTML=`
   }
   document.getElementById('publishMount').innerHTML=`
   <div class="grid g2">
-    <div class="card"><h3>Google Sheet <span class="tag">B2:M20, nothing else</span></h3>
-      <p class="muted tiny" style="line-height:1.6;margin-bottom:12px">The push writes
-        <code>B2:M20</code> only: column A keeps the week labels and column N onward keeps
-        your formulas. This page cannot perform it or check whether it has been done &mdash;
-        copy the block below, or run <code>python3 cli.py push</code> to preview it and
-        <code>push --live</code> to write.</p>
-      <button class="btn" id="pushBtn">Copy push command</button>
-      <button class="btn ghost" id="pasteBtn" style="margin-left:8px">Copy paste block</button>
+    <div class="card"><h3>CMS tables <span class="tag">seven tables</span></h3>
+      <p class="muted tiny" style="line-height:1.6;margin-bottom:12px">The tables Framer
+        reads, written by <code>python3 cli.py cms --live</code>. Below is the weighted
+        board week by week, which is what the <code>standings</code> table is built from
+        &mdash; out of the frozen snapshots, never recomputed, so changing the engine
+        later cannot move a number the family already read.</p>
       <div class="pick-scroll"><table class="mt"><thead><tr><th>Wk</th>${D.roster.map(n=>`<th class="r tiny">${esc(n.slice(0,3))}</th>`).join('')}</tr></thead>
         <tbody>${rows.map((r,i)=>`<tr><td class="muted num">${i}</td>${r.map(v=>`<td class="r num tiny ${v===''?'muted':''}">${v||'·'}</td>`).join('')}</tr>`).join('')}</tbody></table>
       </div>
@@ -1376,13 +1364,6 @@ document.getElementById('v-chart').innerHTML=`
       <p class="muted tiny" style="margin-top:12px;line-height:1.6">Each week is its own immutable file, so an old newsletter can never start showing future data.</p>
     </div>
   </div>`;
-  // Live, this is the real write and it arms before it fires. As a file it can
-  // still only hand over the command.
-  const pb=document.getElementById('pushBtn');
-  if(LIVE){ pb.className='btn danger'; pb.textContent='Write to the Sheet';
-    pb.dataset.run='push-live'; pb.dataset.confirm='Write B2:M20 now'; }
-  else pb.onclick=()=>copy("python3 cli.py push --live","Push command copied");
-  document.getElementById('pasteBtn').onclick=()=>copy(rows.map(r=>r.join('\t')).join('\n'),"Paste block copied");
 })();
 
 (function(){

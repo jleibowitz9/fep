@@ -69,16 +69,16 @@ class TestActions(unittest.TestCase):
     def test_the_commands_the_buttons_wrap_all_exist(self):
         # _command() closes over a name looked up at call time, so a typo here
         # would not surface until the button was pressed.
-        for name in ("refresh", "dashboard", "push", "cms", "picks", "board",
+        for name in ("refresh", "dashboard", "cms", "picks", "board",
                      "leverage", "week"):
             self.assertIn(name, cli.COMMANDS)
 
     def test_the_writes_that_leave_this_machine_ask_first(self):
         for name in serve.CONFIRM:
             self.assertIn(name, serve.ACTIONS)
-        # A write that reaches the Sheet or the CMS must be in CONFIRM, or the
-        # page would fire it on a single press.
-        self.assertEqual(serve.CONFIRM, {"push-live", "cms-live"})
+        # A write that reaches the CMS must be in CONFIRM, or the page would
+        # fire it on a single press.
+        self.assertEqual(serve.CONFIRM, {"cms-live"})
 
 
 class TestCapture(unittest.TestCase):
@@ -555,7 +555,7 @@ class TestOffline(unittest.TestCase):
         # LIVE is false without the hook, and these are the two commands the
         # page hands over in that state.
         self.assertIn("python3 cli.py week", page)
-        self.assertIn("python3 cli.py push --live", page)
+        self.assertIn("python3 cli.py cms --live", page)
 
     def test_the_page_never_hardcodes_a_path_outside_the_repo(self):
         with open(os.path.join(DASHBOARD, "serve.py")) as fh:
@@ -790,35 +790,89 @@ class TestDeploymentHealth(unittest.TestCase):
         self.assertNotIn("health", serve.CONFIRM)
 
 
-class TestTheWeeklyPushIsGuardedToo(unittest.TestCase):
-    """The CMS writer checked the deployment version; the weekly push did not.
+class TestTheWriteIsVersionGuarded(unittest.TestCase):
+    """A write never lands on a deployment running different code.
 
-    The unguarded one is the path that runs every week.
+    Editing Code.gs does not redeploy it, so the file in this checkout and the
+    code actually running can differ with nothing to show for it. That has
+    happened twice, once silently rewriting rows a newer guard would have
+    refused. These tests used to cover the weekly `B2:M20` push as well; that
+    writer was retired with the legacy spreadsheet, and the CMS tables are now
+    the only thing here that reaches Google at all.
     """
 
     def setUp(self):
         self.season = serve.season_mod.load(2026)
         self.probe = serve.sheets.deployed_code_version
+        self.call = serve.sheets._call_appsscript
+        self.calls = []
+        serve.sheets._call_appsscript = lambda *a, **k: self.calls.append(a) or {
+            "ok": True, "total": 0}
 
     def tearDown(self):
         serve.sheets.deployed_code_version = self.probe
+        serve.sheets._call_appsscript = self.call
 
-    def test_a_stale_deployment_refuses_the_weekly_push(self):
+    def test_a_stale_deployment_refuses_the_write(self):
         serve.sheets.deployed_code_version = lambda *a, **k: "2020.01.01-a"
         with self.assertRaises(serve.sheets.SheetError) as caught:
-            serve.sheets.push_via_appsscript(self.season)
+            serve.sheets.push_tables(self.season, only=["seasons"])
         self.assertIn("does not redeploy", str(caught.exception))
 
-    def test_a_deployment_with_no_stamp_refuses_the_weekly_push(self):
+    def test_a_deployment_with_no_stamp_refuses_the_write(self):
+        # No stamp at all means code from before the stamp existed, which is
+        # not "unknown, probably fine".
         serve.sheets.deployed_code_version = lambda *a, **k: None
         with self.assertRaises(serve.sheets.SheetError):
-            serve.sheets.push_via_appsscript(self.season)
+            serve.sheets.push_tables(self.season, only=["seasons"])
+
+    def test_a_refused_write_sends_nothing(self):
+        serve.sheets.deployed_code_version = lambda *a, **k: "2020.01.01-a"
+        with self.assertRaises(serve.sheets.SheetError):
+            serve.sheets.push_tables(self.season, only=["seasons"])
+        self.assertEqual(self.calls, [])
 
     def test_a_dry_run_never_asks_the_network(self):
         serve.sheets.deployed_code_version = lambda *a, **k: self.fail(
             "a preview must not reach outside this machine")
-        result = serve.sheets.push_via_appsscript(self.season, dry_run=True)
-        self.assertTrue(result["dry_run"])
+        result = serve.sheets.push_tables(self.season, dry_run=True,
+                                          only=["seasons"])
+        self.assertTrue(result[0]["dry_run"])
+        self.assertEqual(self.calls, [])
+
+
+class TestTheLegacySheetIsGone(unittest.TestCase):
+    """September 2026: `Weighted - MASTER` was retired, not left to rot.
+
+    Nothing read it any more -- the chart had moved to the immutable
+    chart-data files and the standings to the CMS `standings` table. Leaving
+    the writer in place would have meant a second deployment to keep current
+    and a second health row that was permanently amber, which is how a panel
+    teaches you to stop reading it.
+    """
+
+    def test_the_sheet_push_is_not_a_command(self):
+        self.assertNotIn("push", cli.COMMANDS)
+
+    def test_no_button_offers_it(self):
+        self.assertNotIn("push-live", serve.ACTIONS)
+        self.assertNotIn("push-preview", serve.ACTIONS)
+
+    def test_the_writer_and_its_transports_are_gone(self):
+        for name in ("push", "push_via_appsscript", "push_via_service_account",
+                     "targets", "as_rows", "assert_safe_range",
+                     "credentials_available"):
+            self.assertFalse(hasattr(serve.sheets, name),
+                             "sheets.{} outlived the legacy sheet".format(name))
+
+    def test_health_reports_the_one_deployment_that_is_left(self):
+        original = serve.sheets._probe
+        serve.sheets._probe = lambda url, **k: ("2026.09.09-a", None)
+        try:
+            rows = serve.sheets.deployment_health()
+        finally:
+            serve.sheets._probe = original
+        self.assertEqual([r["name"] for r in rows], ["cms"])
 
 
 if __name__ == "__main__":

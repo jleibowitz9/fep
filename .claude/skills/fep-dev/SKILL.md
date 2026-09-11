@@ -207,16 +207,20 @@ handled. See the `fep-week` skill.
 - **`credentials/` is gitignored and must stay that way.** It holds the Apps
   Script deployment URL and tokens. There is no service-account key and there
   cannot be one: key creation is blocked on this account by an org policy, which
-  is why the Sheet push goes through an Apps Script web app instead.
-- **The Sheet push writes only `B2:M20`.** It never touches column A or column
-  N and right, where the placement formulas live. The guard exists in both the
-  Python client and the Apps Script, because a guard that only exists on the
-  caller is not a guard. Do not relax either one.
+  is why the CMS push goes through an Apps Script web app instead. One
+  deployment, named by `cms_url`.
+- **The CMS tables are the only thing written to a spreadsheet.** A second
+  writer put weekly percentages into `B2:M20` of `Weighted - MASTER`; it was
+  retired in September 2026 once nothing read that tab. The guards that remain
+  -- tab allowlist, header match, season boundary, frozen rows -- exist in both
+  the Python client and the Apps Script, because a guard that only exists on
+  the caller is not a guard. Do not relax either one.
 - **CMS columns are appended, never inserted.** Framer maps sheet columns to CMS
   fields; inserting one shifts every column after it and a field silently starts
   showing its neighbour's values.
-- **Only the standard library**, on system Python 3.9. `requirements.txt` covers
-  two optional extras. Do not add a dependency to solve something small.
+- **Only the standard library**, on system Python 3.9. `requirements.txt` is now
+  empty of packages -- the last two went with the service-account transport. Do
+  not add a dependency to solve something small.
 
 ## Commit style
 

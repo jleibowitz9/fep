@@ -64,19 +64,12 @@ outward, confirm:
 
 ## Publishing outward
 
-These two steps put numbers in front of the family. Both have dry runs. Use
-them.
+One step puts numbers in front of the family. It has a dry run. Use it.
 
-```bash
-python3 cli.py push          # dry run: exactly what would be written
-python3 cli.py push --live   # writes B2:M20, nothing else
-```
-
-The push writes only the weekly competitor percentages. It never touches column
-A, and never column N or right, where the placement formulas live. It checks row
-1 against the roster and aborts on a mismatch rather than writing misaligned
-columns into a live site. If it refuses, the roster or the tab is wrong -- do
-not work around it.
+There used to be two: a `cli.py push` that wrote weekly percentages into
+`B2:M20` of a `Weighted - MASTER` tab, alongside the CMS tables. That tab was
+retired in September 2026 once nothing read it, so `push` no longer exists. If
+you find yourself reaching for it, the answer is `cms`.
 
 ```bash
 python3 cli.py cms                    # what would be written

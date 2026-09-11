@@ -434,8 +434,6 @@ ACTIONS = {
     "week": ("Run the week", _week, True),
     "refresh": ("Refresh from ESPN", _command("refresh"), True),
     "rebuild": ("Rebuild the offline copy", _rebuild, False),
-    "push-preview": ("Preview the Sheet push", _command("push"), False),
-    "push-live": ("Write to the Sheet", _command("push", ["--live"]), True),
     "cms-preview": ("Preview the CMS tables", _command("cms"), False),
     "cms-live": ("Write the CMS tables", _command("cms", ["--live"]), True),
     "cms-csv": ("Export the CMS tables", _command("cms", ["--csv"]), False),
@@ -448,7 +446,7 @@ ACTIONS = {
 
 # Writing to the Sheet or to the CMS reaches outside this machine, so the page
 # asks first and names what it is about to touch.
-CONFIRM = {"push-live", "cms-live"}
+CONFIRM = {"cms-live"}
 
 # The actions that change what the board is drawn from. The page reloads after
 # these, so the new payload is computed before the response goes back rather
@@ -485,7 +483,6 @@ def _state():
     }
     state["sheet"] = {
         "configured": sheets.appsscript_available(),
-        "credentials": sheets.credentials_available(),
         # Deliberately whatever the last check found, never a fresh probe: a
         # page load must not wait on two round trips to Google. Absent means
         # "not checked", which the page says in those words -- the old

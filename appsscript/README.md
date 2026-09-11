@@ -48,28 +48,33 @@ Create `credentials/appsscript.json`:
 
 ```json
 {
-  "url": "https://script.google.com/macros/s/AKfy.../exec",
-  "token": "the token from step 2"
+  "cms_url": "https://script.google.com/macros/s/AKfy.../exec",
+  "cms_token": "the token from step 2"
 }
 ```
 
 That folder is gitignored.
 
-**6. Point the season file at the right tab.**
-In `data/season_2026.json`, set `sheet.tab` to the exact tab name, for example
-`"Weighted - MASTER"`. No spreadsheet ID is needed: the script is bound to the
-spreadsheet it lives in.
+A file that also carries `url` and `token` is fine. They addressed a second,
+legacy deployment that was retired in September 2026, and nothing reads them.
+
+**6. Nothing to point at.**
+`writeTable` creates each of the seven table tabs if it is missing, and refuses
+any tab outside that list. No spreadsheet ID is needed either: the script is
+bound to the spreadsheet it lives in.
 
 ## Test it
 
-Duplicate your tab first (right-click the tab → **Duplicate**, rename it
-`Scratch`), then:
+A dry run reaches nothing outside this machine and prints every table it would
+write:
 
 ```bash
-python3 cli.py push --tab="Scratch" --live
+python3 cli.py cms
 ```
 
-Compare against the real tab. If it matches, drop the `--tab` flag from then on.
+When that looks right, `python3 cli.py cms --live` writes it. A first write to
+an empty tab is all inserts; after that the frozen tables refuse any row that
+has changed, so a mistake is caught rather than absorbed.
 
 A quick health check without writing anything: open the `/exec` URL in a
 browser. It returns JSON listing the tabs and whether `FEP_TOKEN` is set. It
