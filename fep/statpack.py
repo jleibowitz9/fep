@@ -50,7 +50,7 @@ def render(season: dict, board: engine.Board, week: int,
     add("")
     add("_{:,} remaining outcomes. {} still alive. Generated from the model, "
         "not from memory._".format(pack["remaining_outcomes"],
-                                   pack["concentration"]["alive"]))
+                                   len(pack["elimination"]["alive"])))
     if pack["is_bye"]:
         add("")
         add("**Bye week.** No new result, but the ESPN weights moved, so the "
@@ -219,8 +219,9 @@ def render(season: dict, board: engine.Board, week: int,
     add("## Under the Hood")
     add("")
     add("- **How open is it:** effective field of {} competitors "
-        "({} technically alive, leader at {}).".format(
-            conc["effective_field"], conc["alive"], _pct(conc["leader_share"])))
+        "({} with a live path, {} with measurable odds, leader at {}).".format(
+            conc["effective_field"], len(pack["elimination"]["alive"]),
+            conc["alive"], _pct(conc["leader_share"])))
     if cal.get("games"):
         add("- **Is ESPN any good this year:** Brier score {} over {} games "
             "({} than a coin flip at 0.25). Straight up it has called {} of {} "

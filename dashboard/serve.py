@@ -383,6 +383,11 @@ def _week(payload):
     have to remember to finish.
     """
     argv = [str(payload["week"])] if payload.get("week") not in (None, "") else []
+    # A refused week offers "Record as a correction" on the page; the reason
+    # typed there is the one that goes on the record, so it is passed through
+    # verbatim rather than invented here.
+    if str(payload.get("correction") or "").strip():
+        argv += ["--correction", str(payload["correction"]).strip()]
     steps = [("The weekly run", lambda: _capture(cli.COMMANDS["week"], argv)),
              ("Rebuilding the offline copy", _rebuild),
              ("Saving to git", lambda: _backup())]
@@ -429,17 +434,73 @@ def _picks(payload):
             os.remove(scratch)
 
 
+def _cms_live(payload):
+    """Write the tables; with the flag a frozen table's refusal asked for."""
+    argv = ["--live"]
+    if payload.get("allow_correction"):
+        argv.append("--allow-correction")
+    return _capture(cli.COMMANDS["cms"], argv)
+
+
+# Points before result: clearing a pinned result back to unplayed while a
+# pinned score is still on the game is a season the engine refuses.
+OVERRIDE_SOURCES = (("points", "points_source"), ("weight", "weight_source"),
+                    ("result", "result_source"))
+
+
+def _override(payload):
+    """Pin or clear a game's result, weight or score: `cli.py override`.
+
+    One cli call per field, so each is validated and reported the way the
+    terminal would. `clear` hands every manual field on that game back to
+    ESPN, because a control that clears one of three silently leaves two.
+    """
+    index = payload.get("index")
+    if index in (None, ""):
+        return Result(ok=False, error="Which game?", log="")
+    index = str(index)
+    if payload.get("clear"):
+        try:
+            season = season_mod.load(YEAR)
+        except FileNotFoundError:
+            return Result(ok=False, error="No season file for {}.".format(YEAR), log="")
+        game = next((g for g in season["games"] if str(g["index"]) == index), None)
+        if game is None:
+            return Result(ok=False, error="No game at index {}.".format(index), log="")
+        calls = [[index, field, "--clear"] for field, source in OVERRIDE_SOURCES
+                 if game.get(source) == "manual"]
+        if not calls:
+            return Result(ok=False, error="Nothing is overridden on game {}.".format(index), log="")
+    else:
+        fields = payload.get("fields") or {}
+        calls = [[index, field, str(fields[field])] for field, _ in OVERRIDE_SOURCES
+                 if field in fields and str(fields[field]).strip() != ""]
+        if not calls:
+            return Result(ok=False, error="Nothing to override.", log="")
+    logs, ok, error = [], True, None
+    for argv in calls:
+        result = _capture(cli.COMMANDS["override"], argv)
+        if result["log"]:
+            logs.append(result["log"])
+        if not result["ok"]:
+            ok, error = False, result["error"]
+            logs.append("Stopped here.")
+            break
+    return Result(ok=ok, error=error, log="\n".join(logs))
+
+
 ACTIONS = {
     # name: (what the page calls it, the callable, does it change anything)
     "week": ("Run the week", _week, True),
     "refresh": ("Refresh from ESPN", _command("refresh"), True),
     "rebuild": ("Rebuild the offline copy", _rebuild, False),
     "cms-preview": ("Preview the CMS tables", _command("cms"), False),
-    "cms-live": ("Write the CMS tables", _command("cms", ["--live"]), True),
+    "cms-live": ("Write the CMS tables", _cms_live, True),
     "cms-csv": ("Export the CMS tables", _command("cms", ["--csv"]), False),
     "health": ("Check the deployments", _health, False),
     "backup": ("Save to git", _backup, True),
     "picks": ("Load a pick sheet", _picks, True),
+    "override": ("Override a game", _override, True),
     "board": ("Run the model", _command("board"), False),
     "leverage": ("Rank the remaining games", _command("leverage"), False),
 }
@@ -451,7 +512,7 @@ CONFIRM = {"cms-live"}
 # The actions that change what the board is drawn from. The page reloads after
 # these, so the new payload is computed before the response goes back rather
 # than during the reload, where it would look like the app had hung.
-REWARM = {"week", "refresh", "picks"}
+REWARM = {"week", "refresh", "picks", "override"}
 
 
 # --------------------------------------------------------------------------

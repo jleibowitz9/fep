@@ -235,29 +235,14 @@ def deciding_layer(season: dict, board: engine.Board, week: int) -> dict:
     Falls straight out of the simulation pass. The newsletter renders it as a
     table with a delta against the previous week.
     """
-    labels = {
-        "outright": "Correct Picks",
-        "tb1": "Tiebreaker 1 - Season Record",
-        "tb2": "Tiebreaker 2 - Division Record",
-        "tb3": "Tiebreaker 3 - Points Total",
-        "split": "Fully tied (even split)",
-    }
+    from . import chart
     previous = season_mod.previous_snapshot(season, week)
     prior = (previous or {}).get("deciding", {})
-
-    rows = []
-    for key in ("outright", "tb1", "tb2", "tb3", "split"):
-        share = board.deciding.get(key, 0.0)
-        if key == "split" and share == 0.0:
-            continue  # only show the exhausted-cascade row when it happens
-        before = prior.get(key)
-        rows.append({
-            "key": key,
-            "layer": labels[key],
-            "share": round(share, 1),
-            "delta": None if before is None else round(share - before, 1),
-        })
-    return {"rows": rows, "baseline_week": (previous or {}).get("week")}
+    # One shape, shared with the published chart data (chart.deciding_rows),
+    # so the stat pack and the Framer component cannot describe a week's
+    # tiebreaker split differently.
+    return {"rows": chart.deciding_rows(board.deciding, prior),
+            "baseline_week": (previous or {}).get("week")}
 
 
 # ---------------------------------------------------------------------------

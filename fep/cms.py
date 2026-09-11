@@ -577,7 +577,12 @@ def weeks_table(season: dict) -> Table:
             "leader": leader,
             "leader_pct": board.get(leader, "") if leader else "",
             "remaining_outcomes": snapshot.get("remaining_outcomes", ""),
-            "still_alive": sum(1 for v in board.values() if v > 0),
+            # From the structural field, not the rounded board: a long shot at
+            # 0.04% is stored as 0.0 and was published here as finished. Same
+            # fallback as eliminated_week and standings.is_eliminated.
+            "still_alive": (len(board) - len(snapshot["eliminated"])
+                            if snapshot.get("eliminated") is not None
+                            else sum(1 for v in board.values() if v > 0)),
             "decided_outright": round(
                 (snapshot.get("deciding") or {}).get("outright", 0), 1),
         })

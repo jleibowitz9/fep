@@ -106,9 +106,19 @@ authoritative and `refresh` will never overwrite it, so correcting a bad pull is
 safe and permanent:
 
 ```bash
+python3 cli.py override 4 result L        # game index 4
+python3 cli.py override w5 weight 62%     # the week 5 game; 0.62 and 62 also work
+python3 cli.py override w5 points 24
+python3 cli.py override 4 result --clear  # back to ESPN's answer
 python3 cli.py refresh    # pull from ESPN, preserving every manual override
 python3 cli.py board      # current board, no snapshot, nothing written
 ```
+
+In the app, the same control sits on each row of the data audit (Build &
+share tab): set a result, a win probability or a score, or clear the override.
+It runs the same command. Either way the run prints the board before and
+after, and says if the week is already recorded, because a snapshot does not
+move on its own -- see below.
 
 `board` is the safe way to look without recording anything. Prefer it whenever
 the question is "what does it say right now".
@@ -117,6 +127,14 @@ If a *result* was wrong for a week that has already been snapshotted and
 pushed, fixing the fact is right but be deliberate about republishing: the CMS
 depends on frozen rows staying frozen. Correct it, re-run that week explicitly,
 and check what the CMS diff actually contains before `--live`.
+
+Three refusals ask you to do the same thing again with a flag, and in the app
+each one offers the button instead of the command: a re-run that does not match
+its snapshot offers **Record as a correction** with a field for the reason (it
+goes into the record, so the page asks rather than fills it in); a frozen CMS
+table refusing a changed row offers **Write as a correction**; a late pick sheet
+offers **Load anyway**. The terminal equivalents are `week N --correction "why"`,
+`cms --live --allow-correction` and `picks file.csv --force`.
 
 ## The bye week
 

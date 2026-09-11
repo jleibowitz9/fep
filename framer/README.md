@@ -119,13 +119,17 @@ there instead of as layers. Bind them and the bar sizes itself from the sheet.
    the same shape as `FEPChart`, so Framer picks it up as a component and every
    property has a value even before you touch the panel.
 2. Drop it on the newsletter page.
-3. Leave **Source** on `Manual / CMS` and bind the five shares to the week's
-   fields. `Auto (JSON)` reads `deciding` out of `{baseUrl}/{year}/week-NN.json`
-   instead, and shows a notice until the publish step writes that field.
+3. Set **Source** to `Auto (JSON)` and give it the same `baseUrl` as the
+   chart. It reads `deciding` out of `{baseUrl}/{year}/week-NN.json`, which the
+   weekly run has published for every week since 2026-09-10 -- all of 2025's
+   files were republished with it too. Same immutable file the chart reads, no
+   CMS column, no sync.
 
-Only `decided_outright` is published to the CMS today. The other four need
-columns appended to the `weeks` table, and `weeks` is frozen, so do it before
-week 1 or not at all. See `docs/CMS.md`.
+   `Manual / CMS` still works if you would rather bind the five shares to
+   fields. Only `decided_outright` is in the `weeks` table today; the other
+   four would be appended columns on a frozen table, which needs
+   `--allow-correction` on every published row. The JSON source is why you do
+   not have to.
 
 ## The segments
 

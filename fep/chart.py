@@ -260,6 +260,40 @@ def _ranks(series: List[dict], index: int) -> Dict[str, int]:
     return ranks
 
 
+DECIDING_LAYERS = (
+    ("outright", "Correct Picks"),
+    ("tb1", "Tiebreaker 1 - Season Record"),
+    ("tb2", "Tiebreaker 2 - Division Record"),
+    ("tb3", "Tiebreaker 3 - Points Total"),
+    ("split", "Fully tied (even split)"),
+)
+
+
+def deciding_rows(current: Dict[str, float],
+                  previous: Optional[Dict[str, float]] = None) -> List[dict]:
+    """The Decision Tree as rows, in the one shape every reader parses.
+
+    `analytics.deciding_layer` (the stat pack and the dashboard) and
+    `build_payload` (the Framer component's Auto source) both go through here,
+    so a share can only ever mean one thing. The exhausted-cascade row is
+    omitted when it is zero, which is nearly always.
+    """
+    previous = previous or {}
+    rows = []
+    for key, label in DECIDING_LAYERS:
+        share = float(current.get(key, 0.0) or 0.0)
+        if key == "split" and share == 0.0:
+            continue
+        before = previous.get(key)
+        rows.append({
+            "key": key,
+            "layer": label,
+            "share": round(share, 1),
+            "delta": None if before is None else round(share - float(before), 1),
+        })
+    return rows
+
+
 def build_payload(
     weeks: Sequence[int],
     board_by_week: Dict[int, Dict[str, float]],
@@ -269,6 +303,8 @@ def build_payload(
     upto_week: Optional[int] = None,
     colors: Optional[Dict[str, str]] = None,
     eliminated: Optional[Dict[int, Sequence[str]]] = None,
+    deciding: Optional[Dict[int, Dict[str, float]]] = None,
+    outcomes: Optional[Dict[int, int]] = None,
 ) -> dict:
     """The data a chart needs for one week, and nothing after it.
 
@@ -285,6 +321,22 @@ def build_payload(
 
     series = build_series(weeks, board_by_week, roster, colors, eliminated)
     games = games or {}
+
+    # The Decision Tree for the file's own week, so the Framer component can
+    # read it from the same immutable file the chart reads, with no CMS column
+    # and no sync. Optional: files published before this existed carry no key
+    # and the component says so rather than guessing.
+    last = weeks[-1]
+    layer = None
+    if deciding and last in deciding:
+        earlier = [w for w in weeks if w < last and w in deciding]
+        baseline = earlier[-1] if earlier else None
+        layer = {
+            "rows": deciding_rows(deciding[last],
+                                  deciding[baseline] if baseline is not None else None),
+            "outcomes": (outcomes or {}).get(last),
+            "baseline_week": baseline,
+        }
 
     return {
         "year": year,
@@ -315,6 +367,7 @@ def build_payload(
         ],
         "ranks": [_ranks(series, i) for i in range(len(weeks))],
         "dim": DIM,
+        "deciding": layer,
     }
 
 

@@ -102,5 +102,5 @@ _Where the field disagrees. Consensus 1.00 means everyone picked the same way._
 
 ## Under the Hood
 
-- **How open is it:** effective field of 11.03 competitors (12 technically alive, leader at 12.6%).
+- **How open is it:** effective field of 11.03 competitors (12 with a live path, 12 with measurable odds, leader at 12.6%).
 - **Points tiebreaker model:** Normal centred on 391 with spread 117 (shrunk model, 0 games of scoring so far).

@@ -59,6 +59,8 @@ def publish_week(
     colors: Optional[Dict[str, str]] = None,
     eliminated: Optional[Dict[int, Sequence[str]]] = None,
     correction: Optional[str] = None,
+    deciding: Optional[Dict[int, Dict[str, float]]] = None,
+    outcomes: Optional[Dict[int, int]] = None,
 ) -> str:
     """Write one week's chart file. A week already published does not move.
 
@@ -76,7 +78,7 @@ def publish_week(
     payload = chart.build_payload(
         weeks=weeks, board_by_week=board_by_week, roster=roster,
         games=games, year=year, upto_week=week, colors=colors,
-        eliminated=eliminated,
+        eliminated=eliminated, deciding=deciding, outcomes=outcomes,
     )
     directory = out_dir or os.path.join(CHART_DATA_DIR, str(year))
     os.makedirs(directory, exist_ok=True)
@@ -111,11 +113,13 @@ def publish_all(
     colors: Optional[Dict[str, str]] = None,
     eliminated: Optional[Dict[int, Sequence[str]]] = None,
     correction: Optional[str] = None,
+    deciding: Optional[Dict[int, Dict[str, float]]] = None,
+    outcomes: Optional[Dict[int, int]] = None,
 ) -> List[str]:
     """Republish every week that has data. Cheap, and keeps corrections honest."""
     return [
         publish_week(weeks, board_by_week, roster, games, year, week, out_dir,
-                     colors, eliminated, correction)
+                     colors, eliminated, correction, deciding, outcomes)
         for week in sorted(weeks)
     ]
 
@@ -145,6 +149,14 @@ def publish_from_season(season: dict, week: Optional[int] = None,
         "eliminated": {s["week"]: s["eliminated"]
                        for s in season.get("snapshots", [])
                        if s.get("eliminated") is not None} or None,
+        # The Decision Tree, per week, from the same frozen record. This is
+        # what lets the Framer component's Auto source work with no CMS column.
+        "deciding": {s["week"]: s["deciding"]
+                     for s in season.get("snapshots", [])
+                     if s.get("deciding")} or None,
+        "outcomes": {s["week"]: s["remaining_outcomes"]
+                     for s in season.get("snapshots", [])
+                     if s.get("remaining_outcomes") is not None} or None,
     }
     if week is None:
         return publish_all(*args, out_dir=out_dir, correction=correction, **extra)

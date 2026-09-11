@@ -52,6 +52,7 @@ not typed.
 |---|---|
 | `cli.py board` | current board, no snapshot, no files written |
 | `cli.py refresh` | pull from ESPN, preserving any manual overrides |
+| `cli.py override <game> <field> <value>` | pin a result, weight or score by hand; `--clear` hands it back to ESPN |
 | `cli.py leverage` | every remaining game ranked by how much it swings the pool |
 | `cli.py statpack [N]` | print a week's stat pack to the terminal |
 | `cli.py who <name>` | career record, picking personality, ready-made lines |

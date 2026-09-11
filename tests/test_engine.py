@@ -641,6 +641,15 @@ class PastYearsAreImmutableTest(unittest.TestCase):
         games_now = {g["week"]: {"label": g["label"], "result": g["result"]}
                      for g in final["games"]}
 
+        # The Decision Tree is the one key the final file cannot reconstruct
+        # for an earlier week: each file carries its own week's layer. So it is
+        # compared against the season file's frozen snapshots instead, which is
+        # where the publish step read it from.
+        from fep import season as season_mod
+        deciding = {s["week"]: s["deciding"] for s in season_mod.load(2025)["snapshots"]}
+        outcomes = {s["week"]: s["remaining_outcomes"]
+                    for s in season_mod.load(2025)["snapshots"]}
+
         for week in weeks:
             path = os.path.join(here, "chart-data", "2025",
                                 "week-{:02d}.json".format(week))
@@ -648,9 +657,19 @@ class PastYearsAreImmutableTest(unittest.TestCase):
                 published = json.load(fh)
             rebuilt = chart.build_payload(weeks, board, roster, games_now,
                                           2025, upto_week=week)
+            layer = published.pop("deciding", None)
+            rebuilt.pop("deciding", None)
             self.assertEqual(json.dumps(published, sort_keys=True),
                              json.dumps(rebuilt, sort_keys=True),
                              "week {} changed".format(week))
+            earlier = [w for w in weeks if w < week]
+            baseline = earlier[-1] if earlier else None
+            self.assertEqual(layer, {
+                "rows": chart.deciding_rows(
+                    deciding[week], deciding[baseline] if baseline is not None else None),
+                "outcomes": outcomes[week],
+                "baseline_week": baseline,
+            }, "week {} deciding layer changed".format(week))
 
 
 if __name__ == "__main__":

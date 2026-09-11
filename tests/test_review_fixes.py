@@ -38,6 +38,19 @@ September 2026, second review:
                              token, to any Host that reached it
   TestHeatCheckNamesItsBaseline  the standings "Chg" column implied last week
                              even when the last snapshot was older
+
+September 2026, round two:
+
+  TestOverrideHasAPath       set_override had no caller: the only way to pin
+                             a result was to edit the season file by hand
+  TestAliveIsOneFact         the CMS, the terminal and the stat pack each
+                             counted "still alive" a different way
+  TestDashboardShowsRecordedWeek  the page chose its week off the scoreboard
+                             and dropped the bye week's snapshot
+  TestDecidingLayerIsPublished  the Decision Tree's Auto source read a key
+                             the publish step never wrote
+  TestControlRoomFollowUps   three refusals told you to retype a command with
+                             a flag; the page now offers the button
 """
 
 from __future__ import annotations
@@ -1184,6 +1197,302 @@ class TestHeatCheckNamesItsBaseline(unittest.TestCase):
         heat = analytics.heat_check(season, board, 5)
         self.assertEqual(heat["baseline_week"], 3)
         self.assertFalse(heat["baseline_is_previous_week"])
+
+
+# ---------------------------------------------------------------------------
+# September 2026, round two
+# ---------------------------------------------------------------------------
+
+
+def _longshot_board():
+    """Two games won, three 99% favourites to go. Longshot wins one outcome
+    in eight; Second ties Leader everywhere and is separated by the points."""
+    return engine.run(
+        {"Leader": ["W"] * 5, "Second": ["W"] * 5, "Longshot": ["L"] * 5},
+        ["W", "W", "A", "A", "A"], [None, None, 0.99, 0.99, 0.99], [0],
+        {"Leader": 400.0, "Second": 500.0, "Longshot": 420.0},
+        points_scored=[24, 24, None, None, None])
+
+
+def _snapshot_of(board, week=1, results=None):
+    return {"week": week,
+            "weighted": {n: round(board.weighted[n], 1) for n in board.order},
+            "straight": {n: round(board.straight[n], 1) for n in board.order},
+            "eliminated": sorted(board.eliminated()),
+            "current_points": dict(board.current_points),
+            "deciding": {k: round(v, 1) for k, v in board.deciding.items()},
+            "remaining_outcomes": board.remaining_outcomes,
+            "results": results or ["W", "W", "A", "A", "A"]}
+
+
+class _TempSeason(unittest.TestCase):
+    """Point the season module at a scratch copy of the 2026 file."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        shutil.copy(season_mod.path_for(2026), self.dir)
+        self._data_dir = season_mod.DATA_DIR
+        season_mod.DATA_DIR = self.dir
+
+    def tearDown(self):
+        season_mod.DATA_DIR = self._data_dir
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def _cli(self):
+        spec = importlib.util.spec_from_file_location(
+            "fep_cli_override", os.path.join(ROOT, "cli.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def _game(self, index):
+        return next(g for g in season_mod.load(2026)["games"] if g["index"] == index)
+
+
+class TestOverrideHasAPath(_TempSeason):
+    """`cli.py override` is the command the runbook always described."""
+
+    def test_a_result_can_be_pinned_and_survives_refresh(self):
+        cli = self._cli()
+        cli.COMMANDS["override"](["3", "result", "L"])
+        game = self._game(3)
+        self.assertEqual(game["result"], "L")
+        self.assertEqual(game["result_source"], "manual")
+        season = season_mod.load(2026)
+        with _espn_returning(espn.fetch_season(2026, refresh=False)):
+            season_mod.refresh(season)
+        self.assertEqual(next(g for g in season["games"] if g["index"] == 3)["result"], "L")
+
+    def test_a_weight_accepts_a_percent(self):
+        cli = self._cli()
+        cli.COMMANDS["override"](["w5", "weight", "62%"])
+        game = next(g for g in season_mod.load(2026)["games"] if g["nfl_week"] == 5)
+        self.assertEqual(game["weight"], 0.62)
+        self.assertEqual(game["weight_source"], "manual")
+
+    def test_clear_hands_the_field_back_to_espn(self):
+        cli = self._cli()
+        cli.COMMANDS["override"](["3", "weight", "0.9"])
+        cli.COMMANDS["override"](["3", "weight", "--clear"])
+        game = self._game(3)
+        self.assertEqual(game["weight_source"], "espn")
+        self.assertNotEqual(game["weight"], 0.9)
+
+    def test_nonsense_is_refused_in_a_sentence(self):
+        cli = self._cli()
+        for argv in (["3", "weight", "1.5"], ["3", "result", "X"], ["3", "points", "-4"],
+                     ["w10", "result", "W"], ["99", "result", "W"], ["3", "colour", "red"]):
+            with self.assertRaises(SystemExit, msg=argv):
+                cli.COMMANDS["override"](argv)
+        self.assertEqual(self._game(3)["result_source"], "espn")
+
+    def test_clearing_a_result_cannot_orphan_a_pinned_score(self):
+        cli = self._cli()
+        cli.COMMANDS["override"](["3", "result", "W"])
+        cli.COMMANDS["override"](["3", "points", "27"])
+        with self.assertRaises(SystemExit) as caught:
+            cli.COMMANDS["override"](["3", "result", "--clear"])
+        self.assertIn("Clear the points", str(caught.exception))
+        game = self._game(3)
+        self.assertEqual((game["result"], game["result_source"]), ("W", "manual"))
+        cli.COMMANDS["override"](["3", "points", "--clear"])
+        cli.COMMANDS["override"](["3", "result", "--clear"])
+        game = self._game(3)
+        self.assertEqual((game["result"], game["points_for"]), (engine.UNPLAYED, None))
+
+    def test_a_bare_decimal_above_one_is_refused_not_guessed(self):
+        cli = self._cli()
+        with self.assertRaises(SystemExit) as caught:
+            cli.COMMANDS["override"](["3", "weight", "1.5"])
+        self.assertIn("say which you meant", str(caught.exception))
+        cli.COMMANDS["override"](["3", "weight", "62"])
+        self.assertEqual(self._game(3)["weight"], 0.62)
+
+    def test_a_score_on_an_unplayed_game_is_refused_by_the_engine(self):
+        cli = self._cli()
+        with self.assertRaises(engine.SeasonError):
+            cli.COMMANDS["override"](["3", "points", "24"])
+
+
+class TestAliveIsOneFact(unittest.TestCase):
+    """The surfaces that say "alive" all read the rules."""
+
+    def test_the_weeks_table_reads_the_structural_field(self):
+        board = _longshot_board()
+        season = {"year": 2099, "games": [], "week_to_game_index": {},
+                  "bye_weeks": [], "bye_week": None,
+                  "snapshots": [_snapshot_of(board)]}
+        row = cms.weeks_table(season).rows[0]
+        self.assertEqual(row["still_alive"], len(board.order) - len(board.eliminated()))
+        self.assertEqual(row["still_alive"], 3)
+
+    def test_the_stat_pack_and_the_run_agree_with_the_engine(self):
+        from fep import statpack
+        season = copy.deepcopy(season_mod.load(2026))
+        board = season_mod.run(season, through_week=0)
+        pack = analytics.full_pack(season, board, 0, through_week=0)
+        path = os.path.join(tempfile.mkdtemp(), "statpack.md")
+        statpack.write(season, board, 0, path, pack)
+        text = open(path).read()
+        alive = len(pack["elimination"]["alive"])
+        self.assertIn("{} still alive".format(alive), text)
+        self.assertIn("{} with a live path".format(alive), text)
+
+
+class TestDashboardShowsRecordedWeek(unittest.TestCase):
+    """collect() defaults to the last snapshot, which is what was published."""
+
+    def _collect_with(self, season):
+        spec = importlib.util.spec_from_file_location(
+            "dashboard_build_r2", os.path.join(DASHBOARD, "build.py"))
+        build = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(build)
+        original = season_mod.load
+        season_mod.load = lambda year: copy.deepcopy(season)
+        try:
+            return build.collect(season["year"])
+        finally:
+            season_mod.load = original
+
+    def test_a_bye_week_snapshot_is_the_week_shown(self):
+        # Sit the season inside its bye: every game before it played, the bye
+        # itself snapshotted, nothing after. The scoreboard says the week
+        # before; the record says the bye.
+        season = copy.deepcopy(season_mod.load(2025))
+        bye = season["bye_week"]
+        season["snapshots"] = [s for s in season["snapshots"] if s["week"] <= bye]
+        for game in season["games"]:
+            if game["nfl_week"] > bye:
+                game["result"], game["points_for"] = engine.UNPLAYED, None
+        self.assertEqual(season_mod.current_nfl_week(season), bye - 1)
+        data = self._collect_with(season)
+        self.assertEqual(data["week"], bye)
+        self.assertIn(bye, [s["week"] for s in data["snapshots"]])
+
+    def test_no_snapshots_falls_back_to_the_scoreboard(self):
+        season = copy.deepcopy(season_mod.load(2025))
+        season["snapshots"] = []
+        for game in season["games"]:
+            if game["nfl_week"] > 3:
+                game["result"], game["points_for"] = engine.UNPLAYED, None
+        self.assertEqual(self._collect_with(season)["week"], 3)
+
+
+class TestDecidingLayerIsPublished(unittest.TestCase):
+    """week-NN.json carries the Decision Tree the component's Auto source reads."""
+
+    def test_the_payload_has_rows_outcomes_and_a_baseline(self):
+        board = _longshot_board()
+        deciding = {0: {"outright": 60.0, "tb1": 30.0, "tb2": 10.0, "tb3": 0.0, "split": 0.0},
+                    1: {k: round(v, 1) for k, v in board.deciding.items()}}
+        payload = chart.build_payload(
+            [0, 1], {0: {n: 33.3 for n in board.order},
+                     1: {n: round(board.weighted[n], 1) for n in board.order}},
+            board.order, deciding=deciding, outcomes={0: 32, 1: 8}, upto_week=1)
+        layer = payload["deciding"]
+        self.assertEqual(layer["outcomes"], 8)
+        self.assertEqual(layer["baseline_week"], 0)
+        rows = {r["key"]: r for r in layer["rows"]}
+        self.assertEqual(rows["outright"]["delta"],
+                         round(rows["outright"]["share"] - 60.0, 1))
+        self.assertNotIn("split", rows)          # zero, so omitted
+        self.assertEqual([r["key"] for r in layer["rows"]][:1], ["outright"])
+
+    def test_the_first_week_has_no_delta_and_no_baseline(self):
+        board = _longshot_board()
+        payload = chart.build_payload(
+            [0], {0: {n: 33.3 for n in board.order}}, board.order,
+            deciding={0: {k: round(v, 1) for k, v in board.deciding.items()}},
+            outcomes={0: 8})
+        self.assertIsNone(payload["deciding"]["baseline_week"])
+        self.assertTrue(all(r["delta"] is None for r in payload["deciding"]["rows"]))
+
+    def test_a_payload_without_it_says_so_rather_than_guessing(self):
+        board = _longshot_board()
+        payload = chart.build_payload([0], {0: {n: 33.3 for n in board.order}}, board.order)
+        self.assertIsNone(payload["deciding"])
+
+    def test_the_stat_pack_and_the_published_file_share_one_shape(self):
+        season = copy.deepcopy(season_mod.load(2025))
+        board = season_mod.run(season, through_week=10)
+        pack_rows = analytics.deciding_layer(season, board, 10)["rows"]
+        out = tempfile.mkdtemp()
+        paths = publish.publish_from_season(season, out_dir=out)
+        with open(next(p for p in paths if p.endswith("week-10.json"))) as fh:
+            file_rows = json.load(fh)["deciding"]["rows"]
+        self.assertEqual([sorted(r) for r in pack_rows], [sorted(r) for r in file_rows])
+        self.assertEqual([r["key"] for r in pack_rows], [r["key"] for r in file_rows])
+
+    def test_every_published_file_carries_it(self):
+        for year in (2025, 2026):
+            folder = os.path.join(ROOT, "chart-data", str(year))
+            for name in sorted(os.listdir(folder)):
+                with open(os.path.join(folder, name)) as fh:
+                    payload = json.load(fh)
+                self.assertIsNotNone(payload.get("deciding"), "{}/{}".format(year, name))
+                self.assertTrue(payload["deciding"]["rows"], "{}/{}".format(year, name))
+
+
+class TestControlRoomFollowUps(unittest.TestCase):
+    """The page offers the flag a refusal asked for; the server passes it on."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.serve = _load_serve()
+        cls.cli = cls.serve.cli
+        with open(os.path.join(DASHBOARD, "template.html")) as fh:
+            cls.template = fh.read()
+
+    def _capture_argv(self, command, payload_fn):
+        seen = []
+
+        def fake(argv):
+            seen.append(list(argv))
+            raise SystemExit("stopped by the test")
+        original = self.cli.COMMANDS[command]
+        self.cli.COMMANDS[command] = fake
+        try:
+            payload_fn()
+        finally:
+            self.cli.COMMANDS[command] = original
+        return seen
+
+    def test_a_correction_reaches_the_weekly_run(self):
+        seen = self._capture_argv(
+            "week", lambda: self.serve._week({"week": "3", "correction": "ESPN fixed it"}))
+        self.assertEqual(seen, [["3", "--correction", "ESPN fixed it"]])
+
+    def test_a_blank_correction_is_not_passed(self):
+        seen = self._capture_argv("week", lambda: self.serve._week({"week": "3", "correction": "  "}))
+        self.assertEqual(seen, [["3"]])
+
+    def test_allow_correction_reaches_the_cms_push(self):
+        fn = self.serve.ACTIONS["cms-live"][1]
+        self.assertEqual(self._capture_argv("cms", lambda: fn({"allow_correction": True})),
+                         [["--live", "--allow-correction"]])
+        self.assertEqual(self._capture_argv("cms", lambda: fn({})), [["--live"]])
+
+    def test_an_override_is_one_cli_call_per_field(self):
+        fn = self.serve.ACTIONS["override"][1]
+        seen = self._capture_argv(
+            "override", lambda: fn({"index": 3, "fields": {"result": "L", "weight": "62", "points": ""}}))
+        # Points first, then weight, then result (so a clear never orphans a
+        # score); a blank field is skipped; it stops at the first failure,
+        # which the fake supplies on the first call.
+        self.assertEqual(seen, [["3", "weight", "62"]])
+
+    def test_clearing_nothing_is_refused_before_any_call(self):
+        fn = self.serve.ACTIONS["override"][1]
+        result = fn({"index": 3, "clear": True})
+        self.assertFalse(result["ok"])
+        self.assertIn("Nothing is overridden", result["error"])
+        self.assertIn("override", self.serve.REWARM)
+
+    def test_the_page_carries_the_controls(self):
+        for needle in ('data-follow="week-correction"', 'data-follow="override"',
+                       'data-follow="override-clear"', "JSON.parse(b.dataset.extra)",
+                       'id="ctlFollow"', "pointsSource", "override:1"):
+            self.assertIn(needle, self.template, needle)
 
 
 if __name__ == "__main__":

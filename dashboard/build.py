@@ -36,7 +36,14 @@ def collect(year: int, week: int = None) -> dict:
             "Or build the prototype: python3 dashboard/build.py --mock /tmp/mock.json"
             .format(year))
 
-    week = week if week is not None else season_mod.current_nfl_week(season)
+    # The last board the family saw, not the last week with a result. The run
+    # picks its week off the calendar, and during the bye the calendar is a
+    # week ahead of the scoreboard: the run wrote week 10, the site published
+    # week 10, and this page pinned itself to week 9 and dropped the week-10
+    # snapshot from every tab. What is recorded is the honest default.
+    if week is None:
+        recorded = [s["week"] for s in season.get("snapshots") or []]
+        week = max(recorded) if recorded else season_mod.current_nfl_week(season)
     board = season_mod.run(season, through_week=week)
     pack = analytics.full_pack(season, board, week, through_week=week,
                               leverage_limit=17)
@@ -68,7 +75,8 @@ def collect(year: int, week: int = None) -> dict:
                    "result": g["result"], "weight": g["weight"],
                    "points": g["points_for"], "division": g["division"],
                    "resultSource": g.get("result_source"),
-                   "weightSource": g.get("weight_source"), "date": g["date"]}
+                   "weightSource": g.get("weight_source"),
+                   "pointsSource": g.get("points_source"), "date": g["date"]}
                   for g in view["games"]],
         "roster": season["roster"],
         # Competitor colour is identity, not roster position. The chart owns the

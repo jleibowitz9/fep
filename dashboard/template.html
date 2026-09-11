@@ -26,6 +26,16 @@
   --r:14px; --rail:224px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
+/* Follow-ups after a refusal, and the per-game override control. Same
+   surfaces as the rest of the Run tab: nothing new, just more of it. */
+.follow{align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px}
+.follow .reason{font:inherit;font-size:13px;color:var(--ink);background:var(--panel2);
+  border:1px solid var(--line2);border-radius:8px;padding:7px 10px;min-width:260px;flex:1}
+td.ovr{white-space:nowrap}
+td.ovr select,td.ovr input{font:inherit;font-size:12px;color:var(--ink);background:var(--panel2);
+  border:1px solid var(--line);border-radius:6px;padding:3px 6px;margin-right:4px;width:auto}
+td.ovr input{width:58px}
+.btn.tiny{padding:4px 9px;font-size:12px}
 html,body{height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;
   -webkit-font-smoothing:antialiased;display:flex;overflow:hidden}
@@ -624,10 +634,37 @@ function setBusy(on,label){
 // Reloading is how the page picks up a new season file. Only the actions that
 // change what the board is drawn from need it: writing to the Sheet or to git
 // changes the world outside this page, not the payload inside it.
-const RELOADS = {week:1, refresh:1, picks:1};
+const RELOADS = {week:1, refresh:1, picks:1, override:1};
+let LAST_CSV = null;
+
+// Three refusals in cli.py end with "do this again, with this flag". The
+// terminal shows the command; the page offers the button. The reason for a
+// correction is typed here because it is what goes into the audit trail, so
+// the page must ask for it rather than supply it.
+function followUp(action, out){
+  const el=document.getElementById('ctlFollow'); if(!el) return;
+  const text=(out.error||'')+'\n'+(out.log||'');
+  let html='';
+  const refused=/week (\d+) is already recorded and this run does not match/.exec(text);
+  if(action==='week' && refused){
+    html=`<span class="tiny muted">Week ${refused[1]} is frozen. If this is a genuine correction, say why and record it:</span>
+      <input id="ctlReason" class="reason" placeholder="ESPN corrected the score" maxlength="140">
+      <button class="btn danger" data-follow="week-correction" data-week="${refused[1]}">Record as a correction</button>`;
+  } else if(action==='cms-live' && /frozen table|allowCorrection/i.test(text)){
+    html=`<span class="tiny muted">A frozen table refused a changed row. Every change is listed above.</span>
+      <button class="btn danger" data-run="cms-live" data-extra='{"allow_correction":true}'
+        data-confirm="Write the corrections now">Write as a correction</button>`;
+  } else if(action==='picks' && /--force/.test(text) && LAST_CSV){
+    html=`<span class="tiny muted">A sheet for someone with no picks on record, after games have been played.</span>
+      <button class="btn danger" data-run="picks" data-extra='{"force":true}'
+        data-confirm="Load it now">Load anyway</button>`;
+  }
+  el.innerHTML=html; el.hidden=!html;
+}
 
 async function run(action, extra, label){
   if(BUSY) return toast("Something is already running");
+  if(action==='picks' && extra && extra.force && !extra.csv) extra=Object.assign({csv:LAST_CSV}, extra);
   setBusy(true,label);
   logOut((label||action)+' ...');
   let out;
@@ -643,8 +680,10 @@ async function run(action, extra, label){
   const head=(out.label||action)+(out.seconds!==undefined?'  ('+out.seconds+'s)':'');
   if(!out.ok){
     logOut(head+"\n\n"+(out.error||'It did not work.')+"\n\n"+(out.log||''), true);
+    followUp(action, out);
     return toast(out.error||"That did not work");
   }
+  followUp(action, {});
   logOut(head+"\n\n"+(out.log||'Done.'));
   toast((out.label||'Done')+" ✓");
   if(RELOADS[action]) setTimeout(()=>location.reload(), 700);
@@ -708,7 +747,8 @@ function controlPanel(){
     <input type="file" id="ctlFile" accept=".csv,text/csv" hidden>
   </div>
 
-  <pre class="log" id="ctlLog" hidden></pre>`;
+  <pre class="log" id="ctlLog" hidden></pre>
+  <div class="ctl follow" id="ctlFollow" hidden></div>`;
 }
 
 // What the deployment is actually running.
@@ -801,6 +841,7 @@ if(LIVE){
   // dialog: the button says what it is about to do and waits five seconds.
   document.body.addEventListener('click', e=>{
     const b=e.target.closest('[data-run]'); if(!b || b.disabled) return;
+    if(b.dataset.follow) return;   // handled below: it needs a field read first
     const confirmText=b.dataset.confirm;
     if(confirmText && !b.classList.contains('armed')){
       const original=b.textContent;
@@ -810,7 +851,38 @@ if(LIVE){
       return;
     }
     if(b._arm){clearTimeout(b._arm);b.classList.remove('armed');}
-    run(b.dataset.run, null, b.textContent.trim());
+    // A button may carry its own arguments (a correction, a force, an
+    // override), so a follow-up offered after a refusal is the same command
+    // with the flag the refusal asked for.
+    let extra=null;
+    if(b.dataset.extra){ try{ extra=JSON.parse(b.dataset.extra); }catch(_){ extra=null; } }
+    run(b.dataset.run, extra, b.textContent.trim());
+  });
+
+  // Follow-ups that need a field read before they can run.
+  document.body.addEventListener('click', e=>{
+    const b=e.target.closest('[data-follow]'); if(!b || b.disabled) return;
+    if(b.dataset.follow==='week-correction'){
+      const reason=(document.getElementById('ctlReason')||{}).value||'';
+      if(!reason.trim()) return toast("Say why. It goes into the record.");
+      run('week',{week:b.dataset.week, correction:reason.trim()},
+          'Recording week '+b.dataset.week+' as a correction');
+    }
+    if(b.dataset.follow==='override'){
+      const tr=b.closest('tr'), i=tr.dataset.i;
+      const fields={};
+      const res=tr.querySelector('[data-f="result"]').value;
+      const wt=tr.querySelector('[data-f="weight"]').value.trim();
+      const pts=tr.querySelector('[data-f="points"]').value.trim();
+      if(res) fields.result=res;
+      if(wt) fields.weight=wt;
+      if(pts) fields.points=pts;
+      if(!Object.keys(fields).length) return toast("Nothing to override");
+      run('override',{index:Number(i), fields}, 'Overriding game '+i);
+    }
+    if(b.dataset.follow==='override-clear'){
+      run('override',{index:Number(b.dataset.i), clear:true}, 'Clearing the override on game '+b.dataset.i);
+    }
   });
 
   document.body.addEventListener('click', e=>{
@@ -826,7 +898,7 @@ if(LIVE){
   document.body.addEventListener('change', e=>{
     if(e.target.id!=='ctlFile' || !e.target.files.length) return;
     const file=e.target.files[0], reader=new FileReader();
-    reader.onload=()=>run('picks',{csv:reader.result}, 'Loading '+file.name);
+    reader.onload=()=>{LAST_CSV=reader.result; run('picks',{csv:reader.result}, 'Loading '+file.name);};
     reader.readAsText(file);
     e.target.value='';
   });
@@ -839,7 +911,7 @@ if(LIVE){
       if(type!=='drop') return;
       const file=(e.dataTransfer.files||[])[0]; if(!file) return;
       const reader=new FileReader();
-      reader.onload=()=>run('picks',{csv:reader.result}, 'Loading '+file.name);
+      reader.onload=()=>{LAST_CSV=reader.result; run('picks',{csv:reader.result}, 'Loading '+file.name);};
       reader.readAsText(file);
     });
   });
@@ -905,7 +977,7 @@ function rankAt(week,name){
    runtime -- none of which `cli.py dashboard` performs.
    ============================================================= */
 (function(){
-  const overrides = D.games.filter(g=>g.weightSource==='manual'||g.resultSource==='manual');
+  const overrides = D.games.filter(g=>g.weightSource==='manual'||g.resultSource==='manual'||g.pointsSource==='manual');
   const sum = Object.values(D.board).reduce((a,b)=>a+b,0);
   const biggest = movers.length?movers[0]:null;
   const contiguous = D.snapshots.map(s=>s.week).every((w,i)=>w===i);
@@ -941,10 +1013,15 @@ function rankAt(week,name){
 
   // Things that genuinely want a human. These are the only rows shown by default.
   const attention = [];
-  overrides.forEach(g=>attention.push({
-    title:`Manual override on ${esc(g.label)}`,
-    body:`Your weight of ${g.weight==null?'—':(g.weight*100).toFixed(1)+'%'} is being used. ESPN's number was ignored, and will keep being ignored until you clear it.`,
-    action:null}));
+  overrides.forEach(g=>{
+    const fields=[g.resultSource==='manual'?`result ${g.result}`:'',
+                  g.weightSource==='manual'?`weight ${g.weight==null?'--':(g.weight*100).toFixed(1)+'%'}`:'',
+                  g.pointsSource==='manual'?`points ${g.points??'--'}`:''].filter(Boolean);
+    attention.push({
+      title:`Manual override on ${esc(g.label)}`,
+      body:`Your ${fields.join(', ')} ${fields.length===1?'is':'are'} being used. ESPN's ${fields.length===1?'number is':'numbers are'} ignored until you clear it in the data audit below.`,
+      action:null});
+  });
   checks.filter(c=>c[0]!=='ok').forEach(c=>attention.push({title:c[1],body:c[2],action:null}));
 
   const total = steps.length + checks.length;
@@ -990,18 +1067,32 @@ function rankAt(week,name){
   <details class="disc"><summary>Data audit<span>17 games, every value and where it came from</span></summary>
     <table>
       <thead><tr><th>Wk</th><th>Matchup</th><th>Result</th><th class="r">PHI pts</th>
-        <th class="r">ESPN win prob</th><th>Source</th><th class="r">Field picked W</th></tr></thead>
+        <th class="r">ESPN win prob</th><th>Source</th><th class="r">Field picked W</th>
+        ${LIVE?'<th>Override</th>':''}</tr></thead>
       <tbody>${D.games.map(g=>{
         const w = D.roster.filter(n=>D.picks[n][g.i]==='W').length;
-        const manual = g.weightSource==='manual';
-        return `<tr>
+        const manualOn=[g.resultSource==='manual'?'result':'',g.weightSource==='manual'?'weight':'',
+                        g.pointsSource==='manual'?'points':''].filter(Boolean);
+        const manual = manualOn.length>0;
+        // The control is the same cli.py override command the terminal
+        // would run; the page only fills in its arguments. Result, weight
+        // and points are the three facts ESPN can get wrong.
+        const ctl = !LIVE ? '' : `<td class="ovr">
+            <select data-f="result" title="Result"><option value="">result</option>
+              <option>W</option><option>L</option><option>T</option></select>
+            <input data-f="weight" size="4" placeholder="win %" title="ESPN win probability, as a percent">
+            <input data-f="points" size="3" placeholder="pts" title="Eagles points">
+            <button class="btn ghost tiny" data-follow="override">Set</button>
+            ${manual?`<button class="btn ghost tiny" data-follow="override-clear" data-i="${g.i}" title="Back to ESPN's value">Clear</button>`:''}
+          </td>`;
+        return `<tr data-i="${g.i}">
           <td class="muted num">${g.week}</td>
           <td>${esc(g.label)}</td>
           <td><span class="wl ${g.result}">${g.result==='A'?'·':g.result}</span></td>
-          <td class="r num muted">${g.points??'—'}</td>
-          <td class="r num">${g.weight==null?'—':(g.weight*100).toFixed(1)+'%'}</td>
-          <td class="tiny ${manual?'':'muted'}" style="${manual?'color:var(--amber)':''}">${manual?'manual':'espn'}</td>
-          <td class="r num muted">${w}/12</td></tr>`;}).join('')}
+          <td class="r num muted">${g.points??'--'}</td>
+          <td class="r num">${g.weight==null?'--':(g.weight*100).toFixed(1)+'%'}</td>
+          <td class="tiny ${manual?'':'muted'}" style="${manual?'color:var(--amber)':''}">${manual?'manual: '+manualOn.join(', '):'espn'}</td>
+          <td class="r num muted">${w}/12</td>${ctl}</tr>`;}).join('')}
       </tbody>
     </table>
   </details>

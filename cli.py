@@ -12,6 +12,8 @@ The FEP weekly run, headless.
     python3 cli.py token           generate a shared secret for the Apps Script
     python3 cli.py dashboard       build and open the weekly dashboard
     python3 cli.py picks <file>    load picks from a CSV
+    python3 cli.py override <game> <field> <value|--clear>
+                                   pin a result, weight or score by hand
 
     python3 cli.py who <name>      career record and picking personality
     python3 cli.py h2h <a> <b>     head to head across every shared season
@@ -193,8 +195,11 @@ def cmd_week(argv):
         YEAR, week, "  (bye week)" if pack["is_bye"] else "",
         {"unchanged": "  (already recorded, unchanged)",
          "corrected": "  (CORRECTED)"}.get(status, "")))
+    # "Alive" is a claim about the rules. concentration.alive is deliberately
+    # the other notion (measurable odds) and stays that way for the field
+    # readout; the sentence that says "alive" reads the rules.
     print("{:,} remaining outcomes, {} still alive\n".format(
-        board.remaining_outcomes, pack["concentration"]["alive"]))
+        board.remaining_outcomes, len(pack["elimination"]["alive"])))
     for name in board.ranked():
         delta = pack["heat_check"]["deltas"].get(name)
         arrow = "" if delta in (None, 0) else ("  {:+.1f}".format(delta))
@@ -428,6 +433,160 @@ def cmd_picks(argv):
         print("The board stays locked until all {} are in.".format(len(season["roster"])))
 
 
+def _game_ref(season, text):
+    """A game index, or an NFL week written as w5. Refuses a bye."""
+    raw = str(text).strip().lower()
+    if raw.startswith("w") and raw[1:].isdigit():
+        week = int(raw[1:])
+        index = season_mod.game_index_for_week(season, week)
+        if index is None:
+            sys.exit("Week {} has no game ({}).".format(
+                week, "the bye" if season_mod.is_bye_week(season, week) else "not on the schedule"))
+        return index
+    if not raw.lstrip("-").isdigit():
+        sys.exit("Which game? A game index (0..{}) or an NFL week like w5.".format(
+            len(season["games"]) - 1))
+    index = int(raw)
+    if not 0 <= index < len(season["games"]):
+        sys.exit("No game at index {}. The season has games 0..{}.".format(
+            index, len(season["games"]) - 1))
+    return index
+
+
+OVERRIDE_FIELDS = {"result": "result", "weight": "weight", "points": "points_for"}
+
+
+def _parse_override(field, text):
+    """The value a field accepts, or a sentence about why not."""
+    raw = str(text).strip()
+    if field == "result":
+        value = raw.upper()[:1]
+        if value not in (engine.WIN, engine.LOSS, engine.TIE):
+            sys.exit("A result is W, L or T. Got {!r}.".format(raw))
+        return value
+    if field == "weight":
+        percent = raw.endswith("%")
+        try:
+            number = float(raw.rstrip("%"))
+        except ValueError:
+            sys.exit("A weight is the Eagles' win probability: 0.62, or 62%. Got {!r}.".format(raw))
+        # 0.62 is a probability. 62% is a percent. A bare whole number above 1
+        # (62) is taken as a percent too, since no probability looks like that.
+        # A bare 1.5 is neither and is refused rather than guessed at: reading
+        # it as 1.5% turned a typo into a 0.015 that nobody meant.
+        if percent or (number > 1.0 and number == int(number)):
+            number /= 100.0
+        elif number > 1.0:
+            sys.exit("A weight is 0.62 or 62%. {!r} is neither; say which you meant.".format(raw))
+        if not 0.0 <= number <= 1.0:
+            sys.exit("A weight must land between 0 and 1 (or 0% and 100%). Got {!r}.".format(raw))
+        return round(number, 4)
+    try:
+        number = float(raw)
+    except ValueError:
+        sys.exit("Points are a whole number. Got {!r}.".format(raw))
+    if number < 0 or number != int(number):
+        sys.exit("Points are a whole, non-negative number. Got {!r}.".format(raw))
+    return int(number)
+
+
+def cmd_override(argv):
+    """Pin a result, weight or score by hand, or hand it back to ESPN.
+
+        python3 cli.py override 4 result L         game index 4
+        python3 cli.py override w5 weight 62%      the week 5 game
+        python3 cli.py override w5 points 24
+        python3 cli.py override 4 result --clear   back to ESPN's answer
+
+    A pinned field is marked manual and `refresh` never touches it again, so
+    correcting a bad pull is safe and permanent. Until now that was true and
+    unreachable: set_override had no caller, and the only way to use it was to
+    edit the one file that cannot be regenerated, by hand, during a live week.
+    """
+    usage = ("usage: python3 cli.py override <game> <result|weight|points> <value>\n"
+             "       python3 cli.py override <game> <field> --clear\n"
+             "  <game> is a game index (0..16) or an NFL week like w5")
+    if len(argv) < 3:
+        sys.exit(usage)
+    import copy
+    season = _load()
+    index = _game_ref(season, argv[0])
+    field = argv[1].strip().lower()
+    if field not in OVERRIDE_FIELDS:
+        sys.exit("The field is result, weight or points. Got {!r}.\n{}".format(argv[1], usage))
+    key = OVERRIDE_FIELDS[field]
+    source_key = {"result": "result_source", "weight": "weight_source",
+                  "points_for": "points_source"}[key]
+    game = next(g for g in season["games"] if g["index"] == index)
+    ready = season_mod.has_picks(season)
+    before_board = season_mod.run(season) if ready else None
+    before = game.get(key)
+
+    if argv[2] == "--clear":
+        if game.get(source_key) != "manual":
+            sys.exit("Game {} ({}) has no manual {}; it is already ESPN's.".format(
+                index, game["label"], field))
+        # Take ESPN's value back, on a copy first. From the cache when there
+        # is one, so this works offline; a stale cache says so in the change
+        # list. Validated before it is kept: clearing a pinned result back to
+        # unplayed while a pinned score stays behind is a season the engine
+        # refuses, and this used to save it anyway.
+        trial = copy.deepcopy(season)
+        season_mod.clear_override(trial, index, key)
+        season_mod.refresh(trial, force=False)
+        if ready:
+            try:
+                engine.validate(trial["picks"], season_mod.results(trial),
+                                season_mod.weights(trial), trial["division_indices"],
+                                trial["points_guess"],
+                                points_scored=season_mod.points_scored(trial))
+            except engine.SeasonError as exc:
+                hint = ("\n  Clear the points on this game first."
+                        if key == "result" and game.get("points_source") == "manual" else "")
+                sys.exit("Clearing the {} would leave the season inconsistent: {}{}".format(
+                    field, exc, hint))
+        season.clear()
+        season.update(trial)
+        game = next(g for g in season["games"] if g["index"] == index)
+        for change in season.get("last_refresh_changes") or []:
+            print("  espn: {}".format(change))
+        after = game.get(key)
+        print("Game {} ({}): {} {} -> {}, back to ESPN.".format(
+            index, game["label"], field, before, after))
+    else:
+        value = _parse_override(field, argv[2])
+        if ready:
+            # Validate against the whole season before touching it: a result of
+            # "A" with a score, a weight out of range, a score on a game that
+            # is not played. engine.validate says which, in a sentence.
+            trial = copy.deepcopy(season)
+            season_mod.set_override(trial, index, key, value)
+            engine.validate(trial["picks"], season_mod.results(trial),
+                            season_mod.weights(trial), trial["division_indices"],
+                            trial["points_guess"],
+                            points_scored=season_mod.points_scored(trial))
+        season_mod.set_override(season, index, key, value)
+        print("Game {} ({}): {} {} -> {}  (manual; refresh will not undo it)".format(
+            index, game["label"], field, before, value))
+
+    week = game.get("nfl_week")
+    if week is not None and season_mod.get_snapshot(season, week) is not None:
+        print("  Week {} is already recorded. Its snapshot does not move on its own:\n"
+              "  re-run it with  python3 cli.py week {} --correction \"why\"  to republish."
+              .format(week, week))
+
+    season_mod.save(season)
+    if ready:
+        after_board = season_mod.run(season)
+        moves = sorted(((n, after_board.weighted[n] - before_board.weighted[n])
+                        for n in after_board.order), key=lambda kv: -abs(kv[1]))
+        moved = [(n, d) for n, d in moves if abs(d) >= 0.05][:4]
+        if moved:
+            print("  board: " + ", ".join("{} {:+.1f}".format(n, d) for n, d in moved))
+        else:
+            print("  board: unchanged")
+
+
 def cmd_who(argv):
     if not argv:
         sys.exit("usage: python3 cli.py who <name>")
@@ -508,6 +667,7 @@ COMMANDS = {
     "statpack": cmd_statpack,
     "cms": cmd_cms,
     "picks": cmd_picks,
+    "override": cmd_override,
     "token": cmd_token,
     "dashboard": cmd_dashboard,
     "who": cmd_who,
