@@ -96,3 +96,140 @@ numbers.
 `fep/chart.py` also renders each week as a standalone HTML file with the data
 baked in. Useful for dropping a chart into the group chat, and as a backup if
 the component is ever inconvenient. Same design, no dependencies, no network.
+
+---
+
+# The FEP Decision Tree in Framer
+
+`FEPDecisionTree.tsx`. One horizontal stacked bar: of every way the rest of the
+season can still go, how much is settled on correct picks and how much falls
+through to each tiebreaker.
+
+## Why the numbers are properties
+
+Framer's CMS binding reaches text, images, links and visibility. It does **not**
+reach a layer's width, which is the one thing a stacked bar needs. A code
+component's *properties* can be bound to CMS fields, so the five shares live
+there instead of as layers. Bind them and the bar sizes itself from the sheet.
+
+## Setup
+
+1. **Assets > Code > New Component**, name it `FEPDecisionTree`, paste the file.
+   It is a default export with a `Props` type and defaults in the signature,
+   the same shape as `FEPChart`, so Framer picks it up as a component and every
+   property has a value even before you touch the panel.
+2. Drop it on the newsletter page.
+3. Leave **Source** on `Manual / CMS` and bind the five shares to the week's
+   fields. `Auto (JSON)` reads `deciding` out of `{baseUrl}/{year}/week-NN.json`
+   instead, and shows a notice until the publish step writes that field.
+
+Only `decided_outright` is published to the CMS today. The other four need
+columns appended to the `weeks` table, and `weeks` is frozen, so do it before
+week 1 or not at all. See `docs/CMS.md`.
+
+## The segments
+
+Five, and the component draws four or five depending on the week:
+
+| Key | Default label |
+|---|---|
+| `outright` | Correct Picks |
+| `tb1` | Tiebreaker 1 - Season Record |
+| `tb2` | Tiebreaker 2 - Division Record |
+| `tb3` | Tiebreaker 3 - Points Total |
+| `split` | Fully tied (even split) |
+
+`split` is almost always zero and is hidden when it is. It breaks the colour
+ramp on purpose, hatched rather than faded, because it is not the next rung of
+the cascade: it is the cascade running out.
+
+## The text inside the bar
+
+Each segment carries its own name and number. Three tiers, so a segment degrades
+instead of truncating:
+
+| Segment width | What it shows |
+|---|---|
+| 30% and up | full name over the number |
+| 16% to 30% | short name (`TB2`) over the number |
+| 6% to 16% | the number alone |
+| under 6% | nothing, the legend has it |
+
+All three thresholds are properties. `Always short` forces the short names
+everywhere, and `Text layout` switches the name and number from stacked to side
+by side.
+
+**Label ink is worked out per segment, not per bar.** The ramp means the same
+colour is near-solid at the top of the cascade and nearly the card at the
+bottom, so one ink cannot serve both. Auto blends each fill over `Behind bar` at
+that segment's opacity and picks by luminance. That is what lets a dark palette
+and a bright one both work without touching the control.
+
+## The reveal
+
+Each segment grows from zero to its width, one after another, so the bar fills
+left to right and every layer gets a beat of its own. The text inside a segment
+fades in once that segment has mostly landed, and the legend rows follow on the
+same stagger.
+
+| Property | |
+|---|---|
+| `Reveal` | when scrolled into view (default), on page load, or off |
+| `Fires at` | how much of the bar has to be on screen, 0 to 1 |
+| `Replay` | run it again every time it comes back into view |
+| `Duration` | how long one segment takes to grow |
+| `Stagger` | gap between one segment starting and the next. 0 grows them together |
+| `Easing` | ease out, ease in out, overshoot, linear |
+
+`Fires at` is paired with a bottom margin of 15%, so a bar taller than the
+viewport cannot sit there waiting for a threshold it can never cross.
+
+Three cases skip the animation and render the finished state: the Framer canvas
+(so you can style it), a reader who has asked for reduced motion, and `Reveal:
+off`.
+
+## Two details that matter
+
+**Shares are normalised before drawing.** CMS rounding that sums to 99.9 or
+100.1 cannot produce a short or overflowing bar.
+
+**Small segments get a floor.** In 2025 Week 10, TB3 was 2.7%, which is 8px on a
+phone. `Min segment` (4% by default) raises it and takes the difference off the
+widest segments, so the bar still sums to exactly 100. The floor changes only
+the drawn width. The legend always reports the true share.
+
+## Mobile
+
+The bar survives at every width because it is the signature of the segment. The
+text comes out of it instead: below 520px the segments go quiet and the legend
+carries the labelling, and deltas drop below 360px. Container queries, so it
+responds to the frame rather than the device. Note the query measures the
+*content* box, so a card with 18px padding hits the 520px breakpoint at about
+556px of card.
+
+**The legend is always in the DOM.** Turning it off hides it on wide frames
+only. A narrow frame with no inline text and no legend would be a bar with no
+labels at all.
+
+## Two things that are easy to break
+
+**The layout annotations live above the function, not in the file header.**
+Framer reads `@framerSupportedLayoutWidth` and friends from the comment directly
+preceding the exported component. In the header they are just a comment, and the
+component silently loses auto height.
+
+**Every default is written twice**, once in the signature and once as a
+`defaultValue` in `addPropertyControls`, because Framer needs a literal there and
+cannot read the signature. Two copies is two chances to drift, so the preview
+build compares all 60 of them and refuses to build when they disagree.
+
+## The preview
+
+```bash
+node framer/build-decisiontree-preview.js
+```
+
+Regenerates `decisiontree-preview.html` from the component's own CSS, its own
+geometry and its own contrast rule, so what you look at is what ships. Same
+arrangement as `scrollbar-preview.html`. It runs the defaults check on the way
+through.
