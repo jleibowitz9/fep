@@ -493,6 +493,7 @@ SNAPSHOT_RECORD_FIELDS = (
     "week", "is_bye", "remaining_outcomes", "weighted", "straight",
     "current_points", "deciding", "points_mean", "points_sd",
     "results", "points_for", "weights", "eliminated", "game",
+    "counterfactual",
 )
 
 
@@ -534,7 +535,8 @@ def snapshot_drift(stored: dict, incoming: dict, limit: int = 4) -> List[str]:
 
 
 def snapshot(season: dict, week: int, board: engine.Board, note: str = "",
-             correction: Optional[str] = None):
+             correction: Optional[str] = None,
+             counterfactual: Optional[dict] = None):
     """Record the board for a week. A week already recorded does not move.
 
     Returns `(entry, status)`, where status is one of:
@@ -602,6 +604,16 @@ def snapshot(season: dict, week: int, board: engine.Board, note: str = "",
         # historical row that reads today's schedule would change with it.
         "game": _game_facts(season, week),
     }
+    # The board had this week's game gone the other way, as the family saw it
+    # (analytics.counterfactual_for_week). Recorded, like `deciding`, because
+    # the CMS publishes it frozen. Set only when there is one: a week with no
+    # counterfactual (week 0, a bye, a tie) records nothing, and absent and
+    # None compare equal in snapshot_drift, so a week recorded before this
+    # field existed replays as unchanged. Writing an explicit None instead
+    # would put a new key on every rebuilt 2025 entry, which the backfill's
+    # reproducibility test rightly refuses.
+    if counterfactual is not None:
+        entry["counterfactual"] = counterfactual
     stored = get_snapshot(season, week)
     if stored is not None:
         drift = snapshot_drift(stored, entry)

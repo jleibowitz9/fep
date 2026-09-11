@@ -125,11 +125,11 @@ there instead of as layers. Bind them and the bar sizes itself from the sheet.
    files were republished with it too. Same immutable file the chart reads, no
    CMS column, no sync.
 
-   `Manual / CMS` still works if you would rather bind the five shares to
-   fields. Only `decided_outright` is in the `weeks` table today; the other
-   four would be appended columns on a frozen table, which needs
-   `--allow-correction` on every published row. The JSON source is why you do
-   not have to.
+   `Manual / CMS` also works: since 2026-09-11 the `weeks` table carries all
+   five shares (`decided_outright`, `decided_tb1`, `decided_tb2`,
+   `decided_tb3`, `decided_split`) and their week-over-week changes, so the
+   five properties can be bound to fields. Either source gives the same
+   numbers; JSON needs no sync.
 
 ## The segments
 

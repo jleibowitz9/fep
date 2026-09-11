@@ -203,6 +203,10 @@ def build(write: bool = False) -> dict:
     drift = []
     for week in sorted(boards):
         board = season_mod.run(season, through_week=week)
+        # No counterfactual, deliberately. These boards are the published ones
+        # and the weights are the final ones, so a counterfactual recomputed
+        # today would contradict the board it sits beside. 2025's carousel
+        # columns stay blank.
         entry, _ = season_mod.snapshot(season, week, board, note=CAVEAT)
         recomputed = dict(entry["weighted"])
         # The published board is the fact. Keep the recomputed one beside it so

@@ -75,6 +75,16 @@ def walk(season, upto):
     return weeks
 
 
+def walk_with_counterfactual(season, upto):
+    """The same replay, recording the counterfactual as `cli.py week` does."""
+    from fep import analytics
+    for week in range(0, upto + 1):
+        board = season_mod.run(season, through_week=week)
+        season_mod.snapshot(
+            season, week, board,
+            counterfactual=analytics.counterfactual_for_week(season, week))
+
+
 class ImmutabilityTest(unittest.TestCase):
     """The load-bearing test for the whole design."""
 
@@ -521,6 +531,10 @@ class ColumnOrderTest(unittest.TestCase):
 
     # The order as published. Anything new belongs after these, not among them.
     PUBLISHED = {
+        "weeks": ["slug", "season", "week", "label", "is_bye", "game",
+                  "game_label", "opponent", "home_away", "result", "wins",
+                  "losses", "leader", "leader_pct", "remaining_outcomes",
+                  "still_alive", "decided_outright"],
         "picks": ["slug", "season", "week_ref", "nfl_week", "game",
                   "competitor", "name", "pick"],
         "standings": ["slug", "season", "week", "week_ref", "competitor",
@@ -850,6 +864,128 @@ class LabelTest(unittest.TestCase):
         for label in ("vs. Jaguars (London)", "@ Dolphins (Madrid)"):
             self.assertNotIn("(", cms.split_label(label)["opponent"])
             self.assertNotIn("(", cms._opponent_slug(label))
+
+
+class CounterfactualColumnsTest(unittest.TestCase):
+    """The standings carousel: each competitor's odds had the week's result
+    gone the other way, published frozen beside the board. A tie, a bye,
+    week 0 and an unplayed game have no counterfactual and read blank; nothing
+    guesses a W or an L."""
+
+    CF = ("counterfactual_weighted", "counterfactual_rank", "counterfactual_change")
+
+    def _standings(self, season, week):
+        return {r["name"]: r for r in cms.standings_table(season).rows
+                if r["week"] == week}
+
+    def _weeks(self, season):
+        return {r["week"]: r for r in cms.weeks_table(season).rows}
+
+    def test_frozen_rows_stay_frozen_with_the_counterfactual_recorded(self):
+        from fep import analytics
+        season = build_season()
+        seen = {}
+        for week in range(0, 19):
+            board = season_mod.run(season, through_week=week)
+            season_mod.snapshot(season, week, board,
+                                counterfactual=analytics.counterfactual_for_week(season, week))
+            for name in ("weeks", "standings"):
+                for row in cms.tables(season)[name].rows:
+                    key = (name, row["slug"])
+                    if key in seen:
+                        self.assertEqual(seen[key], row, "{} changed in week {}".format(key, week))
+                    else:
+                        seen[key] = copy.deepcopy(row)
+
+    def test_a_week_with_a_game_has_the_flipped_board(self):
+        season = build_season()
+        walk_with_counterfactual(season, 3)
+        snap = next(s for s in season["snapshots"] if s["week"] == 3)
+        cf = snap["counterfactual"]
+        game = next(g for g in season["games"] if g["nfl_week"] == 3)
+        self.assertEqual(cf["actual"], game["result"])
+        self.assertEqual(cf["hypothetical"],
+                         engine.LOSS if game["result"] == engine.WIN else engine.WIN)
+        rows = self._standings(season, 3)
+        ranks = cms._ranked(cf["board"])
+        for name, row in rows.items():
+            self.assertEqual(row["counterfactual_weighted"], cf["board"][name])
+            self.assertEqual(row["counterfactual_rank"], ranks[name])
+            self.assertEqual(row["counterfactual_change"],
+                             round(cf["board"][name] - row["weighted"], 1))
+        self.assertEqual(self._weeks(season)[3]["counterfactual_result"], cf["hypothetical"])
+
+    def test_week_zero_and_the_bye_are_blank(self):
+        season = build_season(bye_week=10)
+        walk_with_counterfactual(season, 10)
+        weeks = self._weeks(season)
+        for week in (0, 10):
+            self.assertNotIn("counterfactual", next(s for s in season["snapshots"] if s["week"] == week))
+            self.assertEqual(weeks[week]["counterfactual_result"], "")
+            for row in self._standings(season, week).values():
+                for column in self.CF:
+                    self.assertEqual(row[column], "", "{} week {}".format(column, week))
+
+    def test_a_tie_is_blank_not_guessed(self):
+        season = build_season()
+        game = next(g for g in season["games"] if g["nfl_week"] == 3)
+        game["result"] = engine.TIE
+        walk_with_counterfactual(season, 4)
+        weeks = self._weeks(season)
+        self.assertEqual(weeks[3]["result"], engine.TIE)
+        self.assertEqual(weeks[3]["counterfactual_result"], "")
+        for row in self._standings(season, 3).values():
+            for column in self.CF:
+                self.assertEqual(row[column], "")
+        # The week after has its own counterfactual, and the tie stays a tie
+        # inside it: the flipped universe changes one result, not two.
+        self.assertIn(weeks[4]["counterfactual_result"], (engine.WIN, engine.LOSS))
+        self.assertTrue(all(r["counterfactual_weighted"] != ""
+                            for r in self._standings(season, 4).values()))
+
+    def test_a_snapshot_without_the_key_reads_blank(self):
+        season = build_season()
+        board = {n: round(100.0 / len(ROSTER), 1) for n in ROSTER}
+        season["snapshots"] = [{
+            "week": 1, "weighted": board, "straight": board,
+            "current_points": {n: 0 for n in board}, "remaining_outcomes": 2,
+            "results": [], "deciding": {}, "eliminated": []}]
+        row = next(iter(self._standings(season, 1).values()))
+        for column in self.CF:
+            self.assertEqual(row[column], "")
+        week = self._weeks(season)[1]
+        self.assertEqual(week["counterfactual_result"], "")
+        for column in ("decided_tb1", "decided_tb2", "decided_tb3", "decided_split"):
+            self.assertEqual(week[column], 0.0)
+        for column in ("decided_outright_change", "decided_tb1_change"):
+            self.assertEqual(week[column], "")
+
+
+class DecidingColumnsTest(unittest.TestCase):
+    """The Decision Tree in full on `weeks`, and how much it moved."""
+
+    SHARES = ("decided_outright", "decided_tb1", "decided_tb2", "decided_tb3", "decided_split")
+
+    def test_the_shares_sum_to_one_hundred(self):
+        season = build_season()
+        walk(season, 6)
+        for row in cms.weeks_table(season).rows:
+            total = sum(row[c] for c in self.SHARES)
+            self.assertAlmostEqual(total, 100.0, delta=0.3, msg="week {}".format(row["week"]))
+
+    def test_change_is_against_the_previous_week_only(self):
+        season = build_season()
+        walk(season, 4)
+        rows = {r["week"]: r for r in cms.weeks_table(season).rows}
+        self.assertEqual(rows[0]["decided_outright_change"], "")
+        self.assertEqual(rows[1]["decided_tb1_change"],
+                         round(rows[1]["decided_tb1"] - rows[0]["decided_tb1"], 1))
+        # Drop week 2: week 3 has no previous week and says so, week 4 does.
+        season["snapshots"] = [s for s in season["snapshots"] if s["week"] != 2]
+        rows = {r["week"]: r for r in cms.weeks_table(season).rows}
+        self.assertEqual(rows[3]["decided_outright_change"], "")
+        self.assertEqual(rows[4]["decided_outright_change"],
+                         round(rows[4]["decided_outright"] - rows[3]["decided_outright"], 1))
 
 
 if __name__ == "__main__":

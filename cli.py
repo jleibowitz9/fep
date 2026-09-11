@@ -169,8 +169,9 @@ def cmd_week(argv):
     # a later week (a Thursday game, or a newsletter written late), and that must
     # not leak into this week's snapshot.
     board = season_mod.run(season, through_week=week)
-    entry, status = season_mod.snapshot(season, week, board,
-                                        correction=correction)
+    entry, status = season_mod.snapshot(
+        season, week, board, correction=correction,
+        counterfactual=analytics.counterfactual_for_week(season, week))
     season_path = season_mod.save(season)
 
     pack = analytics.full_pack(season, board, week, through_week=week)

@@ -18,7 +18,9 @@ engine in 2029 cannot move a number the family read in 2026.
 The deliberate exceptions are `games` and, in one column, `picks`: a result
 genuinely becomes known partway through the season, and `picks.correct` is that
 same fact seen from the other side. Both only ever move from blank to settled,
-never from one answer to another. Anything that needs the season *as it stood*
+never from one answer to another. The `decided_*` columns on `weeks` were
+appended in September 2026 and filled in once from the stored `deciding` of
+rows already published; that is the same blank-to-settled move, done once. Anything that needs the season *as it stood*
 in a given week reads `weeks` or `standings` instead, both of which are per-week
 and frozen. That distinction is the whole reason `weeks` exists as its own
 table.
@@ -502,7 +504,15 @@ WEEK_COLUMNS = [
     "slug", "season", "week", "label", "is_bye", "game", "game_label",
     "opponent", "home_away", "result", "wins", "losses", "leader", "leader_pct",
     "remaining_outcomes", "still_alive", "decided_outright",
+    # Appended September 2026, never inserted (see the module docstring). The
+    # Decision Tree in full, its week-over-week movement, and the result the
+    # standings carousel is a counterfactual of.
+    "decided_tb1", "decided_tb2", "decided_tb3", "decided_split",
+    "decided_outright_change", "decided_tb1_change", "decided_tb2_change",
+    "decided_tb3_change", "counterfactual_result",
 ]
+
+DECIDING_KEYS = ("outright", "tb1", "tb2", "tb3", "split")
 
 
 def _game_facts_fallback(season: dict, game: dict) -> dict:
@@ -531,10 +541,27 @@ def weeks_table(season: dict) -> Table:
     year = season["year"]
     byes = set(_bye_weeks(season))
     by_week = {g["nfl_week"]: g for g in season["games"]}
-    rows = []
+    rows, previous_deciding, previous_week = [], None, None
     for snapshot in sorted(season.get("snapshots", []), key=lambda s: s["week"]):
         week = snapshot["week"]
         results = snapshot.get("results") or []
+        deciding = snapshot.get("deciding") or {}
+        # Movement only against the week immediately before, as standings.change
+        # does: a gap reported as one week's move is worse than a blank.
+        consecutive = previous_week is not None and week - previous_week == 1
+
+        def decided(key):
+            return round(float(deciding.get(key, 0) or 0), 1)
+
+        def decided_change(key):
+            if not consecutive or previous_deciding is None:
+                return ""
+            return round(decided(key) - round(float(previous_deciding.get(key, 0) or 0), 1), 1)
+
+        # The result the carousel is a counterfactual of. Blank for week 0, a
+        # bye, a tie and an unplayed game: those have no counterfactual and the
+        # snapshot recorded none.
+        hypothetical = (snapshot.get("counterfactual") or {}).get("hypothetical") or ""
         played = [r for r in results if r != engine.UNPLAYED]
         board = snapshot["weighted"]
         leader = max(board, key=lambda n: (board[n], n)) if board else ""
@@ -583,9 +610,18 @@ def weeks_table(season: dict) -> Table:
             "still_alive": (len(board) - len(snapshot["eliminated"])
                             if snapshot.get("eliminated") is not None
                             else sum(1 for v in board.values() if v > 0)),
-            "decided_outright": round(
-                (snapshot.get("deciding") or {}).get("outright", 0), 1),
+            "decided_outright": decided("outright"),
+            "decided_tb1": decided("tb1"),
+            "decided_tb2": decided("tb2"),
+            "decided_tb3": decided("tb3"),
+            "decided_split": decided("split"),
+            "decided_outright_change": decided_change("outright"),
+            "decided_tb1_change": decided_change("tb1"),
+            "decided_tb2_change": decided_change("tb2"),
+            "decided_tb3_change": decided_change("tb3"),
+            "counterfactual_result": hypothetical,
         })
+        previous_deciding, previous_week = deciding, week
     return Table("weeks", WEEK_COLUMNS, rows)
 
 
@@ -672,6 +708,10 @@ STANDING_COLUMNS = [
     "slug", "season", "week", "week_ref", "competitor", "name",
     "weighted", "straight", "correct", "rank", "change", "is_eliminated",
     "is_bye",
+    # Appended September 2026: the board had this week's result gone the other
+    # way, for the standings carousel. All three blank when the snapshot has no
+    # counterfactual (week 0, a bye, a tie, an unplayed game).
+    "counterfactual_weighted", "counterfactual_rank", "counterfactual_change",
 ]
 
 
@@ -696,6 +736,10 @@ def standings_table(season: dict) -> Table:
         board = snapshot["weighted"]
         out = snapshot.get("eliminated")
         ranks = _ranked(board)
+        # From the snapshot only, like everything else here: a counterfactual
+        # recomputed today would move with the weights and unfreeze the row.
+        cf_board = (snapshot.get("counterfactual") or {}).get("board") or {}
+        cf_ranks = _ranked(cf_board) if cf_board else {}
         for name in sorted(board):
             before = previous.get(name)
             rows.append({
@@ -719,6 +763,12 @@ def standings_table(season: dict) -> Table:
                 "is_eliminated": ((name in out) if out is not None
                                   else board[name] == 0),
                 "is_bye": week in byes,
+                "counterfactual_weighted": cf_board.get(name, ""),
+                "counterfactual_rank": cf_ranks.get(name, ""),
+                # Counterfactual minus actual: positive means the other result
+                # would have been better for them.
+                "counterfactual_change": (round(cf_board[name] - board[name], 1)
+                                          if name in cf_board else ""),
             })
         previous, previous_week = dict(board), week
     return Table("standings", STANDING_COLUMNS, rows)

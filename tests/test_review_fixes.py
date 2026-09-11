@@ -51,6 +51,10 @@ September 2026, round two:
                              the publish step never wrote
   TestControlRoomFollowUps   three refusals told you to retype a command with
                              a flag; the page now offers the button
+  TestCounterfactualIsRecorded  the snapshot records the flipped board the
+                             CMS publishes, and a week with no counterfactual
+                             (week 0, a bye, a tie, an unplayed game) records
+                             nothing rather than a guess
 """
 
 from __future__ import annotations
@@ -1493,6 +1497,57 @@ class TestControlRoomFollowUps(unittest.TestCase):
                        'data-follow="override-clear"', "JSON.parse(b.dataset.extra)",
                        'id="ctlFollow"', "pointsSource", "override:1"):
             self.assertIn(needle, self.template, needle)
+
+
+class TestCounterfactualIsRecorded(unittest.TestCase):
+    """What the carousel shows is frozen with the board, on the real file."""
+
+    def setUp(self):
+        self.season = season_mod.load(2026)
+        self.season["snapshots"] = []
+
+    def _played(self, week, result, points=24):
+        season = copy.deepcopy(self.season)
+        for game in season["games"]:
+            if game["nfl_week"] == week:
+                game["result"], game["points_for"] = result, points
+        return season
+
+    def test_the_four_cases_with_no_counterfactual_return_none(self):
+        self.assertIsNone(analytics.counterfactual_for_week(self.season, 0))
+        self.assertIsNone(analytics.counterfactual_for_week(self.season, self.season["bye_week"]))
+        self.assertIsNone(analytics.counterfactual_for_week(self.season, 1))   # unplayed
+        self.assertIsNone(analytics.counterfactual_for_week(self._played(1, engine.TIE), 1))
+
+    def test_a_played_week_records_the_flipped_board(self):
+        season = self._played(1, engine.WIN)
+        cf = analytics.counterfactual_for_week(season, 1)
+        self.assertEqual((cf["actual"], cf["hypothetical"]), (engine.WIN, engine.LOSS))
+        self.assertEqual(sorted(cf["board"]), sorted(season["roster"]))
+        board = season_mod.run(season, through_week=1)
+        entry, status = season_mod.snapshot(season, 1, board, counterfactual=cf)
+        self.assertEqual(status, "created")
+        self.assertEqual(entry["counterfactual"], cf)
+        _, status = season_mod.snapshot(season, 1, board, counterfactual=cf)
+        self.assertEqual(status, "unchanged")
+
+    def test_a_week_recorded_before_the_field_existed_replays_unchanged(self):
+        board = season_mod.run(self.season, through_week=0)
+        entry, _ = season_mod.snapshot(self.season, 0, board)
+        self.assertNotIn("counterfactual", entry)
+        _, status = season_mod.snapshot(self.season, 0, board, counterfactual=None)
+        self.assertEqual(status, "unchanged")
+
+    def test_a_moved_counterfactual_is_refused_by_name(self):
+        season = self._played(1, engine.WIN)
+        cf = analytics.counterfactual_for_week(season, 1)
+        board = season_mod.run(season, through_week=1)
+        season_mod.snapshot(season, 1, board, counterfactual=cf)
+        moved = copy.deepcopy(cf)
+        moved["board"]["Amir"] = round(moved["board"]["Amir"] + 5.0, 1)
+        with self.assertRaises(engine.SeasonError) as caught:
+            season_mod.snapshot(season, 1, board, counterfactual=moved)
+        self.assertIn("counterfactual.board.Amir", str(caught.exception))
 
 
 if __name__ == "__main__":

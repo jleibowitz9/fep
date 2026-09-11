@@ -53,7 +53,7 @@ Three conventions, all there to stop a component being bound to the wrong thing:
 | `competitors` | `amir` | 12 | rarely |
 | `competitor_seasons` | `2026-amir` | 12 | weekly |
 | `games` | `2026-w01` | 18 | **weekly** |
-| `weeks` | `2026-w03` | 19 | **frozen** |
+| `weeks` | `2026-w03` | 19 | **frozen, except the `decided_*` columns filling in once** |
 | `picks` | `2026-w01-amir` | 216 | **frozen, except `correct` filling in** |
 | `standings` | `2026-w07-amir` | 228 | **frozen, append only** |
 
@@ -96,10 +96,31 @@ pick was wrong, and a table that renders one as a red cross before the game is
 played is lying on its own. A component that wants a two-state view should read
 `is_bye` and the linked game's `result` to tell "not yet" from "no".
 
-The Apps Script knows about this one column by name (`FILLABLE_COLUMNS`) and
+The Apps Script knows about this column by name (`FILLABLE_COLUMNS`) and
 lets it go from blank to a value without `allowCorrection`. Everything else on
 the row is still refused if it moves, and so is `correct` itself once it holds
 an answer -- see [Frozen tables](#frozen-tables-and-correcting-one).
+
+**`weeks` carries the Decision Tree and the carousel's premise.** `decided_tb1`,
+`decided_tb2`, `decided_tb3`, `decided_split` and the four `decided_*_change`
+columns (this week minus last, blank across a gap) were appended in September
+2026. Every published week already had these numbers in its snapshot, so they
+are in `FILLABLE_COLUMNS` too: the existing rows fill in once, and after that
+they are frozen like the rest. `counterfactual_result` is the hypothetical
+result (`W` or `L`) the standings carousel describes, and it is blank for week
+0, a bye, a tie and an unplayed game, because none of those has a single
+counterfactual. It is not fillable: no published row can legitimately go from
+blank to a value there.
+
+**`standings` carries the counterfactual board.** `counterfactual_weighted`,
+`counterfactual_rank` and `counterfactual_change` (counterfactual minus actual,
+so positive means the other result would have been better for them) come from
+the snapshot's recorded counterfactual, which `cli.py week` computes for that
+week's game and freezes with the board. All three are blank whenever
+`weeks.counterfactual_result` is, and for every 2025 row forever: those boards
+were reconstructed from final weights, and a counterfactual recomputed today
+would contradict them. Bind the carousel's visibility to
+`weeks.counterfactual_result` being non-empty.
 
 ## Slugs
 
@@ -147,6 +168,11 @@ python3 cli.py cms --live
 
 The second push is the first real test of the past-season guard: every 2025 row
 must come back reported as `left alone`, not `updated`.
+
+After the September 2026 columns were appended, the same pair of pushes
+migrates the rows: the 2026 push reports `weeks: 1 filled in, 19 left alone`
+and `standings: 12 unchanged, 228 left alone`; the 2025 push then reports
+`weeks: 19 filled in` and `standings: 228 unchanged`. Nothing is `CORRECTED`.
 
 The weekly boards stored for 2025 are the ones that were **published**, not
 recomputed. Recomputing them today drifts by up to 6.7 points in mid-season,
@@ -288,7 +314,10 @@ Even holding the URL and the token, a caller cannot:
 - write a string that looks like a formula (`=`, `+` or `-` leading a *string*;
   `@` is allowed, because every away game label begins with it, and only `=`
   actually creates a formula through the Sheets API)
-- write under a header that does not match what it sent
+- write under a header that does not match what it sent. Appending columns is
+  allowed (blank header cells at the end take the new names); renaming,
+  reordering, or dropping one is not, and a sheet that has a column the caller
+  stopped sending is refused rather than quietly narrowed
 
 Set an `ACTIVE_SEASON` script property to lock the sheet to one season: any push
 for a different year is then refused outright. Leave it unset for no extra

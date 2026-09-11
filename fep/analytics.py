@@ -197,6 +197,26 @@ def counterfactual(season: dict, game_index: Optional[int] = None) -> Optional[d
     }
 
 
+def counterfactual_for_week(season: dict, week: int) -> Optional[dict]:
+    """The board had THIS week's game gone the other way, or None.
+
+    This is what the weekly snapshot records and the CMS publishes for the
+    standings carousel. Four cases have no counterfactual and return None:
+    week 0 and a bye (no game), an unplayed game, and a tie -- a tie could have
+    gone either way and awarded nobody anything, so "the season that did not
+    happen" is not one season. Every column derived from this is blank then;
+    nothing guesses a W or an L.
+
+    Pinned through the week, so a Thursday result from the week after cannot
+    leak in. The flipped game keeps its actual Eagles points in the tiebreaker-3
+    model, the same convention as leverage_for_game and whatif_boards.
+    """
+    index = season_mod.game_index_for_week(season, week)
+    if index is None:
+        return None
+    return counterfactual(pin(season, week), game_index=index)
+
+
 def retrospective_leverage(season: dict) -> List[dict]:
     """For each completed game, how much the result moved each competitor.
 

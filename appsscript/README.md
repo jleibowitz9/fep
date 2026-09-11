@@ -95,7 +95,8 @@ holding both the URL and the token, a caller cannot:
 - move a row in a frozen table (`weeks`, `standings`, `picks`) without
   `allowCorrection`, which names every row it changes in the response
 - write a string that could be read as a formula, so `=SUM(A1)` is rejected
-- write under a header that does not match the columns it sent
+- write under a header that does not match the columns it sent. Appending
+  columns is allowed; renaming, reordering or dropping one is refused
 - delete a row, ever
 
 Those checks live in the script, not only in the Python client, because a guard

@@ -12,13 +12,18 @@ function FakeSheet(name, grid) {
   this.getLastRow = () => this.grid.length;
   this.getLastColumn = () => this.grid.reduce((m,r)=>Math.max(m,r.length),0);
   this.getMaxRows = () => Math.max(this.grid.length, 1000);
-  this.getMaxColumns = () => 40;
+  // A fresh Sheets tab has 26 columns, and getRange throws past the last one.
+  // Modelled, because the order of widening the sheet and reading it is a
+  // real bug in real Sheets and used to be invisible here.
+  this.maxCols = 26;
+  this.getMaxColumns = () => Math.max(this.maxCols, this.getLastColumn());
   this.insertRowsAfter = () => {};
   this.formats = {};
-  this.insertColumnsAfter = () => {};
+  this.insertColumnsAfter = (after, n) => { this.maxCols = Math.max(this.maxCols, after) + n; };
   this.getRange = (r,c,nr,nc) => ({
-    setNumberFormat: (f) => { for(let j=0;j<nc;j++) this.formats[c-1+j]=f; },
+    setNumberFormat: (f) => { if (c-1+nc > this.getMaxColumns()) throw new Error('range past the sheet: ' + (c-1+nc) + ' > ' + this.getMaxColumns()); for(let j=0;j<nc;j++) this.formats[c-1+j]=f; },
     getValues: () => {
+      if (c-1+nc > this.getMaxColumns()) throw new Error('range past the sheet: ' + (c-1+nc) + ' > ' + this.getMaxColumns());
       const out=[];
       for(let i=0;i<nr;i++){const row=this.grid[r-1+i]||[];const cells=[];
         for(let j=0;j<nc;j++) cells.push(row[c-1+j]===undefined?'':row[c-1+j]);
@@ -276,6 +281,69 @@ check('answers with the version', health.ok && health.version === CODE_VERSION, 
 check('says whether a token is configured', health.tokenConfigured === true, health);
 check('no longer lists the tabs in the spreadsheet',
       !('tabs' in health) && !('writableColumns' in health), Object.keys(health));
+
+console.log('\n--- columns are appended, never inserted, renamed or dropped ---');
+const COLS2 = COLS.concat(['counterfactual_weighted', 'counterfactual_rank']);
+const row2 = (y,w,n,v,cw,cr) => row(y,w,n,v).concat([cw, cr]);
+r = post({op:'writeTable', tab:'standings', year:2026, columns:COLS2,
+          rows:[row2(2026,1,'amir',10,'',''), row2(2026,1,'pop',12,'',''), row2(2026,2,'amir',14,'','')]});
+check('appending columns to a published tab is accepted, rows unchanged',
+      r.ok && r.unchanged===3 && r.updated===0 && r.added===0, r);
+check('and the header now carries the new names',
+      SHEETS['standings'].grid[0].join(',') === COLS2.join(','), SHEETS['standings'].grid[0]);
+r = post({op:'writeTable', tab:'standings', year:2026, columns:COLS2,
+          rows:[row2(2026,1,'amir',10,33.3,1)]});
+check('a value arriving in a non-fillable appended column of a frozen row is refused',
+      !r.ok && /frozen table/.test(r.error) && /counterfactual_weighted/.test(r.error), r);
+r = post({op:'writeTable', tab:'standings', year:2026,
+          columns:['slug','season','week','name','odds','counterfactual_weighted','counterfactual_rank'],
+          rows:[row2(2026,1,'amir',10,'','')]});
+check('renaming a column is still refused', !r.ok && /header mismatch/.test(r.error), r);
+r = post({op:'writeTable', tab:'standings', year:2026, columns:COLS,
+          rows:[row(2026,1,'amir',10)]});
+check('a caller that stopped sending a column is refused, not quietly narrowed',
+      !r.ok && /did not send/.test(r.error), r);
+check('and nothing changed', SHEETS['standings'].grid[0].length === COLS2.length);
+SHEETS['holes'] = new FakeSheet('holes', [['slug','season','','week'], ['2026-w01', 2026, '', 1]]);
+TABLE_TABS.push('holes');
+r = post({op:'writeTable', tab:'holes', year:2026, columns:['slug','season','extra','week'],
+          rows:[['2026-w01', 2026, 'x', 1]]});
+check('a blank header cell followed by a named one is a hole, not an append',
+      !r.ok && /header mismatch/.test(r.error), r);
+TABLE_TABS.pop(); delete SHEETS['holes'];
+
+console.log('\n--- weeks.decided_* fill in once, and only once ---');
+delete SHEETS['weeks'];
+const WCOLS = ['slug','season','week','decided_outright'];
+const wk = (w, o) => [`2026-w${String(w).padStart(2,'0')}`, 2026, w, o];
+r = post({op:'writeTable', tab:'weeks', year:2026, columns:WCOLS, rows:[wk(1,60.0), wk(2,55.0)]});
+check('the published weeks', r.ok && r.added===2, r);
+const WCOLS2 = WCOLS.concat(['decided_tb1']);
+r = post({op:'writeTable', tab:'weeks', year:2026, columns:WCOLS2,
+          rows:[wk(1,60.0).concat(['']), wk(2,55.0).concat([''])]});
+check('appending the column with blanks is unchanged', r.ok && r.unchanged===2, r);
+r = post({op:'writeTable', tab:'weeks', year:2026, columns:WCOLS2,
+          rows:[wk(1,60.0).concat([25.0]), wk(2,55.0).concat([30.0])]});
+check('the first values are a fill, not a correction',
+      r.ok && r.filled===2 && r.corrected.length===0, r);
+r = post({op:'writeTable', tab:'weeks', year:2026, columns:WCOLS2,
+          rows:[wk(1,60.0).concat([25.0])]});
+check('replaying the filled row is a no-op', r.ok && r.unchanged===1 && r.filled===0, r);
+r = post({op:'writeTable', tab:'weeks', year:2026, columns:WCOLS2,
+          rows:[wk(1,60.0).concat([26.0])]});
+check('a different value afterwards is refused',
+      !r.ok && /frozen table/.test(r.error) && /decided_tb1/.test(r.error), r);
+r = post({op:'writeTable', tab:'weeks', year:2026, columns:WCOLS2,
+          rows:[wk(1,60.0).concat([''])]});
+check('and so is going back to blank', !r.ok && /frozen table/.test(r.error), r);
+
+console.log('\n--- the sheet is widened before it is read ---');
+delete SHEETS['games'];   // a fresh tab, 26 columns wide, like a new Sheet
+const WIDE = ['slug','season'].concat(Array.from({length:25}, (_, i) => 'c' + i));   // 27
+r = post({op:'writeTable', tab:'games', year:2026, columns:WIDE,
+          rows:[['2026-w01', 2026].concat(Array.from({length:25}, (_, i) => i))]});
+check('a 27-column table lands on a fresh 26-column tab', r.ok && r.added===1, r);
+check('because the tab was widened first', SHEETS['games'].getMaxColumns() >= 27);
 
 console.log(`\n${pass} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -28,7 +28,9 @@
  *     - write a row that belongs to another season
  *     - move a row in a frozen table without saying so (allowCorrection)
  *     - write a cell that could be read as a formula
- *     - write under a header that does not match the columns it sent
+ *     - write under a header that does not match the columns it sent. A
+ *       caller may APPEND columns (blank header cells at the end take the
+ *       new names); it may not rename, reorder, or drop one.
  *   Those checks are enforced here as well as in the Python client, because a
  *   guard that only exists on the caller is not a guard.
  *
@@ -45,7 +47,7 @@
 // about. The Python client reads the same constant out of its local copy and
 // refuses to push when the two disagree, because editing this file does not
 // redeploy it and the two have now silently diverged twice.
-var CODE_VERSION = '2026.09.10-a';
+var CODE_VERSION = '2026.09.11-a';
 
 // The CMS tables. Nothing outside this list can be written by writeTable, so
 // even a caller holding the URL and the token cannot touch the legacy
@@ -76,7 +78,19 @@ var FROZEN_TABS = ['weeks', 'standings', 'picks'];
 // and is still refused, as is any movement in any column not named here. The
 // alternative was to drop `picks` out of FROZEN_TABS entirely, which would have
 // left `pick` itself unguarded to buy one column.
-var FILLABLE_COLUMNS = { picks: ['correct'] };
+var FILLABLE_COLUMNS = {
+  picks: ['correct'],
+  // The Decision Tree columns appended to `weeks` in September 2026. Every
+  // published week already had these numbers in its snapshot, so the rows
+  // fill in once from blank. Necessary rather than convenient: a push is per
+  // season, and the first season's push writes '' into every OTHER season's
+  // new cells (rows are carried over at the new width), so by the time that
+  // season pushes, the columns are no longer newly appended. After the fill,
+  // a different value or a value going back to blank is drift like anywhere.
+  weeks: ['decided_tb1', 'decided_tb2', 'decided_tb3', 'decided_split',
+          'decided_outright_change', 'decided_tb1_change',
+          'decided_tb2_change', 'decided_tb3_change']
+};
 
 
 function doPost(e) {
@@ -199,6 +213,14 @@ function writeTable(body) {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = spreadsheet.getSheetByName(name) || spreadsheet.insertSheet(name);
 
+  // Widen the sheet BEFORE anything reads it. getRange throws on a range past
+  // getMaxColumns(), a fresh tab has 26, and `weeks` is exactly 26 wide now.
+  // This used to sit just before the write, after two reads at the new width.
+  if (sheet.getMaxColumns() < columns.length) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(),
+                             columns.length - sheet.getMaxColumns());
+  }
+
   // Pin each column's number format before reading anything.
   //
   // Clearing a tab's contents does not clear its formatting, so a column that
@@ -224,10 +246,31 @@ function writeTable(body) {
   var headerSet = header.filter(function (h) { return h !== ''; }).length > 0;
   if (headerSet) {
     for (var i = 0; i < columns.length; i++) {
-      if (String(header[i]).trim() !== String(columns[i]).trim()) {
-        return fail('header mismatch in ' + name + ' column ' + colName(i + 1) +
-                    ': sheet has ' + JSON.stringify(String(header[i])) +
-                    ', caller sent ' + JSON.stringify(String(columns[i])));
+      var have = normalizeCell(header[i]);
+      if (have === String(columns[i]).trim()) { continue; }
+      // A pure append is not drift: the sheet's header ends here and every
+      // cell from this one on is blank, so the caller is adding columns. The
+      // grid write below lays the new names down. A blank followed by a named
+      // cell is a hole, and a named cell that differs is a rename or a
+      // reorder; both still refuse, because writing under either would
+      // misalign every column after it.
+      var appending = have === '';
+      for (var j = i; appending && j < header.length; j++) {
+        if (normalizeCell(header[j]) !== '') { appending = false; }
+      }
+      if (appending) { break; }
+      return fail('header mismatch in ' + name + ' column ' + colName(i + 1) +
+                  ': sheet has ' + JSON.stringify(String(header[i])) +
+                  ', caller sent ' + JSON.stringify(String(columns[i])));
+    }
+    // The sheet may not be wider than the caller. Those columns used to be
+    // dropped from every comparison and left behind by the write, so a caller
+    // that stopped sending a column silently stopped guarding it.
+    for (var k = columns.length; k < header.length; k++) {
+      if (normalizeCell(header[k]) !== '') {
+        return fail('the ' + name + ' sheet has a column the caller did not ' +
+                    'send: ' + colName(k + 1) + ' ' + JSON.stringify(String(header[k])) +
+                    '. Columns are appended, never dropped; refusing.');
       }
     }
   }
@@ -298,10 +341,6 @@ function writeTable(body) {
 
   if (sheet.getMaxRows() < grid.length) {
     sheet.insertRowsAfter(sheet.getMaxRows(), grid.length - sheet.getMaxRows());
-  }
-  if (sheet.getMaxColumns() < columns.length) {
-    sheet.insertColumnsAfter(sheet.getMaxColumns(),
-                             columns.length - sheet.getMaxColumns());
   }
   sheet.getRange(1, 1, grid.length, columns.length).setValues(grid);
   SpreadsheetApp.flush();
