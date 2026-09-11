@@ -702,8 +702,17 @@ class TestSnapshotsFreeze(unittest.TestCase):
     """`CLAUDE.md` promises a week's row is identical in week N+1. Now it is."""
 
     def setUp(self):
+        # Take the stored week 0 from exactly the state these tests replay.
+        #
+        # Reading the live file's own snapshot instead made these fail the
+        # moment ESPN moved a line, because the board then genuinely differs
+        # from what was recorded -- which is the thing being tested, not a
+        # thing to test against. Same dependency on live data that made the
+        # dashboard fixture unreproducible; see tests/test_fixture.py.
         self.season = season_mod.load(2026)
+        self.season["snapshots"] = []
         self.board = season_mod.run(self.season, through_week=0)
+        season_mod.snapshot(self.season, 0, self.board)
 
     def test_a_first_recording_is_created(self):
         season = dict(self.season, snapshots=[])
@@ -718,10 +727,12 @@ class TestSnapshotsFreeze(unittest.TestCase):
         self.assertIs(entry, season_mod.get_snapshot(self.season, 0))
 
     def test_a_replay_does_not_move_the_timestamp(self):
-        before = season_mod.get_snapshot(self.season, 0)["taken_at"]
+        # A distinctive value, so this cannot pass merely because both
+        # recordings landed inside the same second.
+        season_mod.get_snapshot(self.season, 0)["taken_at"] = "2026-09-09T22:00:53"
         season_mod.snapshot(self.season, 0, self.board)
         self.assertEqual(season_mod.get_snapshot(self.season, 0)["taken_at"],
-                         before)
+                         "2026-09-09T22:00:53")
 
     def test_one_moved_weight_is_refused_by_name(self):
         # Codex's reproduction, exactly: change a single FUTURE weight, re-run
