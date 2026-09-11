@@ -144,6 +144,25 @@ def cmd_week(argv):
     # never produces a result, so defaulting to the last week that did would
     # re-run the week before the bye and leave the bye itself unrecorded.
     week = int(positional[0]) if positional else season_mod.week_to_run(season)
+    # A snapshot freezes, so a week must not be recorded before it happens.
+    #
+    # week_to_run reads the calendar and ISO dates compare as strings, so it
+    # steps onto a week at midnight rather than at kickoff. Running on a Sunday
+    # morning therefore pinned a pre-game board as the week, and the real run
+    # that evening was refused as drift and needed --correction "why" -- an
+    # audit entry for an early click rather than for a genuine correction.
+    #
+    # Only the calendar's own answer is guarded. Naming a week is a deliberate
+    # act and still records whatever is there, which is what backfills need.
+    index = season_mod.game_index_for_week(season, week)
+    if not positional and index is not None \
+            and season["games"][index]["result"] == engine.UNPLAYED:
+        raise SystemExit(
+            "Week {} has not been played yet ({} is still unplayed).\n"
+            "  A snapshot freezes, so recording it now would pin a pre-game\n"
+            "  board and the real one would then need --correction. Run this\n"
+            "  after the game, or say `cli.py week {}` to record it anyway.".format(
+                week, season["games"][index]["label"], week))
     # Pin the board to the end of that week. ESPN may already have a result from
     # a later week (a Thursday game, or a newsletter written late), and that must
     # not leak into this week's snapshot.

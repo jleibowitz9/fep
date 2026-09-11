@@ -540,6 +540,21 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, code, payload):
         self._send(code, json.dumps(payload))
 
+    def _local_host(self):
+        """Refuse a request addressed to anything but this machine.
+
+        The token is the real guard and it is a good one: a custom header with
+        no CORS headers and no OPTIONS route cannot be forged cross-origin. But
+        `GET /` is unauthenticated and renders the token into the page, and a
+        page served from a name that resolves to 127.0.0.1 is same-origin with
+        this server as far as the browser is concerned -- so it could read the
+        token out and then drive the actions that write to Google.
+
+        Binding to 127.0.0.1 stops the network. This stops the name.
+        """
+        host = (self.headers.get("Host") or "").rsplit(":", 1)[0].strip("[]")
+        return host in ("127.0.0.1", "localhost", "::1", "")
+
     def _authorised(self):
         """Guard the actions against every other page in the browser.
 
@@ -564,6 +579,8 @@ class Handler(BaseHTTPRequestHandler):
     # -- routes -----------------------------------------------------------
 
     def do_GET(self):  # noqa: N802  (the base class names it)
+        if not self._local_host():
+            return self._send(421, "Not this server.", "text/plain; charset=utf-8")
         path = self.path.split("?", 1)[0]
         if path in ("/", "/index.html"):
             return self._page()
@@ -574,6 +591,8 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, "Not found.", "text/plain; charset=utf-8")
 
     def do_POST(self):  # noqa: N802
+        if not self._local_host():
+            return self._send(421, "Not this server.", "text/plain; charset=utf-8")
         path = self.path.split("?", 1)[0]
         if not self._authorised():
             return self._json(403, {"ok": False, "error": "This request did not "

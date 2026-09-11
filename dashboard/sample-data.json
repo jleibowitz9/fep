@@ -1045,6 +1045,7 @@
   "Sarah": 439
  },
  "heat": {
+  "baseline_is_previous_week": true,
   "baseline_week": 6,
   "deltas": {
    "Amir": 1.3,

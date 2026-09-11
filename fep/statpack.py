@@ -73,14 +73,22 @@ def render(season: dict, board: engine.Board, week: int,
             "{:.2f}".format(pack["expected_finish"][name]),
             "{}-{}".format(pack["range"][name]["worst"], pack["range"][name]["best"]),
         ])
-    add(_table(["#", "Competitor", "Odds", "Chg", "Correct", "Exp. final", "Floor-Ceiling"], rows))
+    heat_baseline = pack["heat_check"]
+    change_header = (
+        "Chg" if heat_baseline.get("baseline_is_previous_week", True)
+        else "Chg vs Wk {}".format(heat_baseline["baseline_week"]))
+    add(_table(["#", "Competitor", "Odds", change_header, "Correct",
+                "Exp. final", "Floor-Ceiling"], rows))
 
     # ---- heat check ------------------------------------------------------
     heat = pack["heat_check"]
     if heat["baseline_week"] is not None:
         add("## Heat Check")
         add("")
-        add("_Change since Week {}._".format(heat["baseline_week"]))
+        add("_Change since Week {}{}._".format(
+            heat["baseline_week"],
+            "" if heat.get("baseline_is_previous_week", True)
+            else ", the last week recorded"))
         add("")
         up = ["{} ({})".format(n, _signed(heat["deltas"][n])) for n in heat["up"][:5]]
         down = ["{} ({})".format(n, _signed(heat["deltas"][n])) for n in heat["down"][:5]]

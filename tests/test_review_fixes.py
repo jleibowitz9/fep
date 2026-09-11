@@ -21,10 +21,28 @@ to "X cannot come back" stays legible.
                              week that had already been published
   TestPublishedWeeksFreeze   the same, for the chart file behind a URL that
                              has already gone out
+
+September 2026, second review:
+
+  TestScheduleIdentity       a game was identified by its position in ESPN's
+                             payload, so a reordered pull rescored every pick
+                             against a different game and raised nothing
+  TestStaleESPNIsReported    a refresh during an ESPN outage was word for word
+                             a refresh that found nothing new
+  TestEliminationIsAboutRules  the snapshot and the CMS each called a live
+                             competitor mathematically out, one from the
+                             rounded board and one from the weighted one
+  TestUnplayedWeekIsNotFrozen  the calendar stepped onto a week at midnight,
+                             so a Sunday-morning run froze a pre-game board
+  TestServerAnswersOnlyItself  the control room served the page, and its
+                             token, to any Host that reached it
+  TestHeatCheckNamesItsBaseline  the standings "Chg" column implied last week
+                             even when the last snapshot was older
 """
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import importlib.util
 import json
@@ -39,10 +57,49 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from fep import (analytics, chart, engine, espn, publish,  # noqa: E402
+DASHBOARD = os.path.join(ROOT, "dashboard")
+
+from fep import (analytics, chart, cms, engine, espn, publish,  # noqa: E402
                  season as season_mod)
 
-DASHBOARD = os.path.join(ROOT, "dashboard")
+
+@contextlib.contextmanager
+def _espn_returning(pulled):
+    """Make season_mod.refresh see a specific ESPN pull."""
+    original = season_mod.espn.fetch_season
+    season_mod.espn.fetch_season = lambda year, refresh=True: pulled
+    try:
+        yield
+    finally:
+        season_mod.espn.fetch_season = original
+
+
+@contextlib.contextmanager
+def _espn_offline():
+    """Every request fails, so _get falls back to whatever is cached."""
+    import urllib.error
+    import urllib.request
+    original = urllib.request.urlopen
+
+    def refuse(*args, **kwargs):
+        raise urllib.error.URLError("offline, for the test")
+
+    urllib.request.urlopen = refuse
+    try:
+        yield
+    finally:
+        urllib.request.urlopen = original
+
+
+def _load_serve():
+    """dashboard/serve.py, loaded by path because the name is too generic."""
+    sys.path.insert(0, DASHBOARD)
+    spec = importlib.util.spec_from_file_location(
+        "fep_serve_review", os.path.join(DASHBOARD, "serve.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
 
 
 def load_build():
@@ -871,6 +928,262 @@ class TestPublishedWeeksFreeze(unittest.TestCase):
         self.season["snapshots"][0]["weighted"]["Amir"] = 99.9
         self._publish(correction="ESPN corrected the score")
         self.assertIn("99.9", open(path).read())
+
+
+# ---------------------------------------------------------------------------
+# September 2026, second review
+# ---------------------------------------------------------------------------
+
+
+class TestScheduleIdentity(unittest.TestCase):
+    """A game is its ESPN event id, never its position in the payload.
+
+    `index` is the position in the 17-entry pick array, so it is what every
+    pick, result and division index hangs off. It used to be assigned in
+    whatever order ESPN serialised its events, and `refresh` then matched
+    stored to fresh on it and overwrote `event_id` from whatever landed there.
+    A reordered pull therefore rescored the whole season against other games
+    and raised nothing.
+    """
+
+    def _payload(self):
+        path = os.path.join(ROOT, "data", "espn_cache", "schedule_2026.json")
+        with open(path) as fh:
+            return json.load(fh)
+
+    def test_a_shuffled_payload_still_parses_in_schedule_order(self):
+        payload = self._payload()
+        payload["events"].reverse()
+        weeks = [g["nfl_week"] for g in espn.parse_schedule(payload, 2026)]
+        self.assertEqual(weeks, sorted(weeks))
+
+    def test_a_shuffled_payload_does_not_move_the_division_games(self):
+        straight = espn.division_indices(espn.parse_schedule(self._payload(), 2026))
+        payload = self._payload()
+        payload["events"][0], payload["events"][3] = (
+            payload["events"][3], payload["events"][0])
+        self.assertEqual(
+            espn.division_indices(espn.parse_schedule(payload, 2026)), straight)
+
+    def test_a_missing_week_number_does_not_throw(self):
+        payload = self._payload()
+        payload["events"][2].pop("week", None)
+        self.assertEqual(len(espn.parse_schedule(payload, 2026)), 17)
+
+    def test_a_pull_with_a_different_game_is_refused(self):
+        season = season_mod.load(2026)
+        pulled = copy.deepcopy(espn.fetch_season(2026, refresh=False))
+        pulled["games"][0]["event_id"] = "999999999"
+        with _espn_returning(pulled):
+            with self.assertRaises(engine.SeasonError) as caught:
+                season_mod.refresh(copy.deepcopy(season))
+        self.assertIn("999999999", str(caught.exception))
+
+    def test_a_reordered_pull_does_not_move_the_stored_games(self):
+        season = season_mod.load(2026)
+        pulled = copy.deepcopy(espn.fetch_season(2026, refresh=False))
+        # Same games, re-indexed backwards: the shape the old code accepted.
+        pulled["games"].reverse()
+        for position, game in enumerate(pulled["games"]):
+            game["index"] = position
+        with _espn_returning(pulled):
+            refreshed = season_mod.refresh(copy.deepcopy(season))
+        self.assertEqual([g["event_id"] for g in refreshed["games"]],
+                         [g["event_id"] for g in season["games"]])
+        self.assertEqual([g["opponent"] for g in refreshed["games"]],
+                         [g["opponent"] for g in season["games"]])
+
+
+class TestStaleESPNIsReported(unittest.TestCase):
+    """An outage and a quiet week used to print the same three lines.
+
+    Falling back to the cache is the feature that makes this work offline. Not
+    saying so is what let a board built on last week's weights freeze into a
+    snapshot wearing this week's date.
+    """
+
+    def test_a_failed_fetch_is_named_in_the_changes(self):
+        season = season_mod.load(2026)
+        with _espn_offline():
+            refreshed = season_mod.refresh(copy.deepcopy(season), force=True)
+        changes = refreshed["last_refresh_changes"]
+        self.assertTrue(any("did not answer" in c for c in changes), changes)
+
+    def test_a_healthy_fetch_reports_nothing_of_the_kind(self):
+        season = season_mod.load(2026)
+        refreshed = season_mod.refresh(copy.deepcopy(season), force=False)
+        self.assertFalse(
+            any("did not answer" in c for c in refreshed["last_refresh_changes"]))
+
+    def test_the_stale_list_does_not_carry_over_between_pulls(self):
+        with _espn_offline():
+            espn.fetch_season(2026, refresh=True)
+        self.assertEqual(espn.fetch_season(2026, refresh=False)["stale"], [])
+
+
+class TestEliminationIsAboutRules(unittest.TestCase):
+    """Mathematically out means no winning outcome, not long odds.
+
+    Three separate readings of this existed: the engine's (right), the
+    snapshot's (weighted == 0) and the CMS standings table's (the board rounded
+    to one decimal). The last two could each bury somebody who was still alive,
+    and could contradict competitors.eliminated_week in the same push.
+    """
+
+    # Two games won, three to go, each a 99% favourite. "Longshot" wins
+    # outright in exactly one of the eight outcomes, which is 0.0001% of the
+    # probability and 12.5% of the outcomes.
+    RESULTS = ["W", "W", "A", "A", "A"]
+    WEIGHTS = [None, None, 0.99, 0.99, 0.99]
+    SCORED = [24, 24, None, None, None]
+
+    def _board(self):
+        return engine.run(
+            {"Leader": ["W", "W", "W", "W", "W"],
+             "Second": ["W", "W", "W", "W", "W"],
+             "Longshot": ["L", "L", "L", "L", "L"]},
+            self.RESULTS, self.WEIGHTS, [0],
+            {"Leader": 400.0, "Second": 500.0, "Longshot": 420.0},
+            points_scored=self.SCORED)
+
+    def test_a_longshot_wins_outcomes_and_is_not_eliminated(self):
+        board = self._board()
+        self.assertGreater(board.straight["Longshot"], 0.0)
+        self.assertLess(round(board.weighted["Longshot"], 1), 0.05)
+        self.assertNotIn("Longshot", board.eliminated())
+
+    def test_the_snapshot_records_the_engines_answer(self):
+        season = copy.deepcopy(season_mod.load(2026))
+        board = season_mod.run(season)
+        entry, _ = season_mod.snapshot(season, 0, board, correction="test")
+        self.assertEqual(entry["eliminated"], sorted(board.eliminated()))
+
+    def test_the_cms_does_not_read_elimination_off_the_rounded_board(self):
+        board = self._board()
+        season = {"year": 2099, "games": [], "week_to_game_index": {},
+                  "snapshots": [{
+                      "week": 1,
+                      "weighted": {n: round(board.weighted[n], 1) for n in board.order},
+                      "eliminated": sorted(board.eliminated()),
+                      "straight": {}, "current_points": {}}]}
+        rows = {r["name"]: r for r in cms.standings_table(season).rows}
+        self.assertEqual(rows["Longshot"]["weighted"], 0.0)
+        self.assertFalse(rows["Longshot"]["is_eliminated"])
+
+    def test_the_two_cms_tables_cannot_disagree(self):
+        board = self._board()
+        season = {"year": 2099, "games": [], "week_to_game_index": {},
+                  "snapshots": [{
+                      "week": 1,
+                      "weighted": {n: round(board.weighted[n], 1) for n in board.order},
+                      "eliminated": sorted(board.eliminated()),
+                      "straight": {}, "current_points": {}}]}
+        rows = {r["name"]: r for r in cms.standings_table(season).rows}
+        for name in board.order:
+            self.assertEqual(rows[name]["is_eliminated"],
+                             cms.eliminated_week(season, name) is not None,
+                             "{} is described two ways".format(name))
+
+    def test_a_tie_at_the_points_tiebreaker_is_still_a_live_path(self):
+        # Identical pick sheets: tied in every universe, separated only by the
+        # points guess. The model gives 500 no mass, but the rulebook does not
+        # know the final total, so this is not elimination.
+        board = engine.run(
+            {"Leader": ["W", "W", "W", "W", "W"],
+             "Second": ["W", "W", "W", "W", "W"],
+             "Other": ["L", "W", "W", "W", "W"]},
+            self.RESULTS, [None, None, 0.5, 0.5, 0.5], [0],
+            {"Leader": 400.0, "Second": 500.0, "Other": 420.0},
+            points_scored=self.SCORED)
+        self.assertEqual(board.straight["Second"], 0.0)
+        self.assertNotIn("Second", board.eliminated())
+        self.assertIn("Other", board.eliminated())
+
+    def test_every_real_snapshot_agrees_with_both_readings(self):
+        # The fix must not move a single row that has already been published.
+        for year in (2025, 2026):
+            season = season_mod.load(year)
+            for snapshot in season.get("snapshots") or []:
+                rounded = sorted(n for n, v in snapshot["weighted"].items() if v == 0)
+                self.assertEqual(sorted(snapshot.get("eliminated") or []), rounded,
+                                 "{} week {}".format(year, snapshot["week"]))
+
+
+class TestUnplayedWeekIsNotFrozen(unittest.TestCase):
+    """The calendar steps onto a week at midnight; kickoff is hours later.
+
+    A snapshot freezes, so a Sunday-morning run pinned a pre-game board as the
+    week and the real run that evening needed --correction "why" -- an audit
+    entry for an early click rather than a genuine correction.
+    """
+
+    def _cli(self):
+        spec = importlib.util.spec_from_file_location(
+            "fep_cli", os.path.join(ROOT, "cli.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_the_default_run_refuses_a_week_that_has_not_happened(self):
+        cli = self._cli()
+        original = season_mod.week_to_run
+        season_mod.week_to_run = lambda season, today=None: 1
+        try:
+            with self.assertRaises(SystemExit) as caught:
+                cli.COMMANDS["week"]([])
+        finally:
+            season_mod.week_to_run = original
+        self.assertIn("has not been played yet", str(caught.exception))
+
+    def test_a_bye_week_is_not_caught_by_the_guard(self):
+        season = season_mod.load(2026)
+        for week in (0, season["bye_week"]):
+            self.assertIsNone(season_mod.game_index_for_week(season, week))
+
+
+class TestServerAnswersOnlyItself(unittest.TestCase):
+    """GET / renders the action token into the page, so the Host matters.
+
+    A name that resolves to 127.0.0.1 is same-origin with this server as far as
+    the browser is concerned. Binding to loopback stops the network; this stops
+    the name.
+    """
+
+    def _handler(self, host):
+        serve = _load_serve()
+        handler = serve.Handler.__new__(serve.Handler)
+        handler.headers = {"Host": host}
+        return handler
+
+    def test_loopback_is_accepted(self):
+        for host in ("127.0.0.1:8765", "localhost:8765", "[::1]:8765", "127.0.0.1"):
+            self.assertTrue(self._handler(host)._local_host(), host)
+
+    def test_any_other_name_is_refused(self):
+        for host in ("evil.example.com:8765", "fep.attacker.test", "192.168.1.9:8765"):
+            self.assertFalse(self._handler(host)._local_host(), host)
+
+
+class TestHeatCheckNamesItsBaseline(unittest.TestCase):
+    """standings_table refuses a change across a gap; this segment labels it.
+
+    Printing a two-week move under a column headed "Chg" reads as one week.
+    """
+
+    def test_a_consecutive_baseline_is_marked_as_such(self):
+        season = copy.deepcopy(season_mod.load(2025))
+        board = season_mod.run(season, through_week=5)
+        heat = analytics.heat_check(season, board, 5)
+        self.assertEqual(heat["baseline_week"], 4)
+        self.assertTrue(heat["baseline_is_previous_week"])
+
+    def test_a_gap_is_marked_as_a_gap(self):
+        season = copy.deepcopy(season_mod.load(2025))
+        season["snapshots"] = [s for s in season["snapshots"] if s["week"] != 4]
+        board = season_mod.run(season, through_week=5)
+        heat = analytics.heat_check(season, board, 5)
+        self.assertEqual(heat["baseline_week"], 3)
+        self.assertFalse(heat["baseline_is_previous_week"])
 
 
 if __name__ == "__main__":

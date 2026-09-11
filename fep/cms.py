@@ -689,6 +689,7 @@ def standings_table(season: dict) -> Table:
         # move reported as one, which is worse than reporting nothing.
         consecutive = previous_week is not None and week - previous_week == 1
         board = snapshot["weighted"]
+        out = snapshot.get("eliminated")
         ranks = _ranked(board)
         for name in sorted(board):
             before = previous.get(name)
@@ -705,7 +706,13 @@ def standings_table(season: dict) -> Table:
                 "rank": ranks[name],
                 "change": ("" if before is None or not consecutive
                            else round(board[name] - before, 1)),
-                "is_eliminated": board[name] == 0,
+                # The stored board is rounded to one decimal, so reading zero
+                # off it published anyone under 0.05% as mathematically out --
+                # and contradicted competitors.eliminated_week, which reads the
+                # structural field. Same fallback as eliminated_week, so the two
+                # tables cannot disagree about the same person in the same week.
+                "is_eliminated": ((name in out) if out is not None
+                                  else board[name] == 0),
                 "is_bye": week in byes,
             })
         previous, previous_week = dict(board), week

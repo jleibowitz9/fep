@@ -62,6 +62,18 @@ class ESPNError(RuntimeError):
     pass
 
 
+# Cache keys served from disk because the network failed, since the last
+# fetch_season(). Falling back to a stale cache is a feature -- it is what makes
+# the tool work on a plane -- but it used to be a silent one, and the three
+# lines a run printed during an ESPN outage were the three lines a healthy quiet
+# week printed: a fresh `last_refresh` and an empty change list. A board built on
+# last week's weights then froze into a snapshot wearing this week's date.
+#
+# So the fallback is recorded and the caller reports it. Same principle as "a
+# backup that failed says so".
+STALE: List[str] = []
+
+
 # ---------------------------------------------------------------------------
 # transport
 # ---------------------------------------------------------------------------
@@ -108,6 +120,8 @@ def _get(url: str, cache_key: str, max_age_s: Optional[float], timeout: float = 
     except (urllib.error.URLError, ValueError, TimeoutError, OSError) as exc:
         stale = _read_cache(cache_key, None)
         if stale is not None:
+            if cache_key not in STALE:
+                STALE.append(cache_key)
             return stale
         raise ESPNError("could not reach ESPN and no cached copy exists: {}".format(exc))
 
@@ -151,6 +165,21 @@ def parse_schedule(payload: dict, year: Optional[int] = None) -> List[dict]:
     be tested against a literal payload. See fetch_schedule for the fields.
     """
     events = payload.get("events") or []
+
+    # Sort before any index is assigned. `index` is the position in the 17-entry
+    # pick array, so it is the key every pick, result and division index hangs
+    # off -- and it used to be whatever order ESPN happened to serialise the
+    # events in. A reordered payload (a flexed game moved, a postponement
+    # re-appended) therefore rescored every pick against a different game, moved
+    # division_indices with it, and raised nothing.
+    #
+    # Week number first, kickoff as the tiebreak, and both are read defensively
+    # because a missing field must not throw here.
+    def _in_schedule_order(event):
+        week = (event.get("week") or {}).get("number")
+        return (week if isinstance(week, int) else 99, event.get("date") or "")
+
+    events = sorted(events, key=_in_schedule_order)
     games: List[dict] = []
 
     for event in events:
@@ -333,6 +362,7 @@ def fetch_weights(games: List[dict], refresh: bool = False) -> Dict[int, Optiona
 
 def fetch_season(year: int, refresh: bool = False) -> dict:
     """One call that returns everything the season file needs from ESPN."""
+    del STALE[:]          # this pull's own record, not the last one's
     games = fetch_schedule(year, refresh=refresh)
     weights = fetch_weights(games, refresh=refresh)
     for game in games:
@@ -348,4 +378,7 @@ def fetch_season(year: int, refresh: bool = False) -> dict:
         "bye_week": bye_week(games),
         "bye_weeks": bye_weeks(games),
         "fetched_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        # Empty on a healthy pull. Non-empty means ESPN did not answer and these
+        # values came off the disk, which the caller must be able to say out loud.
+        "stale": list(STALE),
     }

@@ -335,7 +335,8 @@ class Board:
     """The result of one simulation."""
 
     def __init__(self, weighted, straight, deciding, deciding_straight,
-                 current_points, remaining_outcomes, points, order):
+                 current_points, remaining_outcomes, points, order,
+                 reachable=None):
         self.weighted = weighted                    # name -> % chance to win
         self.straight = straight                    # name -> % of outcomes won
         self.deciding = deciding                    # layer -> % of probability
@@ -344,6 +345,10 @@ class Board:
         self.remaining_outcomes = remaining_outcomes
         self.points = points                        # the points model used
         self.order = order                          # roster order
+        # name -> wins at least one outcome under the rules. Counted, never
+        # weighted: see eliminated() for why the straight board cannot answer
+        # this on its own.
+        self.reachable = reachable
 
     def ranked(self):
         return sorted(self.order, key=lambda n: (-self.weighted[n], n))
@@ -356,7 +361,18 @@ class Board:
         runs through games ESPN gives no chance to still wins those outcomes --
         they are unlikely, not impossible. Reading `weighted <= 0` called such a
         competitor eliminated, which is a claim about the rules, not the odds.
+
+        It does not read the straight board either, which looks like it counts
+        outcomes but does not quite. In the tiebreaker-3 branch both boards take
+        the same probabilistic share, so a competitor tied on picks, record AND
+        division record whose points guess sits far into the Normal's tail gets
+        a share that underflows to exactly 0.0 -- and the outcome count then
+        reports zero for someone the rulebook says can still win, because the
+        final points total is not actually known. `reachable` is the count with
+        no probability in it at all.
         """
+        if self.reachable is not None:
+            return [n for n in self.order if not self.reachable[n]]
         return [n for n in self.order if self.straight[n] <= 0.0]
 
     def effectively_eliminated(self):
@@ -480,6 +496,10 @@ def run(
 
     weighted = [0.0] * n_names
     straight = [0.0] * n_names
+    # Set by any branch that leaves a competitor able to win the universe,
+    # including a tiebreaker-3 tie they might lose. Being in the tie is the
+    # rulebook's answer; the share is only the model's opinion about it.
+    reachable = [False] * n_names
     layers = {"outright": 0.0, "tb1": 0.0, "tb2": 0.0, "tb3": 0.0, "split": 0.0}
     layers_straight = {"outright": 0, "tb1": 0, "tb2": 0, "tb3": 0, "split": 0}
 
@@ -505,6 +525,7 @@ def run(
             winner = tied[0]
             weighted[winner] += chance
             straight[winner] += 1
+            reachable[winner] = True
             layers["outright"] += chance
             layers_straight["outright"] += 1
             continue
@@ -527,6 +548,7 @@ def run(
             winner = tied[0]
             weighted[winner] += chance
             straight[winner] += 1
+            reachable[winner] = True
             layers[layer] += chance
             layers_straight[layer] += 1
             continue
@@ -545,6 +567,13 @@ def run(
             share = shares[position]
             weighted[i] += chance * share
             straight[i] += share
+            # Reaching the points tiebreaker is a live path only while the total
+            # is still unknown -- then any of these competitors can turn out to
+            # be closest to it, whatever mass the Normal puts on their guess.
+            # Once the season's points are known, closest is a settled fact and
+            # losing it really is elimination.
+            if not points_are_known or share > 0.0:
+                reachable[i] = True
         layers[layer] += chance
         layers_straight[layer] += 1
 
@@ -566,6 +595,7 @@ def run(
         remaining_outcomes=total_outcomes,
         points=distribution,
         order=names,
+        reachable={names[i]: reachable[i] for i in range(n_names)},
     )
 
 

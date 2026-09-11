@@ -195,11 +195,42 @@ def refresh(season: dict, force: bool = True) -> dict:
     updated in place.
     """
     pulled = espn.fetch_season(season["year"], refresh=force)
-    by_index = {g["index"]: g for g in pulled["games"]}
+
+    # A game is identified by its ESPN event id, not by its position.
+    #
+    # This used to match stored to fresh on `index` -- the position in the
+    # 17-entry pick array -- and then overwrite `event_id` from whatever landed
+    # there. So the one field that could have caught a mismatch was the field
+    # that got overwritten, and a reordered pull silently rescored every pick
+    # against a different game. Picks are never remapped, so nothing downstream
+    # would have noticed.
+    by_id = {g["event_id"]: g for g in pulled["games"]}
+    stored_ids = [g.get("event_id") for g in season["games"]]
+    if all(stored_ids) and set(stored_ids) != set(by_id):
+        raise engine.SeasonError(
+            "ESPN's schedule is not the one these picks were loaded against.\n"
+            "  gone:    {}\n"
+            "  arrived: {}\n"
+            "  Refusing: every pick is keyed to the stored schedule, so\n"
+            "  accepting this would score the season against other games.\n"
+            "  If the schedule genuinely changed, re-init and reload the picks.".format(
+                sorted(set(stored_ids) - set(by_id)) or "nothing",
+                sorted(set(by_id) - set(stored_ids)) or "nothing"))
 
     changes = []
+    if pulled.get("stale"):
+        # ESPN did not answer and the disk did. Reported rather than swallowed:
+        # an outage used to be indistinguishable from a quiet week.
+        changes.append(
+            "ESPN did not answer -- {} value(s) came from the cache".format(
+                len(pulled["stale"])))
+
     for game in season["games"]:
-        fresh = by_index.get(game["index"])
+        # Fall back to the index only for a season stored before event ids were
+        # recorded. A pull that is missing the stored id is handled above.
+        fresh = (by_id.get(game.get("event_id"))
+                 or (None if game.get("event_id")
+                     else {g["index"]: g for g in pulled["games"]}.get(game["index"])))
         if fresh is None:
             continue
 
@@ -565,7 +596,7 @@ def snapshot(season: dict, week: int, board: engine.Board, note: str = "",
         # clinging on at 0.04% shows as 0.0 and is indistinguishable from one
         # who is actually finished. Reading elimination off the displayed
         # number therefore buried people who were still alive.
-        "eliminated": sorted(n for n in board.order if board.weighted[n] == 0.0),
+        "eliminated": sorted(board.eliminated()),
         # The week's own matchup, frozen here rather than looked up later.
         # A label or a venue can be corrected in ESPN's data at any time, and a
         # historical row that reads today's schedule would change with it.

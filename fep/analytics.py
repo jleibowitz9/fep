@@ -85,8 +85,15 @@ def heat_check(season: dict, board: engine.Board, week: int) -> dict:
     up = sorted([n for n in deltas if deltas[n] > 0], key=lambda n: -deltas[n])
     down = sorted([n for n in deltas if deltas[n] < 0], key=lambda n: deltas[n])
     flat = [n for n in deltas if deltas[n] == 0]
-    return {"baseline_week": previous["week"], "deltas": deltas,
-            "up": up, "down": down, "flat": flat}
+    return {"baseline_week": previous["week"],
+            # Whether the baseline really is last week. standings_table already
+            # refuses to report a change across a gap, on the grounds that a
+            # two-week move printed as a one-week move is worse than printing
+            # nothing. This segment cannot refuse -- the newsletter needs its
+            # risers -- so it labels the gap instead, and the two surfaces stop
+            # disagreeing about what "change" means.
+            "baseline_is_previous_week": previous["week"] == week - 1,
+            "deltas": deltas, "up": up, "down": down, "flat": flat}
 
 
 # ---------------------------------------------------------------------------
