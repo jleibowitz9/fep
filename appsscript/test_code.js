@@ -262,5 +262,20 @@ check('a one-row replay does not truncate the table',
       r.ok && r.unchanged===1 && SHEETS['standings'].grid.length === before,
       {before, after: SHEETS['standings'].grid.length});
 
+console.log('\n--- the retired B2:M20 writer is gone, not dormant ---');
+r = post({tab:'standings', firstRow:2, values:[[1,2,3,4,5,6,7,8,9,10,11,12]]});
+check('a request with no op is refused', !r.ok && /unknown op/.test(r.error), r);
+r = post({op:'writeRange', tab:'standings', values:[[1]]});
+check('a request naming any other op is refused', !r.ok && /unknown op/.test(r.error), r);
+check('and it wrote nothing', SHEETS['standings'].grid.length === before,
+      {before, after: SHEETS['standings'].grid.length});
+
+console.log('\n--- the health check describes the deployment, not the sheet ---');
+const health = doGet();
+check('answers with the version', health.ok && health.version === CODE_VERSION, health);
+check('says whether a token is configured', health.tokenConfigured === true, health);
+check('no longer lists the tabs in the spreadsheet',
+      !('tabs' in health) && !('writableColumns' in health), Object.keys(health));
+
 console.log(`\n${pass} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

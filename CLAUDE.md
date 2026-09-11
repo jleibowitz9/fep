@@ -61,8 +61,8 @@ Two skills carry the detail. Read the relevant one before working:
 - **The CMS tables are the only thing that leaves this machine for a
   spreadsheet.** The `Weighted - MASTER` push was retired in September 2026
   along with the service-account transport, because nothing read that tab any
-  more. `Code.gs` still carries its `B2:M20` branch; removing it would bump
-  CODE_VERSION and force a redeploy for dead code.
+  more, and its `B2:M20` op came out of `Code.gs` on 2026-09-10 (CODE_VERSION
+  `2026.09.10-a`): `writeTable` is the only op the deployment accepts.
 - Standard library only, system Python 3.9.
 - No em dashes or en dashes in generated prose. Write `--`. There is a test.
 

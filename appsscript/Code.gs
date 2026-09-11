@@ -1,5 +1,5 @@
 /**
- * FEP weekly percentage writer.
+ * FEP CMS table writer.
  *
  * Lives inside the FEP spreadsheet itself, so it needs no Google Cloud project,
  * no service account and no key file. That matters because service account key
@@ -21,28 +21,31 @@
  *   token that must match FEP_TOKEN. Both live in a gitignored file on Jacob's
  *   Mac.
  *
- *   More importantly, this script can only ever do one thing. Even with the URL
- *   and the token, a caller cannot:
- *     - write outside columns B..M          (column A holds the week labels,
- *                                            column N onward holds the
- *                                            placement formulas)
- *     - write to row 1                      (the header)
- *     - write to a tab whose header row does not match the expected roster
- *     - write anything that is not a number or blank
+ *   More importantly, this script can only ever do one thing: upsert one of
+ *   the seven CMS tables, by slug. Even with the URL and the token, a caller
+ *   cannot:
+ *     - write to a tab outside TABLE_TABS
+ *     - write a row that belongs to another season
+ *     - move a row in a frozen table without saying so (allowCorrection)
+ *     - write a cell that could be read as a formula
+ *     - write under a header that does not match the columns it sent
  *   Those checks are enforced here as well as in the Python client, because a
  *   guard that only exists on the caller is not a guard.
+ *
+ *   Until September 2026 this file also carried a second op: raw numbers into
+ *   B2:M20 of the legacy `Weighted - MASTER` tab, which fed the standings on
+ *   the site before the `standings` table did. Nothing reads that tab any more
+ *   and the Python writer was removed with it. The op lingered here so that
+ *   removing dead code would not force a redeploy on its own; this version
+ *   needed one anyway, so it is gone. A request for it is now refused, which
+ *   closes the one path that could still write numbers into any tab.
  */
 
 // Bumped by hand whenever this file changes in a way the caller must know
 // about. The Python client reads the same constant out of its local copy and
 // refuses to push when the two disagree, because editing this file does not
 // redeploy it and the two have now silently diverged twice.
-var CODE_VERSION = '2026.09.09-a';
-
-// Columns B through M inclusive. 1-indexed, as the Sheets API counts them.
-var FIRST_COL = 2;   // B
-var LAST_COL = 13;   // M
-var FIRST_ROW = 2;   // row 1 is the header and is never written
+var CODE_VERSION = '2026.09.10-a';
 
 // The CMS tables. Nothing outside this list can be written by writeTable, so
 // even a caller holding the URL and the token cannot touch the legacy
@@ -88,70 +91,11 @@ function doPost(e) {
       return fail('bad token');
     }
 
-    if (body.op === 'writeTable') {
-      return writeTable(body);
+    if (body.op !== 'writeTable') {
+      return fail('unknown op ' + JSON.stringify(body.op === undefined ? null : body.op) +
+                  '. This deployment writes the CMS tables and nothing else.');
     }
-
-    var sheetName = String(body.tab || '');
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
-    if (!sheet) {
-      return fail('no tab named ' + JSON.stringify(sheetName));
-    }
-
-    var values = body.values;
-    if (!Array.isArray(values) || values.length === 0) {
-      return fail('values must be a non-empty array of rows');
-    }
-
-    var firstRow = Number(body.firstRow || FIRST_ROW);
-    if (!(firstRow >= FIRST_ROW)) {
-      return fail('firstRow ' + firstRow + ' would overwrite the header row');
-    }
-
-    var width = values[0].length;
-    if (width !== LAST_COL - FIRST_COL + 1) {
-      return fail('expected ' + (LAST_COL - FIRST_COL + 1) +
-                  ' columns (B..M), got ' + width);
-    }
-    for (var r = 0; r < values.length; r++) {
-      if (values[r].length !== width) {
-        return fail('row ' + r + ' has ' + values[r].length +
-                    ' cells, expected ' + width);
-      }
-      for (var c = 0; c < width; c++) {
-        var cell = values[r][c];
-        if (cell === '' || cell === null) { continue; }
-        if (typeof cell !== 'number' || !isFinite(cell)) {
-          return fail('cell at row ' + r + ' col ' + c +
-                      ' is not a number or blank');
-        }
-      }
-    }
-
-    // Confirm the columns really are the roster before writing into formulas
-    // that feed a live site.
-    if (Array.isArray(body.roster)) {
-      var header = sheet.getRange(1, FIRST_COL, 1, width).getValues()[0];
-      for (var i = 0; i < width; i++) {
-        if (String(header[i]).trim().toLowerCase() !==
-            String(body.roster[i]).trim().toLowerCase()) {
-          return fail('header mismatch in column ' + colName(FIRST_COL + i) +
-                      ': sheet has ' + JSON.stringify(String(header[i])) +
-                      ', caller expected ' + JSON.stringify(String(body.roster[i])));
-        }
-      }
-    }
-
-    sheet.getRange(firstRow, FIRST_COL, values.length, width).setValues(values);
-    SpreadsheetApp.flush();
-
-    return ok({
-      wrote: values.length * width,
-      range: sheetName + '!' + colName(FIRST_COL) + firstRow + ':' +
-             colName(LAST_COL) + (firstRow + values.length - 1),
-      rows: values.length,
-      columns: width
-    });
+    return writeTable(body);
   } catch (err) {
     return fail(String(err));
   }
@@ -472,17 +416,20 @@ function describeDrift(current, incoming, columns) {
 }
 
 
-/** A GET is a health check. It never writes and never reveals the token. */
+/**
+ * A GET is a health check. It never writes and never reveals the token.
+ *
+ * It also no longer lists the spreadsheet's tabs. The deployment is reachable
+ * by anyone holding its URL, and the health check needs exactly two facts to
+ * answer "is this checkout what Google is running": the version and whether a
+ * token is configured. Everything else it used to say was about the sheet,
+ * not about the deployment, and was more than a URL-holder needs to know.
+ */
 function doGet() {
-  var sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets().map(function (s) {
-    return s.getName();
-  });
   return ok({
     service: 'fep-sheet-writer',
     version: CODE_VERSION,
     tableTabs: TABLE_TABS,
-    tabs: sheets,
-    writableColumns: colName(FIRST_COL) + '..' + colName(LAST_COL),
     tokenConfigured: !!PropertiesService.getScriptProperties().getProperty('FEP_TOKEN')
   });
 }

@@ -77,19 +77,26 @@ an empty tab is all inserts; after that the frozen tables refuse any row that
 has changed, so a mistake is caught rather than absorbed.
 
 A quick health check without writing anything: open the `/exec` URL in a
-browser. It returns JSON listing the tabs and whether `FEP_TOKEN` is set. It
-never returns the token itself.
+browser. It returns JSON with the `CODE_VERSION` it is running and whether
+`FEP_TOKEN` is set. It never returns the token, and since `2026.09.10-a` it no
+longer lists the spreadsheet's tabs either: the URL is reachable by anyone who
+has it, and the health check only needs to answer whether this checkout is what
+Google is running.
 
 ## What this can and cannot do
 
-Even holding both the URL and the token, a caller cannot:
+The script does one thing: upsert one of the seven CMS tables by slug. Even
+holding both the URL and the token, a caller cannot:
 
-- write outside columns **B..M** (column A holds week labels, column N onward
-  holds your placement formulas)
-- write to row 1
-- write to a tab whose header row does not match the roster
-- write anything that is not a number or blank, so a formula string like
-  `=SUM(A1)` is rejected
+- ask for any other op. The `B2:M20` writer that once fed `Weighted - MASTER`
+  was removed in `2026.09.10-a`, and a request for it is refused
+- write to a tab outside the seven tables
+- send a row belonging to a season other than the one named in the push
+- move a row in a frozen table (`weeks`, `standings`, `picks`) without
+  `allowCorrection`, which names every row it changes in the response
+- write a string that could be read as a formula, so `=SUM(A1)` is rejected
+- write under a header that does not match the columns it sent
+- delete a row, ever
 
 Those checks live in the script, not only in the Python client, because a guard
 that only exists on the caller is not a guard.

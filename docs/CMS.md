@@ -276,7 +276,8 @@ The response then lists every row it changed.
 Even holding the URL and the token, a caller cannot:
 
 - write to any tab outside the seven above, so `Weighted - MASTER` and the
-  per-week tabs are unreachable
+  per-week tabs are unreachable. The op that once wrote them was removed in
+  `2026.09.10-a`, so `writeTable` is the only thing the deployment does
 - push without naming the season, or send a row belonging to a season other
   than the one named. Both were bypasses: the guard used to take the season
   from the caller and believe it

@@ -15,9 +15,10 @@ row builders and the service-account transport were removed rather than kept
 working: a second deployment to redeploy, a second health row to read, and a
 second push to remember, all to feed a tab nobody opens.
 
-`appsscript/Code.gs` still carries its `B2:M20` branch. Removing it would bump
-CODE_VERSION and force a redeploy for dead code, so it stays until the next
-change that needs one anyway.
+The matching `B2:M20` op in `appsscript/Code.gs` outlived the Python writer
+by a day, so that removing dead code would not force a redeploy on its own. It
+went in `2026.09.10-a`, which needed one anyway: `writeTable` is now the only
+op the deployment accepts, so nothing can write raw numbers into any tab.
 
 AUTHENTICATION
 --------------
