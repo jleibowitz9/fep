@@ -6,18 +6,18 @@ _131,072 remaining outcomes. 12 still alive. Generated from the model, not from 
 
 | # | Competitor | Odds | Chg | Correct | Exp. final | Floor-Ceiling |
 |---|---|---|---|---|---|---|
-| 1 | **Andy** | 12.0% | -- | 0 | 9.89 | 0-17 |
-| 2 | **Jacob** | 11.8% | -- | 0 | 9.27 | 0-17 |
-| 3 | **Nathan** | 10.4% | -- | 0 | 9.70 | 0-17 |
-| 4 | **Amir** | 10.3% | -- | 0 | 9.83 | 0-17 |
-| 5 | **Buhduh** | 9.0% | -- | 0 | 9.87 | 0-17 |
-| 6 | **Emer** | 8.0% | -- | 0 | 9.55 | 0-17 |
-| 7 | **Pop** | 7.7% | -- | 0 | 8.90 | 0-17 |
-| 8 | **Hanan** | 7.1% | -- | 0 | 10.07 | 0-17 |
-| 9 | **Jay** | 6.8% | -- | 0 | 9.80 | 0-17 |
-| 10 | **Sarah** | 6.8% | -- | 0 | 9.88 | 0-17 |
-| 11 | **Jen** | 6.1% | -- | 0 | 9.41 | 0-17 |
-| 12 | **Marsha** | 3.9% | -- | 0 | 9.83 | 0-17 |
+| 1 | **Andy** | 12.6% | -- | 0 | 9.90 | 0-17 |
+| 2 | **Jacob** | 11.6% | -- | 0 | 9.22 | 0-17 |
+| 3 | **Nathan** | 10.9% | -- | 0 | 9.71 | 0-17 |
+| 4 | **Amir** | 10.2% | -- | 0 | 9.79 | 0-17 |
+| 5 | **Buhduh** | 8.9% | -- | 0 | 9.83 | 0-17 |
+| 6 | **Emer** | 7.9% | -- | 0 | 9.52 | 0-17 |
+| 7 | **Pop** | 7.5% | -- | 0 | 8.83 | 0-17 |
+| 8 | **Sarah** | 7.0% | -- | 0 | 9.86 | 0-17 |
+| 9 | **Jay** | 6.7% | -- | 0 | 9.76 | 0-17 |
+| 10 | **Hanan** | 6.7% | -- | 0 | 10.01 | 0-17 |
+| 11 | **Jen** | 6.1% | -- | 0 | 9.37 | 0-17 |
+| 12 | **Marsha** | 3.8% | -- | 0 | 9.79 | 0-17 |
 
 ## Decision Tree
 
@@ -25,36 +25,36 @@ _Of the 131,072 ways the rest of the season can go, here is how the title gets d
 
 | Deciding layer | Share of outcomes | Chg |
 |---|---|---|
-| Correct Picks | 61.9% | -- |
-| Tiebreaker 1 - Season Record | 16.3% | -- |
-| Tiebreaker 2 - Division Record | 9.3% | -- |
-| Tiebreaker 3 - Points Total | 12.5% | -- |
+| Correct Picks | 62.0% | -- |
+| Tiebreaker 1 - Season Record | 16.6% | -- |
+| Tiebreaker 2 - Division Record | 9.1% | -- |
+| Tiebreaker 3 - Points Total | 12.4% | -- |
 
 ## Leverage Index: vs. Commanders Preview
 
-**4.5%** of all leaderboard equity swings on this one result.
+**4.3%** of all leaderboard equity swings on this one result.
 
-- A win helps: Hanan (+2.3), Pop (+1.1), Marsha (+0.6), Emer (+0.5)
+- A win helps: Hanan (+2.1), Pop (+1.0), Marsha (+0.6), Emer (+0.5)
 - A win hurts: Amir (-0.9), Nathan (-0.8), Andy (-0.7), Sarah (-0.6)
 
 | Competitor | If W | If L | Swing |
 |---|---|---|---|
-| Hanan | 7.9% | 5.6% | +2.3 |
-| Pop | 8.1% | 7.0% | +1.1 |
-| Amir | 10.0% | 10.9% | -0.9 |
-| Nathan | 10.1% | 10.9% | -0.8 |
-| Andy | 11.7% | 12.4% | -0.7 |
-| Marsha | 4.1% | 3.5% | +0.6 |
+| Hanan | 7.4% | 5.3% | +2.1 |
+| Pop | 7.8% | 6.8% | +1.0 |
+| Amir | 9.9% | 10.8% | -0.9 |
+| Nathan | 10.6% | 11.4% | -0.8 |
+| Andy | 12.4% | 13.1% | -0.7 |
+| Marsha | 4.0% | 3.4% | +0.6 |
 
 ### Biggest remaining leverage games
 
 | Game | Leverage |
 |---|---|
-| vs. Seahawks | 62.4% |
-| vs. Texans | 56.3% |
-| @ Commanders | 53.2% |
-| @ Cowboys | 53.0% |
-| vs. Rams | 52.0% |
+| vs. Seahawks | 62.7% |
+| vs. Texans | 56.5% |
+| @ Cowboys | 53.2% |
+| @ Commanders | 53.0% |
+| vs. Rams | 51.9% |
 
 ## Elimination Watch
 
@@ -91,16 +91,16 @@ _Where the field disagrees. Consensus 1.00 means everyone picked the same way._
 
 | Game | W | L | Consensus | ESPN | Field vs ESPN |
 |---|---|---|---|---|---|
-| vs. Rams | 6 | 6 | 0.50 | 41.2% | +9.0 |
-| @ Commanders | 6 | 6 | 0.50 | 57.0% | -7.0 |
-| @ Bears | 5 | 7 | 0.58 | 49.9% | -8.0 |
-| vs. Seahawks | 7 | 5 | 0.58 | 50.4% | +8.0 |
-| vs. Texans | 7 | 5 | 0.58 | 56.4% | +2.0 |
-| @ Cowboys | 4 | 8 | 0.67 | 46.7% | -13.0 |
-| vs. Cowboys | 9 | 3 | 0.75 | 55.5% | +20.0 |
-| @ Giants | 9 | 3 | 0.75 | 58.0% | +17.0 |
+| vs. Rams | 6 | 6 | 0.50 | 40.4% | +10.0 |
+| @ Commanders | 6 | 6 | 0.50 | 55.8% | -6.0 |
+| @ Bears | 5 | 7 | 0.58 | 49.1% | -7.0 |
+| vs. Seahawks | 7 | 5 | 0.58 | 51.2% | +7.0 |
+| vs. Texans | 7 | 5 | 0.58 | 56.2% | +2.0 |
+| @ Cowboys | 4 | 8 | 0.67 | 45.7% | -12.0 |
+| vs. Cowboys | 9 | 3 | 0.75 | 54.0% | +21.0 |
+| @ Giants | 9 | 3 | 0.75 | 57.1% | +18.0 |
 
 ## Under the Hood
 
-- **How open is it:** effective field of 11.14 competitors (12 technically alive, leader at 12.0%).
+- **How open is it:** effective field of 11.03 competitors (12 technically alive, leader at 12.6%).
 - **Points tiebreaker model:** Normal centred on 391 with spread 117 (shrunk model, 0 games of scoring so far).

@@ -629,23 +629,23 @@
   "snapshots": [
     {
       "week": 0,
-      "taken_at": "2026-09-09T22:00:53",
+      "taken_at": "2026-09-10T21:08:54",
       "note": "",
       "is_bye": false,
       "remaining_outcomes": 131072,
       "weighted": {
-        "Amir": 10.3,
-        "Andy": 12.0,
-        "Buhduh": 9.0,
-        "Emer": 8.0,
-        "Hanan": 7.1,
-        "Jacob": 11.8,
-        "Jay": 6.8,
+        "Amir": 10.2,
+        "Andy": 12.6,
+        "Buhduh": 8.9,
+        "Emer": 7.9,
+        "Hanan": 6.7,
+        "Jacob": 11.6,
+        "Jay": 6.7,
         "Jen": 6.1,
-        "Marsha": 3.9,
-        "Nathan": 10.4,
-        "Pop": 7.7,
-        "Sarah": 6.8
+        "Marsha": 3.8,
+        "Nathan": 10.9,
+        "Pop": 7.5,
+        "Sarah": 7.0
       },
       "straight": {
         "Amir": 8.3,
@@ -676,10 +676,10 @@
         "Sarah": 0
       },
       "deciding": {
-        "outright": 61.9,
-        "tb1": 16.3,
-        "tb2": 9.3,
-        "tb3": 12.5,
+        "outright": 62.0,
+        "tb1": 16.6,
+        "tb2": 9.1,
+        "tb3": 12.4,
         "split": 0.0
       },
       "points_mean": 391.0,
@@ -723,23 +723,23 @@
         null
       ],
       "weights": [
-        0.6647,
-        0.673,
-        0.4994,
-        0.4119,
-        0.5307,
-        0.6999,
-        0.5546,
-        0.5698,
-        0.6566,
-        0.6265,
-        0.4669,
-        0.7102,
-        0.6223,
-        0.5036,
-        0.5642,
-        0.4322,
-        0.5796
+        0.6573,
+        0.6615,
+        0.4906,
+        0.4036,
+        0.5242,
+        0.7068,
+        0.5402,
+        0.5578,
+        0.6545,
+        0.6317,
+        0.4567,
+        0.6862,
+        0.6194,
+        0.5118,
+        0.5623,
+        0.4181,
+        0.5712
       ],
       "eliminated": [],
       "game": null
@@ -761,28 +761,10 @@
     "points_model": "shrunk"
   },
   "created_at": "2026-09-02T22:02:30",
-  "updated_at": "2026-09-10T20:36:50",
+  "updated_at": "2026-09-10T21:08:54",
   "bye_weeks": [
     10
   ],
-  "last_refresh": "2026-09-10T20:36:50",
-  "last_refresh_changes": [
-    "game 0 weight 0.6647 -> 0.6573",
-    "game 1 weight 0.673 -> 0.6615",
-    "game 2 weight 0.4994 -> 0.4906",
-    "game 3 weight 0.4119 -> 0.4036",
-    "game 4 weight 0.5307 -> 0.5242",
-    "game 5 weight 0.6999 -> 0.7068",
-    "game 6 weight 0.5546 -> 0.5402",
-    "game 7 weight 0.5698 -> 0.5578",
-    "game 8 weight 0.6566 -> 0.6545",
-    "game 9 weight 0.6265 -> 0.6317",
-    "game 10 weight 0.4669 -> 0.4567",
-    "game 11 weight 0.7102 -> 0.6862",
-    "game 12 weight 0.6223 -> 0.6194",
-    "game 13 weight 0.5036 -> 0.5118",
-    "game 14 weight 0.5642 -> 0.5623",
-    "game 15 weight 0.4322 -> 0.4181",
-    "game 16 weight 0.5796 -> 0.5712"
-  ]
+  "last_refresh": "2026-09-10T21:08:54",
+  "last_refresh_changes": []
 }
