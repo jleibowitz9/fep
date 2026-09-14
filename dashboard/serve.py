@@ -28,6 +28,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import secrets
 import signal
 import socket
@@ -183,6 +184,57 @@ def _payload(force=False):
 
 _warm_lock = threading.Lock()
 _warm_state = {"error": None}
+
+
+# --------------------------------------------------------------------------
+# what the last button press did
+
+# The page asks "did that reach the Sheet?" on the reload after a week is run,
+# and the answer has to come from something that knows. A note passed through
+# the URL only knew that an action called `week` had exited 0, so it announced
+# "recorded and saved" for a replay that recorded nothing, and it survived
+# exactly one render. This is the server's own record of its action loop:
+# what ran, whether it worked, what the weekly run said it did, and whether
+# the tables have been written since.
+_last_run = {}
+
+WEEK_STATUS = (
+    (re.compile(r"\(already recorded, unchanged\)"), "unchanged"),
+    (re.compile(r"\(already recorded; leverage filled in\)"), "filled"),
+    (re.compile(r"\(CORRECTED\)"), "corrected"),
+)
+
+
+def _week_status(result):
+    """What cli.py week said it did, read off its own output."""
+    if not result["ok"]:
+        return "failed"
+    for pattern, status in WEEK_STATUS:
+        if pattern.search(result["log"] or ""):
+            return status
+    return "created"
+
+
+def _note_run(name, result):
+    """Record one action's outcome, and what it means for the Sheet."""
+    global _last_run
+    if name == "week":
+        status = _week_status(result)
+        _last_run = {
+            "action": name, "ok": bool(result["ok"]), "status": status,
+            "at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            # A week that recorded something has not reached the Sheet: the
+            # run stops at git on purpose. A replay that changed nothing has
+            # nothing new to send.
+            "sheet_pending": status in ("created", "corrected", "filled"),
+        }
+    elif name == "cms-live" and result["ok"]:
+        _last_run = dict(_last_run, sheet_pending=False)
+
+
+def _forget_runs():
+    global _last_run
+    _last_run = {}
 
 
 def _payload_ready():
@@ -638,6 +690,7 @@ def _state():
         "ahead": len([l for l in ahead.splitlines() if l.strip()]) if ahead_code == 0 else 0,
     }
     state["page"] = {"open": _page_open()}
+    state["last_run"] = dict(_last_run)
     return state
 
 
@@ -774,7 +827,15 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/state":
             return self._json(200, _state())
         if path == "/api/ready":
-            return self._json(200, {"ready": _payload_ready(),
+            ready = _payload_ready()
+            if not ready and _warm_state["error"] is None:
+                # The board can stop being ready while the waiting page is
+                # polling: the season file or the model changed under a warm
+                # that then memoised the old key. Nothing else would start
+                # another, so the spinner sat there for good. Idempotent: a
+                # warm under way is not joined by a second one.
+                _warm_in_background()
+            return self._json(200, {"ready": ready,
                                     "error": _warm_state["error"]})
         if path.startswith("/assets/"):
             return self._asset(path)
@@ -823,6 +884,7 @@ class Handler(BaseHTTPRequestHandler):
             result = fn(payload)
         finally:
             _LOCK.release()
+        _note_run(name, result)
         # The page is about to reload for these, so the payload is built now,
         # inside the spinner the click already put up. _payload() recomputes
         # only if the season file actually moved, so the weekly run (which

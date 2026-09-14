@@ -686,11 +686,10 @@ async function run(action, extra, label){
   followUp(action, {});
   logOut(head+"\n\n"+(out.log||'Done.'));
   toast((out.label||'Done')+" ✓");
-  // The reload wipes this log, so a finished week leaves a one-shot note in the
-  // URL for the next load to offer the step that comes after it. Not state:
-  // the note is removed from the address as soon as it has been read.
-  if(RELOADS[action]) setTimeout(()=>location.replace(
-    location.pathname+(action==='week'?'?after=week':'')+location.hash), 700);
+  // The reload wipes this log. What comes after a finished week is not lost
+  // with it: the server remembers what its last run did (state.last_run),
+  // and paintState offers the next step off that on every load.
+  if(RELOADS[action]) setTimeout(()=>location.reload(), 700);
 }
 
 /* ---- the control room, rendered into the Run tab ---- */
@@ -753,7 +752,30 @@ function controlPanel(){
   </div>
 
   <pre class="log" id="ctlLog" hidden></pre>
+  <div class="ctl follow" id="ctlAfter" hidden></div>
   <div class="ctl follow" id="ctlFollow" hidden></div>`;
+}
+
+// A week that has just been run stops at git on purpose, so the board can be
+// looked at before anything leaves this machine. The question "did that reach
+// the Sheet?" is answered by the server's own record of its last run, not by a
+// note in the URL: true on every load, gone once the tables are written, and
+// silent for a replay that recorded nothing. Painted before the deployment
+// gate runs, so the button it offers is shut like every other one when the
+// deployment has not been checked.
+function paintAfterRun(){
+  const el=document.getElementById('ctlAfter'); if(!el) return;
+  const last=(STATE||{}).last_run||{};
+  const pending = last.action==='week' && last.ok && last.sheet_pending;
+  if(!pending){ el.innerHTML=''; el.hidden=true; return; }
+  const what = {corrected:'recorded as a correction', filled:'filled in'}[last.status]
+    || 'recorded';
+  el.innerHTML=`<span class="tiny muted">The week is ${what} and saved to git. Nothing has
+      reached the Sheet: when the board looks right, write the tables.</span>
+    <button class="btn ghost" data-run="cms-preview">Preview the tables</button>
+    <button class="btn danger" data-run="cms-live" data-needs="cms"
+      data-confirm="Write the tables now">Write the tables</button>`;
+  el.hidden=false;
 }
 
 // What the deployment is actually running.
@@ -826,6 +848,7 @@ function paintState(){
   if(!STATE) return;
   if(!BUSY) document.querySelectorAll('[data-run="week"]')
     .forEach(b=>{b.textContent=runLabel();});
+  paintAfterRun();
   paintHealth();
   const git=document.getElementById('ctlGit');
   if(git){
@@ -938,28 +961,7 @@ if(LIVE){
   rb.className='btn'; rb.textContent='Run the week'; rb.dataset.run='week';
   rb.title='ESPN, the model, the snapshot, the stat pack, the chart, this page, and git. The Sheet is a separate button.';
 
-  fetch('/api/state').then(r=>r.json()).then(s=>{STATE=s;paintState();afterRun();}).catch(()=>{});
-}
-
-// A week that has just been run reloads the page, and the reload is where the
-// question "did that reach the Sheet?" gets asked. It did not: the run stops
-// at git on purpose, so the board can be looked at before anything leaves this
-// machine. Say so, and put the next step where the hand already is.
-function afterRun(){
-  let after=null;
-  try{
-    after=new URLSearchParams(location.search).get('after');
-    if(after) history.replaceState(null,'',location.pathname+location.hash);
-  }catch(_){}
-  if(after!=='week') return;
-  const el=document.getElementById('ctlFollow'); if(!el) return;
-  el.innerHTML=`<span class="tiny muted">The week is recorded and saved to git. Nothing has
-      reached the Sheet: when the board looks right, write the tables.</span>
-    <button class="btn ghost" data-run="cms-preview">Preview the tables</button>
-    <button class="btn danger" data-run="cms-live" data-needs="cms"
-      data-confirm="Write the tables now">Write the tables</button>`;
-  el.hidden=false;
-  toast("Week recorded and saved. The Sheet is next, in the Run tab.");
+  fetch('/api/state').then(r=>r.json()).then(s=>{STATE=s;paintState();}).catch(()=>{});
 }
 
 document.getElementById('nav').onclick = e => {

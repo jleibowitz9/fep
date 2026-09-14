@@ -21,6 +21,8 @@ cli.py's and is tested where it lives.
   TestSecondTap        a tap while the app is up raises the window it has
   TestReadiness        the board is ready or it is being prepared, once
   TestLoadingPage      a first load shows something rather than a blank window
+  TestLastRun          the server, not the URL, knows whether the last week
+                       run recorded anything and whether the Sheet has it
 """
 
 from __future__ import annotations
@@ -1089,6 +1091,29 @@ class TestLoadingPage(Served):
         _, body = self.get("/api/ready")
         self.assertTrue(json.loads(body)["ready"])
 
+    def test_a_poll_that_finds_nothing_ready_starts_a_warm(self):
+        # The fingerprint can move under a warm (a refresh in a terminal, an
+        # edit to fep/), which then memoises the old key. The poll used to
+        # only report, so nothing ever started another and the spinner never
+        # ended. A warm already under way is not joined: _warm_in_background
+        # holds a lock for that, and the stub here stands in for it.
+        serve._payload_ready = lambda: False
+        self.get("/api/ready")
+        self.get("/api/ready")
+        self.assertEqual(self.warms, [1, 1])
+
+    def test_a_poll_after_a_failed_warm_does_not_retry_it(self):
+        serve._payload_ready = lambda: False
+        serve._warm_state["error"] = "no season file"
+        _, body = self.get("/api/ready")
+        self.assertEqual(json.loads(body)["error"], "no season file")
+        self.assertEqual(self.warms, [])
+
+    def test_a_ready_board_is_not_warmed_again(self):
+        serve._payload_ready = lambda: True
+        self.get("/api/ready")
+        self.assertEqual(self.warms, [])
+
     def test_a_ready_board_gets_the_real_page(self):
         serve._payload_ready = lambda: True
         serve._payload = lambda force=False: payload()
@@ -1129,7 +1154,95 @@ class TestTheSheetIsASeparateStep(unittest.TestCase):
         self.assertIn("/api/alive", page)
         self.assertIn("/api/gone", page)
 
-    def test_a_finished_week_offers_the_tables(self):
+    def test_a_finished_week_offers_the_tables_off_the_servers_record(self):
         page = serve.dashboard_build.render(payload(), live="<b></b>")
-        self.assertIn("after=week", page)
-        self.assertIn("function afterRun", page)
+        self.assertIn("function paintAfterRun", page)
+        self.assertIn("last_run", page)
+        self.assertIn('id="ctlAfter"', page)
+        # Not a note in the URL: that knew only that an action named `week`
+        # had exited 0, and it survived exactly one render.
+        self.assertNotIn("after=week", page)
+        self.assertNotIn("function afterRun", page)
+
+    def test_the_offer_is_painted_before_the_deployment_gate(self):
+        # The button it injects carries data-needs, and the gate only shuts
+        # the buttons that exist when it runs.
+        page = serve.dashboard_build.render(payload(), live="<b></b>")
+        body = page[page.index("function paintState"):]
+        self.assertLess(body.index("paintAfterRun();"), body.index("paintHealth();"))
+
+    def test_the_offer_has_its_own_element(self):
+        # followUp() owns #ctlFollow and empties it after every action, so an
+        # offer placed there vanished the moment Preview was pressed.
+        page = serve.dashboard_build.render(payload(), live="<b></b>")
+        painter = page[page.index("function paintAfterRun"):]
+        painter = painter[:painter.index("\n}")]
+        self.assertIn("ctlAfter", painter)
+        self.assertNotIn("ctlFollow", painter)
+
+
+class TestLastRun(Served):
+    """The server remembers what its last button press did."""
+
+    def setUp(self):
+        self.real = dict(serve.ACTIONS)
+        serve._forget_runs()
+
+    def tearDown(self):
+        serve.ACTIONS.clear()
+        serve.ACTIONS.update(self.real)
+        serve._forget_runs()
+
+    def _stub(self, name, ok=True, log=""):
+        label, _fn, mutates = self.real[name]
+        serve.ACTIONS[name] = (label, lambda payload: serve.Result(
+            ok=ok, error=None if ok else "no", log=log), mutates)
+
+    def _run(self, name):
+        status, body = self.post("/api/action", {"action": name})
+        self.assertEqual(status, 200)
+        return body["state"]["last_run"]
+
+    def test_a_week_that_recorded_something_leaves_the_sheet_pending(self):
+        self._stub("week", log="2026 FEP | Week 1\n  stat pack ...")
+        last = self._run("week")
+        self.assertEqual((last["action"], last["status"]), ("week", "created"))
+        self.assertTrue(last["sheet_pending"])
+        _, body = self.get("/api/state")
+        self.assertTrue(json.loads(body)["last_run"]["sheet_pending"])
+
+    def test_a_replay_that_changed_nothing_offers_nothing(self):
+        self._stub("week", log="2026 FEP | Week 1  (already recorded, unchanged)")
+        last = self._run("week")
+        self.assertEqual(last["status"], "unchanged")
+        self.assertFalse(last["sheet_pending"])
+
+    def test_a_correction_and_a_fill_are_named(self):
+        self._stub("week", log="2026 FEP | Week 1  (CORRECTED)")
+        self.assertEqual(self._run("week")["status"], "corrected")
+        self._stub("week", log="2026 FEP | Week 0  (already recorded; leverage filled in)")
+        last = self._run("week")
+        self.assertEqual(last["status"], "filled")
+        self.assertTrue(last["sheet_pending"])
+
+    def test_a_failed_week_is_not_pending(self):
+        self._stub("week", ok=False, log="week 1 is already recorded and this run does not match it")
+        last = self._run("week")
+        self.assertEqual(last["status"], "failed")
+        self.assertFalse(last["sheet_pending"])
+
+    def test_writing_the_tables_clears_it(self):
+        self._stub("week", log="2026 FEP | Week 1")
+        self.assertTrue(self._run("week")["sheet_pending"])
+        self._stub("cms-live", ok=False)
+        self.assertTrue(self._run("cms-live")["sheet_pending"])
+        self._stub("cms-live", ok=True)
+        self.assertFalse(self._run("cms-live")["sheet_pending"])
+
+    def test_other_actions_leave_the_record_alone(self):
+        self._stub("week", log="2026 FEP | Week 1")
+        self._run("week")
+        self._stub("board")
+        last = self._run("board")
+        self.assertEqual(last["action"], "week")
+        self.assertTrue(last["sheet_pending"])
