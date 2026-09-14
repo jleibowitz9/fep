@@ -46,6 +46,9 @@ Two skills carry the detail. Read the relevant one before working:
 - `data/season_2026.json` is the only thing here that cannot be regenerated.
 - **Facts are stored, statistics are not.** Never cache a computed number in the
   season file; it will silently disagree with the board after a correction.
+  The one exception is a week's snapshot, which is a record of what was
+  published: `deciding`, `counterfactual` and `leverage` are frozen there
+  precisely so that a later correction cannot move them.
 - **Snapshots freeze.** A row published in week N is identical in week N+1.
   Enforced, not just asserted: an identical replay is a no-op, a changed one is
   refused by name, and a rewrite needs `--correction "why"`, which is recorded

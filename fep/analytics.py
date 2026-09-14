@@ -124,7 +124,32 @@ def leverage_for_game(season: dict, game_index: int, results: Optional[List[str]
     }
 
 
-def whatif_boards(season: dict) -> Dict[str, dict]:
+def game_simulations(season: dict, through_week: Optional[int] = None) -> dict:
+    """Every per-game simulation the weekly run needs, run once.
+
+    The spine, the What If boards, the leverage ranking and the regret table
+    all start from the same two things: each game forced both ways
+    (`leverage_for_game`) and each played game flipped (`retrospective_leverage`).
+    That is two board runs per game, about nine seconds at preseason, and it
+    used to be run three times over in one weekly command because each
+    statistic computed its own. Now it is computed here and handed to the
+    functions that read it. Every one of them still works without it, for the
+    callers that only want one number.
+
+    `through_week` pins the season first, so the simulations describe the same
+    moment as the board they sit beside.
+    """
+    pinned = pin(season, through_week)
+    results = season_mod.results(pinned)
+    return {
+        "results": results,
+        "pairs": [leverage_for_game(pinned, i, results=results)
+                  for i in range(len(results))],
+        "retrospective": retrospective_leverage(pinned),
+    }
+
+
+def whatif_boards(season: dict, sims: Optional[dict] = None) -> Dict[str, dict]:
     """Every game's W and L board, keyed by game index as a string.
 
     This is what the dashboard's What If tab reads. For an unplayed game the two
@@ -135,10 +160,10 @@ def whatif_boards(season: dict) -> Dict[str, dict]:
     strings anyway. Making that explicit here keeps the Python and the shipped
     payload the same shape.
     """
-    results = season_mod.results(season)
+    sims = sims if sims is not None else game_simulations(season)
     out: Dict[str, dict] = {}
-    for i, actual in enumerate(results):
-        pair = leverage_for_game(season, i, results=results)
+    for i, actual in enumerate(sims["results"]):
+        pair = sims["pairs"][i]
         out[str(i)] = {
             engine.WIN: pair["if_win"],
             engine.LOSS: pair["if_lose"],
@@ -156,12 +181,13 @@ def individual_leverage(season: dict, game_index: int) -> Dict[str, float]:
     }
 
 
-def rank_leverage(season: dict, limit: Optional[int] = None) -> List[dict]:
+def rank_leverage(season: dict, limit: Optional[int] = None,
+                  sims: Optional[dict] = None) -> List[dict]:
     """Every remaining game, ranked by how much it matters."""
-    results = season_mod.results(season)
+    sims = sims if sims is not None else game_simulations(season)
     rows = [
-        leverage_for_game(season, i, results)
-        for i, r in enumerate(results) if r == UNPLAYED
+        sims["pairs"][i]
+        for i, r in enumerate(sims["results"]) if r == UNPLAYED
     ]
     rows.sort(key=lambda row: -row["leverage"])
     return rows[:limit] if limit else rows
@@ -242,7 +268,8 @@ def game_abbr(game: dict) -> str:
     return short_label(game.get("label", ""))
 
 
-def spine(season: dict, week: Optional[int] = None) -> List[dict]:
+def spine(season: dict, week: Optional[int] = None,
+          sims: Optional[dict] = None) -> List[dict]:
     """Every game of the season with the leverage that belonged to it.
 
     Two different quantities share the axis, and the `kind` field says which is
@@ -259,12 +286,19 @@ def spine(season: dict, week: Optional[int] = None) -> List[dict]:
 
     Costs a full simulation per game, about four seconds at preseason, so this
     is called once by the weekly run and stored on the snapshot. Nothing should
-    call it while building the CMS tables.
+    call it while building the CMS tables. The weekly run passes the `sims`
+    it already has (game_simulations), so the spine costs it nothing extra.
+
+    A played game's leverage is the regret table's `magnitude`: the same
+    halved swing, measured from the result that happened rather than from
+    both. The first version read a key that table does not have, and the
+    preseason never noticed because nothing had been played.
     """
     pinned = pin(season, week)
-    results = season_mod.results(pinned)
-    regret = {row["game_index"]: row["leverage"]
-              for row in retrospective_leverage(pinned)}
+    sims = sims if sims is not None else game_simulations(pinned)
+    results = sims["results"]
+    regret = {row["game_index"]: row["magnitude"]
+              for row in sims["retrospective"]}
 
     rows = []
     for index, game in enumerate(pinned["games"]):
@@ -273,7 +307,7 @@ def spine(season: dict, week: Optional[int] = None) -> List[dict]:
         if played:
             leverage = float(regret.get(index, 0.0))
         else:
-            leverage = float(leverage_for_game(pinned, index, results)["leverage"])
+            leverage = float(sims["pairs"][index]["leverage"])
         rows.append({
             "game_index": index,
             "nfl_week": game["nfl_week"],
@@ -678,16 +712,22 @@ def espn_calibration(season: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def full_pack(season: dict, board: engine.Board, week: int,
-              leverage_limit: int = 5, through_week: Optional[int] = None) -> dict:
+              leverage_limit: int = 5, through_week: Optional[int] = None,
+              sims: Optional[dict] = None) -> dict:
     """Everything the weekly stat pack needs, in one call.
 
     through_week pins every derived statistic to the same view of the season the
     board used, so leverage and counterfactuals cannot reference a game the
     board has not seen.
+
+    `sims` is game_simulations() for the same pinned season, when the caller
+    has already run it (the weekly run does, for the spine it records). Left
+    out, it is computed here.
     """
     season = pin(season, through_week)
     results = season_mod.results(season)
     next_index = engine.next_game_index(results)
+    sims = sims if sims is not None else game_simulations(season)
 
     pack = {
         "week": week,
@@ -711,11 +751,11 @@ def full_pack(season: dict, board: engine.Board, week: int,
         "calibration": espn_calibration(season),
         "counterfactual": counterfactual(season),
         "points_model": board.points,
-        "whatif": whatif_boards(season),
-        "retrospective_leverage": retrospective_leverage(season),
+        "whatif": whatif_boards(season, sims=sims),
+        "retrospective_leverage": sims["retrospective"],
     }
     pack["next_game_leverage"] = (
-        leverage_for_game(season, next_index) if next_index is not None else None
+        sims["pairs"][next_index] if next_index is not None else None
     )
-    pack["leverage_ranking"] = rank_leverage(season, limit=leverage_limit)
+    pack["leverage_ranking"] = rank_leverage(season, limit=leverage_limit, sims=sims)
     return pack

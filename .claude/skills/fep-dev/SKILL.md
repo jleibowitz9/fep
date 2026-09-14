@@ -115,10 +115,15 @@ and from ESPN. It cannot be rebuilt from anything.
 
 Two properties worth preserving:
 
-- **Facts are stored, statistics are not.** Leverage, heat check and
-  differentiation are recomputed on demand, because a cached statistic can
-  silently disagree with the board after a result is corrected. Do not add a
-  computed number to the season file.
+- **Facts are stored, statistics are not.** Heat check, differentiation and
+  the current leverage ranking are recomputed on demand, because a cached
+  statistic can silently disagree with the board after a result is corrected.
+  Do not add a computed number to the season file. The exception is a week's
+  snapshot, which records what the family saw: `deciding`, `counterfactual`
+  and the leverage spine are frozen there so that the CMS can publish them
+  and a later correction cannot move a week that has gone out. A snapshot
+  recorded before one of those fields existed fills it in once
+  (`SNAPSHOT_FILLABLE_FIELDS`) rather than being refused as drift.
 - **Snapshots freeze.** A week's snapshot is what the family read that week.
   Changing the engine in 2029 must not move a number published in 2026. The CMS
   tables depend on this and `tests/test_cms.py` asserts it.

@@ -496,6 +496,35 @@ SNAPSHOT_RECORD_FIELDS = (
     "counterfactual", "leverage",
 )
 
+# Record fields that a week recorded before they existed may acquire once,
+# from absent to present, without that counting as drift. The same idea as
+# FILLABLE_COLUMNS in appsscript/Code.gs, and for the same reason: a field
+# appended to the record in September 2026 is not a number that moved, and
+# demanding --correction for it would put an audit entry on every old week for
+# a change nobody made. A fill is one-directional and happens once: a field
+# that is present and now differs is drift like anywhere, and so is a field
+# going back to absent.
+SNAPSHOT_FILLABLE_FIELDS = ("counterfactual", "leverage")
+
+
+def snapshot_fills(stored: dict, incoming: dict) -> Optional[List[str]]:
+    """The fillable fields `incoming` adds to `stored`, if that is all it does.
+
+    Returns the list of field names filled, or None when the two differ in any
+    other way (in which case snapshot_drift says how). An empty list means the
+    two are identical.
+    """
+    filled = []
+    for field in SNAPSHOT_RECORD_FIELDS:
+        was, now = stored.get(field), incoming.get(field)
+        if was == now:
+            continue
+        if field in SNAPSHOT_FILLABLE_FIELDS and was is None and now is not None:
+            filled.append(field)
+            continue
+        return None
+    return filled
+
 
 def _flatten(value, prefix=""):
     """Every leaf of a nested snapshot field, named by its path."""
@@ -545,6 +574,9 @@ def snapshot(season: dict, week: int, board: engine.Board, note: str = "",
         created     the week had no snapshot and now has one
         unchanged   an identical replay: nothing was written, not even the
                     timestamp, and the stored entry comes back untouched
+        filled      a replay that only added a field the week was recorded
+                    without (SNAPSHOT_FILLABLE_FIELDS). The original
+                    `taken_at` is kept; the fill is not a re-recording
         corrected   a deliberate, audited rewrite
 
     THE WEEK IS THE RECORD
@@ -632,6 +664,20 @@ def snapshot(season: dict, week: int, board: engine.Board, note: str = "",
             # one keeps the original `taken_at`, which is the honest answer to
             # "when was this week recorded".
             return stored, "unchanged"
+        fills = snapshot_fills(stored, entry)
+        if fills:
+            # A field the week was recorded without, filled in once. The
+            # stored entry is kept whole, including when it was taken and any
+            # corrections it carries, and only the new fields are added.
+            fresh, entry = entry, dict(stored)
+            for field in fills:
+                entry[field] = fresh[field]
+            status = "filled"
+            season["snapshots"] = [s for s in season.get("snapshots", [])
+                                   if s["week"] != week]
+            season["snapshots"].append(entry)
+            season["snapshots"].sort(key=lambda s: s["week"])
+            return entry, status
         if not correction:
             raise engine.SeasonError(
                 "week {} is already recorded and this run does not match it:\n"

@@ -112,6 +112,33 @@ result (`W` or `L`) the standings carousel describes, and it is blank for week
 counterfactual. It is not fillable: no published row can legitimately go from
 blank to a value there.
 
+**`weeks` also carries the Leverage Spine and the Under the Hood tiles.**
+Nine more columns, appended a week later and fillable for the same reason:
+
+- `leverage_values` and `leverage_results`: one entry per game of the season,
+  comma-separated in schedule order, read off the week's recorded spine
+  (`cli.py week` computes it and freezes it on the snapshot, because a
+  remaining game's leverage moves with ESPN's lines and a week rebuilt later
+  would not be the week that was published). `leverage_results` carries `W`,
+  `L`, `T` or blank per game, so the string for a preseason week is sixteen
+  commas and nothing else; that is deliberate, since an empty cell would leave
+  the column's format unpinned. The x axis is not here: `seasons` carries
+  `leverage_labels` and `leverage_shorts`, the same seventeen names for every
+  week, so a corrected team name is one free rewrite rather than a correction
+  on every published row.
+- `espn_place`, `espn_gloss`, `espn_accent`: ESPN scored as a competitor
+  against its locked August sheet. Blank until a game has been decided.
+  `espn_accent` is `good` or `bad` and colours the tile.
+- `points_value` (`391 ± 117`) and `points_gloss`: where tiebreaker 3 thinks
+  the season lands, off the week's own `points_mean` and `points_sd`.
+- `volatile_value` and `volatile_gloss`: whose board has moved most across the
+  weeks up to this one. Blank until there are two weeks to compare.
+
+Every one of them is read off the week's own snapshot or the snapshots before
+it, so a row published in week N cannot move in week N+1. All nine are in
+`FILLABLE_COLUMNS` (Code.gs `2026.09.14-a`), so the 2026 push after the
+append reports `weeks: 1 filled in` and nothing `CORRECTED`.
+
 **`standings` carries the counterfactual board.** `counterfactual_weighted`,
 `counterfactual_rank` and `counterfactual_change` (counterfactual minus actual,
 so positive means the other result would have been better for them) come from

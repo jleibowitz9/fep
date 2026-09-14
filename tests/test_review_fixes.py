@@ -55,6 +55,18 @@ September 2026, round two:
                              CMS publishes, and a week with no counterfactual
                              (week 0, a bye, a tie, an unplayed game) records
                              nothing rather than a guess
+
+September 2026, third review (the Leverage Spine):
+
+  TestSpineSurvivesAPlayedGame  the spine read a key the regret table does
+                             not have, so the first run with a result would
+                             have crashed before the snapshot was saved; and
+                             it re-ran every simulation the stat pack was
+                             about to run again
+  TestSnapshotsFillOnce      a week recorded before `leverage` existed was
+                             refused as drift on replay, because the weekly
+                             run always sends one; and the real week 0 had
+                             been given a spine by hand, with the wrong codes
 """
 
 from __future__ import annotations
@@ -1142,14 +1154,28 @@ class TestUnplayedWeekIsNotFrozen(unittest.TestCase):
         return module
 
     def test_the_default_run_refuses_a_week_that_has_not_happened(self):
+        # On a copy of the season with week 1 unplayed, with ESPN not
+        # consulted and the save refused. This used to run the real command
+        # against the real file, which was fine right up to the Monday after
+        # the Eagles' first game: ESPN then had the result, the guard did not
+        # fire, and the test recorded week 1 into data/season_2026.json.
         cli = self._cli()
-        original = season_mod.week_to_run
+        season = season_mod.load(2026)
+        for game in season["games"]:
+            if game["nfl_week"] == 1:
+                game["result"], game["points_for"] = engine.UNPLAYED, None
+        originals = (season_mod.week_to_run, season_mod.refresh,
+                     season_mod.save, cli._load)
         season_mod.week_to_run = lambda season, today=None: 1
+        season_mod.refresh = lambda season, force=True: {}
+        season_mod.save = lambda season: self.fail("the run must not save")
+        cli._load = lambda: season
         try:
             with self.assertRaises(SystemExit) as caught:
                 cli.COMMANDS["week"]([])
         finally:
-            season_mod.week_to_run = original
+            (season_mod.week_to_run, season_mod.refresh,
+             season_mod.save, cli._load) = originals
         self.assertIn("has not been played yet", str(caught.exception))
 
     def test_a_bye_week_is_not_caught_by_the_guard(self):
@@ -1548,6 +1574,118 @@ class TestCounterfactualIsRecorded(unittest.TestCase):
         with self.assertRaises(engine.SeasonError) as caught:
             season_mod.snapshot(season, 1, board, counterfactual=moved)
         self.assertIn("counterfactual.board.Amir", str(caught.exception))
+
+
+class TestSpineSurvivesAPlayedGame(unittest.TestCase):
+    """analytics.spine on a season with results, on the real 2026 file."""
+
+    def setUp(self):
+        self.season = season_mod.load(2026)
+        self.season["snapshots"] = []
+
+    def _played(self, week, result, points=24):
+        season = copy.deepcopy(self.season)
+        for game in season["games"]:
+            if game["nfl_week"] == week:
+                game["result"], game["points_for"] = result, points
+        return season
+
+    def test_a_played_game_carries_its_regret_not_a_crash(self):
+        season = self._played(1, engine.WIN)
+        rows = analytics.spine(season, 1)
+        self.assertEqual(len(rows), len(season["games"]))
+        played = [r for r in rows if r["kind"] == "played"]
+        self.assertEqual([r["game_index"] for r in played], [0])
+        regret = analytics.retrospective_leverage(analytics.pin(season, 1))
+        self.assertEqual(played[0]["leverage"], regret[0]["magnitude"])
+        self.assertEqual(played[0]["result"], engine.WIN)
+
+    def test_a_tie_is_played_and_carries_nothing(self):
+        rows = analytics.spine(self._played(1, engine.TIE), 1)
+        self.assertEqual((rows[0]["kind"], rows[0]["leverage"]), ("played", 0.0))
+
+    def test_a_remaining_game_carries_what_is_riding_on_it(self):
+        season = self._played(1, engine.WIN)
+        rows = analytics.spine(season, 1)
+        pinned = analytics.pin(season, 1)
+        pair = analytics.leverage_for_game(pinned, 3)
+        self.assertEqual(rows[3]["kind"], "remaining")
+        self.assertEqual(rows[3]["leverage"], pair["leverage"])
+
+    def test_the_shorts_are_the_scoreboard_abbreviations(self):
+        for row, game in zip(analytics.spine(self.season, 0), self.season["games"]):
+            self.assertEqual(row["short"], analytics.game_abbr(game))
+            self.assertEqual(row["short"], game["opponent"].upper())
+
+    def test_the_pack_and_the_spine_share_one_set_of_simulations(self):
+        season = self._played(1, engine.WIN)
+        board = season_mod.run(season, through_week=1)
+        sims = analytics.game_simulations(season, through_week=1)
+        with_sims = analytics.full_pack(season, board, 1, through_week=1, sims=sims)
+        without = analytics.full_pack(season, board, 1, through_week=1)
+        for key in ("whatif", "retrospective_leverage", "next_game_leverage",
+                    "leverage_ranking"):
+            self.assertEqual(with_sims[key], without[key], key)
+        self.assertEqual(analytics.spine(season, 1, sims=sims),
+                         analytics.spine(season, 1))
+
+
+class TestSnapshotsFillOnce(unittest.TestCase):
+    """A field appended to the record fills in; anything else is still drift."""
+
+    def setUp(self):
+        self.season = season_mod.load(2026)
+        self.season["snapshots"] = []
+        self.board = season_mod.run(self.season, through_week=0)
+        self.spine = analytics.spine(self.season, 0)
+
+    def test_a_week_recorded_without_leverage_fills_it_in_once(self):
+        stored, status = season_mod.snapshot(self.season, 0, self.board)
+        self.assertEqual(status, "created")
+        self.assertNotIn("leverage", stored)
+        entry, status = season_mod.snapshot(self.season, 0, self.board,
+                                            leverage=self.spine)
+        self.assertEqual(status, "filled")
+        self.assertEqual(entry["leverage"], self.spine)
+        self.assertEqual(entry["taken_at"], stored["taken_at"])
+        self.assertNotIn("corrections", entry)
+        _, status = season_mod.snapshot(self.season, 0, self.board,
+                                        leverage=self.spine)
+        self.assertEqual(status, "unchanged")
+
+    def test_a_filled_field_that_then_moves_is_refused_by_name(self):
+        season_mod.snapshot(self.season, 0, self.board, leverage=self.spine)
+        moved = copy.deepcopy(self.spine)
+        moved[0]["short"] = "COM"
+        with self.assertRaises(engine.SeasonError) as caught:
+            season_mod.snapshot(self.season, 0, self.board, leverage=moved)
+        self.assertIn("leverage[0].short: 'WSH' -> 'COM'", str(caught.exception))
+
+    def test_a_fill_does_not_smuggle_other_drift_through(self):
+        season_mod.snapshot(self.season, 0, self.board)
+        self.season["games"][0]["weight"] = 0.123
+        with self.assertRaises(engine.SeasonError) as caught:
+            season_mod.snapshot(self.season, 0, self.board, leverage=self.spine)
+        self.assertIn("weights[0]", str(caught.exception))
+
+    def test_a_field_going_back_to_absent_is_not_a_fill(self):
+        season_mod.snapshot(self.season, 0, self.board, leverage=self.spine)
+        stored = season_mod.get_snapshot(self.season, 0)
+        entry = dict(stored)
+        del entry["leverage"]
+        self.assertIsNone(season_mod.snapshot_fills(stored, entry))
+
+    def test_the_real_week_zero_carries_the_scoreboard_codes(self):
+        # The stored spine was once written by hand with first-three-letter
+        # codes (COM, TIT, 49E). The record must agree with the code that
+        # will replay it, or every replay of week 0 is refused.
+        season = season_mod.load(2026)
+        stored = season_mod.get_snapshot(season, 0)
+        self.assertIsNotNone(stored)
+        self.assertIn("leverage", stored)
+        for row, game in zip(stored["leverage"], season["games"]):
+            self.assertEqual(row["short"], analytics.game_abbr(game))
+        self.assertNotIn("corrections", stored)
 
 
 if __name__ == "__main__":

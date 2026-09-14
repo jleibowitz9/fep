@@ -337,6 +337,33 @@ r = post({op:'writeTable', tab:'weeks', year:2026, columns:WCOLS2,
           rows:[wk(1,60.0).concat([''])]});
 check('and so is going back to blank', !r.ok && /frozen table/.test(r.error), r);
 
+console.log('\n--- the spine and Under the Hood columns fill in the same way ---');
+// Nine columns appended in September 2026 while 2026-w00 was already
+// published. A push with the row at the new width must fill, not refuse.
+const NINE = ['leverage_values', 'leverage_results', 'espn_place', 'espn_gloss',
+              'espn_accent', 'points_value', 'points_gloss', 'volatile_value',
+              'volatile_gloss'];
+const WCOLS3 = WCOLS2.concat(NINE);
+const w00 = wk(0, 0.0).concat([0.0]);
+r = post({op:'writeTable', tab:'weeks', year:2026, columns:WCOLS2, rows:[w00]});
+check('a published week 0 at the old width', r.ok && r.added===1, r);
+const filledNine = ['4.3, 13.3', ', , ', '', '', '', '391 ± 117',
+                    'Where tiebreaker 3 starts the season.', '', ''];
+r = post({op:'writeTable', tab:'weeks', year:2026, columns:WCOLS3,
+          rows:[w00.concat(filledNine)]});
+check('the nine new columns fill in once, and are not a correction',
+      r.ok && r.filled===1 && r.corrected.length===0, r);
+r = post({op:'writeTable', tab:'weeks', year:2026, columns:WCOLS3,
+          rows:[w00.concat(filledNine)]});
+check('replaying the filled row is a no-op', r.ok && r.unchanged===1 && r.filled===0, r);
+const movedNine = filledNine.slice(); movedNine[0] = '4.4, 13.3';
+r = post({op:'writeTable', tab:'weeks', year:2026, columns:WCOLS3,
+          rows:[w00.concat(movedNine)]});
+check('a spine value moving afterwards is refused',
+      !r.ok && /frozen table/.test(r.error) && /leverage_values/.test(r.error), r);
+check('every one of the nine is on the fillable list',
+      NINE.every(n => FILLABLE_COLUMNS.weeks.indexOf(n) !== -1), FILLABLE_COLUMNS.weeks);
+
 console.log('\n--- the sheet is widened before it is read ---');
 delete SHEETS['games'];   // a fresh tab, 26 columns wide, like a new Sheet
 const WIDE = ['slug','season'].concat(Array.from({length:25}, (_, i) => 'c' + i));   // 27

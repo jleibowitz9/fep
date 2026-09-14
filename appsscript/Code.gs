@@ -47,7 +47,7 @@
 // about. The Python client reads the same constant out of its local copy and
 // refuses to push when the two disagree, because editing this file does not
 // redeploy it and the two have now silently diverged twice.
-var CODE_VERSION = '2026.09.11-a';
+var CODE_VERSION = '2026.09.14-a';
 
 // The CMS tables. Nothing outside this list can be written by writeTable, so
 // even a caller holding the URL and the token cannot touch the legacy
@@ -89,7 +89,16 @@ var FILLABLE_COLUMNS = {
   // a different value or a value going back to blank is drift like anywhere.
   weeks: ['decided_tb1', 'decided_tb2', 'decided_tb3', 'decided_split',
           'decided_outright_change', 'decided_tb1_change',
-          'decided_tb2_change', 'decided_tb3_change']
+          'decided_tb2_change', 'decided_tb3_change',
+          // The Leverage Spine and the Under the Hood tiles, appended a
+          // week later. Same situation: the published weeks already carry
+          // every number these are built from, so they fill in once. Left
+          // off this list, the first push after the append was refused as
+          // drift on the one row that was already out.
+          'leverage_values', 'leverage_results',
+          'espn_place', 'espn_gloss', 'espn_accent',
+          'points_value', 'points_gloss',
+          'volatile_value', 'volatile_gloss']
 };
 
 
