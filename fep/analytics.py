@@ -31,7 +31,7 @@ from __future__ import annotations
 import math
 from typing import Dict, List, Optional
 
-from . import engine, season as season_mod
+from . import engine, season as season_mod, teams
 
 UNPLAYED = engine.UNPLAYED
 
@@ -215,6 +215,155 @@ def counterfactual_for_week(season: dict, week: int) -> Optional[dict]:
     if index is None:
         return None
     return counterfactual(pin(season, week), game_index=index)
+
+
+def short_label(label: str) -> str:
+    """ESPN's scoreboard abbreviation for the opponent in a game label.
+
+    `teams` is the one place that knows these, and this delegates to it rather
+    than guessing. Taking the first three letters of a nickname is precisely
+    the bug that module was written to end: it produced COM for the
+    Commanders, STE for the Steelers and 49E for the 49ers, none of which is
+    what a scoreboard says.
+    """
+    return teams.abbr(teams.from_label(label))
+
+
+def game_abbr(game: dict) -> str:
+    """The abbreviation for a game's opponent, from the game itself.
+
+    The season file already stores ESPN's abbreviation per game, so that is
+    the authoritative source and it is read first. The label is the fallback,
+    for a game recorded before the field existed.
+    """
+    stored = str(game.get("opponent") or "").strip()
+    if stored:
+        return stored.upper()
+    return short_label(game.get("label", ""))
+
+
+def spine(season: dict, week: Optional[int] = None) -> List[dict]:
+    """Every game of the season with the leverage that belonged to it.
+
+    Two different quantities share the axis, and the `kind` field says which is
+    which for any caller that cares:
+
+        played      retrospective. How much the board actually moved when the
+                    result landed. A fact, and it never changes again.
+        remaining   prospective. How much is still riding on it, as of `week`.
+                    This moves every week as ESPN's lines move and the board
+                    narrows, which is exactly why a week's spine is recorded
+                    rather than recomputed later.
+
+    A tie has no counterfactual, so it carries 0.0 and is marked played.
+
+    Costs a full simulation per game, about four seconds at preseason, so this
+    is called once by the weekly run and stored on the snapshot. Nothing should
+    call it while building the CMS tables.
+    """
+    pinned = pin(season, week)
+    results = season_mod.results(pinned)
+    regret = {row["game_index"]: row["leverage"]
+              for row in retrospective_leverage(pinned)}
+
+    rows = []
+    for index, game in enumerate(pinned["games"]):
+        result = results[index]
+        played = result != UNPLAYED
+        if played:
+            leverage = float(regret.get(index, 0.0))
+        else:
+            leverage = float(leverage_for_game(pinned, index, results)["leverage"])
+        rows.append({
+            "game_index": index,
+            "nfl_week": game["nfl_week"],
+            "label": game["label"],
+            "short": game_abbr(game),
+            "leverage": round(leverage, 1),
+            "result": "" if result == UNPLAYED else result,
+            "kind": "played" if played else "remaining",
+        })
+    return rows
+
+
+def _ordinal(place: int) -> str:
+    if 10 <= place % 100 <= 20:
+        return "{}th".format(place)
+    return "{}{}".format(place, {1: "st", 2: "nd", 3: "rd"}.get(place % 10, "th"))
+
+
+def espn_as_competitor(season: dict, week: Optional[int] = None) -> dict:
+    """ESPN entered in the pool, scored like everybody else.
+
+    "ESPN would be 9th" needs no statistics vocabulary, which is the entire
+    point: the Brier score is the right measure of a forecaster and the wrong
+    thing to print in a family newsletter.
+
+    Its sheet is LOCKED from the preseason weights, not taken live. ESPN's
+    numbers move every week, and scoring this week's favourites against people
+    who committed in August is not a comparison. The week 0 snapshot is the
+    only fair peer, and it is the reason this is possible at all.
+
+    Returns `{}` when there is no preseason snapshot to lock.
+    """
+    pinned = pin(season, week)
+    snapshots = sorted(pinned.get("snapshots", []), key=lambda s: s.get("week", 0))
+    preseason = next((s for s in snapshots if s.get("week") == 0), None)
+    weights = (preseason or {}).get("weights") or []
+    if not weights:
+        return {}
+
+    latest = snapshots[-1] if snapshots else {}
+    results = latest.get("results") or season_mod.results(pinned)
+    sheet = [engine.WIN if float(w) >= 0.5 else engine.LOSS for w in weights]
+
+    correct = 0
+    decided = 0
+    errors = []
+    expected_wins = 0.0
+    actual_wins = 0
+    for index, result in enumerate(results):
+        if index >= len(sheet) or result == UNPLAYED:
+            continue
+        p = float(weights[index])
+        expected_wins += p
+        if result == engine.TIE:
+            # Neither right nor wrong, and it matched nobody's pick either.
+            errors.append((p - 0.5) ** 2)
+            continue
+        decided += 1
+        actual = 1.0 if result == engine.WIN else 0.0
+        errors.append((p - actual) ** 2)
+        if result == engine.WIN:
+            actual_wins += 1
+        if sheet[index] == result:
+            correct += 1
+
+    # Placed on correct picks alone. A real placement would need a predicted
+    # record and a points guess for the tiebreaker cascade, and ESPN has
+    # neither, so the number is reported for what it is.
+    field = (latest.get("current_points") or {})
+    ahead = sum(1 for value in field.values() if value > correct)
+    place = ahead + 1
+
+    brier = (sum(errors) / len(errors)) if errors else None
+    return {
+        "sheet": "".join(sheet),
+        "predicted_wins": sheet.count(engine.WIN),
+        "games": len(errors),
+        "decided": decided,
+        "correct": correct,
+        "place": place,
+        "place_label": _ordinal(place),
+        "field_size": len(field),
+        "expected_wins": round(expected_wins, 1),
+        "actual_wins": actual_wins,
+        "brier": None if brier is None else round(brier, 4),
+        "beats_coinflip": None if brier is None else brier < 0.25,
+        "verdict": ("" if brier is None else
+                    ("better than a coin flip" if brier < 0.25
+                     else "worse than a coin flip")),
+    }
 
 
 def retrospective_leverage(season: dict) -> List[dict]:

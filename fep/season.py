@@ -493,7 +493,7 @@ SNAPSHOT_RECORD_FIELDS = (
     "week", "is_bye", "remaining_outcomes", "weighted", "straight",
     "current_points", "deciding", "points_mean", "points_sd",
     "results", "points_for", "weights", "eliminated", "game",
-    "counterfactual",
+    "counterfactual", "leverage",
 )
 
 
@@ -536,7 +536,8 @@ def snapshot_drift(stored: dict, incoming: dict, limit: int = 4) -> List[str]:
 
 def snapshot(season: dict, week: int, board: engine.Board, note: str = "",
              correction: Optional[str] = None,
-             counterfactual: Optional[dict] = None):
+             counterfactual: Optional[dict] = None,
+             leverage: Optional[list] = None):
     """Record the board for a week. A week already recorded does not move.
 
     Returns `(entry, status)`, where status is one of:
@@ -614,6 +615,15 @@ def snapshot(season: dict, week: int, board: engine.Board, note: str = "",
     # reproducibility test rightly refuses.
     if counterfactual is not None:
         entry["counterfactual"] = counterfactual
+    # Every game's leverage as it stood this week (analytics.spine). Recorded
+    # for the same reason as `deciding`, plus one of its own: a remaining
+    # game's leverage moves with ESPN's lines, so recomputing week 3 in week 8
+    # does not reproduce week 3. It also costs a full simulation per game,
+    # about four seconds at preseason, which is fine once a week and not fine
+    # on every CMS push. Optional, so a week recorded before this existed
+    # replays as unchanged.
+    if leverage is not None:
+        entry["leverage"] = leverage
     stored = get_snapshot(season, week)
     if stored is not None:
         drift = snapshot_drift(stored, entry)

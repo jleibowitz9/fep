@@ -265,6 +265,36 @@ def table_config(config_path: str = APPSSCRIPT_CONFIG) -> dict:
             "separate": True}
 
 
+def _verify_reply(name: str, reply: dict) -> dict:
+    """A write reply has to name the table it wrote, or it is not a write reply.
+
+    `_call_appsscript` only checks `ok`, and `doGet` answers `ok` too: it is the
+    health endpoint, and its payload carries a version and no table at all. A
+    POST can end up there because Apps Script answers with a 302 and urllib
+    turns a redirected POST into a GET, so the write's redirect can resolve to
+    the health handler. Seen once in a live push, where `standings` reported as
+    a table called "?" with a total of 0 and the command still exited 0.
+
+    The dangerous half is not the printing. It is that a reply which says
+    nothing about the write is not evidence the write happened, so this refuses
+    to call it a success. Re-running is safe: an identical push is a no-op.
+    """
+    if not isinstance(reply, dict) or reply.get("tab") != name:
+        if isinstance(reply, dict) and reply.get("service") == "fep-sheet-writer":
+            detail = ("the deployment answered with its health response "
+                      "instead of a write result")
+        else:
+            detail = "the deployment answered with {!r}".format(
+                sorted(reply) if isinstance(reply, dict) else type(reply).__name__)
+        return {
+            "tab": name,
+            "total": 0,
+            "error": ("{}, so whether the write landed is unknown. Re-run: an "
+                      "identical push writes nothing.".format(detail)),
+        }
+    return reply
+
+
 def push_tables(season: dict, config_path: str = APPSSCRIPT_CONFIG,
                 dry_run: bool = False, only: Optional[Sequence[str]] = None,
                 timeout: float = 120.0,
@@ -314,8 +344,8 @@ def push_tables(season: dict, config_path: str = APPSSCRIPT_CONFIG,
             assert_deployment_current(config["url"])
             checked = True
         try:
-            results.append(_call_appsscript(config["url"], payload,
-                                            timeout=timeout))
+            reply = _call_appsscript(config["url"], payload, timeout=timeout)
+            results.append(_verify_reply(name, reply))
         except SheetError as exc:
             # Keep going. A refused write writes nothing, so the cost of
             # continuing is zero and the benefit is that one run reports every

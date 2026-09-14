@@ -58,7 +58,7 @@ from __future__ import annotations
 import re
 from typing import Dict, List, NamedTuple, Optional, Sequence
 
-from . import chart, engine, history
+from . import analytics, chart, engine, history
 
 
 class Table(NamedTuple):
@@ -300,7 +300,39 @@ SEASON_COLUMNS = [
     "roster_size", "eagles_wins", "eagles_losses", "eagles_ties",
     "eagles_points", "champion", "co_champions", "champion_correct",
     "field_average",
+    # Appended September 2026, never inserted. The Leverage Spine's x axis.
+    # It lives here rather than on `weeks` because it is the same 17 labels in
+    # every week, and `weeks` is frozen: a corrected team name would then need
+    # --allow-correction on every published row instead of a free rewrite of
+    # this one.
+    "leverage_labels", "leverage_shorts",
 ]
+
+
+def _joined(values) -> str:
+    """A list into one cell.
+
+    Comma and a space, which is what the Framer components split on. Emitted
+    even when every entry is blank, because `applyColumnFormats` pins a column
+    to plain text only once it sees a string: an empty cell in week 0 would
+    leave the column on General and let Sheets guess at the next push.
+    """
+    return ", ".join("" if v is None else str(v) for v in values)
+
+
+def _espn_gloss(espn: dict) -> str:
+    """The sentence under ESPN's place.
+
+    Composed here rather than in Framer because Framer binds one field to one
+    property and cannot interpolate several into a sentence. The cost is that
+    this copy lives in code; unbind the field in Framer to override a week.
+    """
+    if not espn or not espn.get("games"):
+        return ""
+    return ("It locked {} wins in August and has {} of {} right. It expected "
+            "{} wins by now; the Eagles have {}.").format(
+        espn["predicted_wins"], espn["correct"], espn["decided"],
+        espn["expected_wins"], espn["actual_wins"])
 
 
 def seasons_table(season: dict, current_week: Optional[int] = None) -> Table:
@@ -340,6 +372,12 @@ def seasons_table(season: dict, current_week: Optional[int] = None) -> Table:
         "co_champions": co_champions,
         "champion_correct": champion_correct,
         "field_average": field_average,
+        # The schedule as the spine draws it. Read from the games, not from a
+        # snapshot, because these are the season's own labels and correcting
+        # one should take effect everywhere at once.
+        "leverage_labels": _joined(g["label"] for g in season["games"]),
+        "leverage_shorts": _joined(
+            analytics.game_abbr(g) for g in season["games"]),
     }])
 
 
@@ -510,6 +548,13 @@ WEEK_COLUMNS = [
     "decided_tb1", "decided_tb2", "decided_tb3", "decided_split",
     "decided_outright_change", "decided_tb1_change", "decided_tb2_change",
     "decided_tb3_change", "counterfactual_result",
+    # Appended September 2026, never inserted. The Leverage Spine's per-week
+    # values, and the three Under the Hood tiles. Every one of them is read
+    # off the week's own snapshot, so a row published in week N cannot move.
+    "leverage_values", "leverage_results",
+    "espn_place", "espn_gloss", "espn_accent",
+    "points_value", "points_gloss",
+    "volatile_value", "volatile_gloss",
 ]
 
 DECIDING_KEYS = ("outright", "tb1", "tb2", "tb3", "split")
@@ -542,7 +587,12 @@ def weeks_table(season: dict) -> Table:
     byes = set(_bye_weeks(season))
     by_week = {g["nfl_week"]: g for g in season["games"]}
     rows, previous_deciding, previous_week = [], None, None
+    # The snapshots up to and including the one being written. Anything derived
+    # from a run of weeks reads this rather than the whole season, so a row
+    # published in week 3 describes week 3 and not the season that followed it.
+    so_far = []
     for snapshot in sorted(season.get("snapshots", []), key=lambda s: s["week"]):
+        so_far.append(snapshot)
         week = snapshot["week"]
         results = snapshot.get("results") or []
         deciding = snapshot.get("deciding") or {}
@@ -581,6 +631,49 @@ def weeks_table(season: dict) -> Table:
                 result = "" if current == engine.UNPLAYED else current
 
         home = frozen_game.get("home") if frozen_game else None
+
+        # ---- the Leverage Spine, straight off this week's snapshot ---------
+        # Never recomputed. A remaining game's leverage moves with ESPN's
+        # lines, so rebuilding week 3 in week 8 would publish a week 3 that
+        # never happened. A snapshot taken before the field existed yields
+        # blank lists, which the component renders as an empty state.
+        spine_rows = snapshot.get("leverage") or []
+        leverage_values = _joined(row.get("leverage", "") for row in spine_rows)
+        leverage_results = _joined(row.get("result", "") for row in spine_rows)
+        if not spine_rows:
+            leverage_values = leverage_results = ""
+
+        # ---- Under the Hood -----------------------------------------------
+        espn = analytics.espn_as_competitor(season, week)
+        espn_scored = bool(espn.get("games"))
+
+        points_games = sum(
+            1 for value in (snapshot.get("points_for") or []) if value is not None)
+        points_mean = snapshot.get("points_mean")
+        points_sd = snapshot.get("points_sd")
+
+        # Volatility across the weeks up to this one and no further, so a row
+        # published in week 3 does not later describe week 12's movement.
+        movement, peak, peak_week = {}, {}, {}
+        # Names come from the boards, not from the roster. A board is what
+        # movement is measured across, and a season built for a test (or a
+        # competitor who joined mid-history) may carry one without the other.
+        names = sorted({name for entry in so_far
+                        for name in (entry.get("weighted") or {})})
+        for name in names:
+            series = [(s.get("week"), (s.get("weighted") or {}).get(name, 0.0))
+                      for s in so_far]
+            values = [v for _, v in series]
+            if not values:
+                continue
+            movement[name] = round(
+                sum(abs(values[i] - values[i - 1]) for i in range(1, len(values))), 1)
+            best = max(values)
+            peak[name] = round(best, 1)
+            peak_week[name] = series[values.index(best)][0]
+        loudest = (max(movement, key=lambda n: (movement[n], n))
+                   if movement and max(movement.values()) > 0 else "")
+
         rows.append({
             "slug": "{}-w{:02d}".format(year, week),
             "season": str(year),
@@ -595,6 +688,33 @@ def weeks_table(season: dict) -> Table:
                          if frozen_game else ""),
             "home_away": ("" if home is None else ("home" if home else "away")),
             "result": result,
+            "leverage_values": leverage_values,
+            "leverage_results": leverage_results,
+            "espn_place": espn["place_label"] if espn_scored else "",
+            "espn_gloss": _espn_gloss(espn),
+            # The verdict colours the tile. A predictor doing worse than a coin
+            # flip is a running joke and should look like one.
+            "espn_accent": ("" if not espn_scored
+                            else ("good" if espn.get("beats_coinflip") else "bad")),
+            "points_value": ("" if points_mean is None
+                             else "{:.0f} \u00b1 {:.0f}".format(points_mean, points_sd)),
+            # Before a ball is kicked the model is all prior and the spread is
+            # enormous, which is honest but reads as broken next to "off 0
+            # games". Say what it actually is instead.
+            "points_gloss": (
+                "" if points_mean is None else
+                "Where tiebreaker 3 starts the season, before a ball is kicked."
+                if points_games == 0 else
+                "Where tiebreaker 3 thinks the season lands, off {} game{} of "
+                "scoring so far.".format(
+                    points_games, "" if points_games == 1 else "s")),
+            "volatile_value": loudest,
+            "volatile_gloss": ("" if not loudest else
+                               "{} points of total movement, and a peak of {}% "
+                               "in {}.".format(
+                                   movement[loudest], peak[loudest],
+                                   "the preseason" if peak_week[loudest] == 0
+                                   else "Week {}".format(peak_week[loudest]))),
             # Two numbers, not the string "5-2". Sheets parses that as the 5th
             # of February and hands back a Date, so the value written and the
             # value stored were different things. A page composes the record

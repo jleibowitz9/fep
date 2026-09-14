@@ -94,6 +94,19 @@ the page it rendered, and the writes that leave this machine arm on the first
 press and fire on the second. `tests/test_serve.py` holds that boundary. Do not
 relax any of it to make something convenient.
 
+**The icon raises the window it has; it does not open another.** Chrome given
+`--app` twice opens two windows, which is what a second tap of the Dock icon
+used to do. So the page beats `/api/alive` while it is on screen, `serve.py`
+reports that in `/api/state` as `page.open`, and a tap while a page is open
+activates Chrome through `NSRunningApplication` (`_activate`). Not `open -a`
+and not AppleScript: a reopen with only an app window up makes Chrome a blank
+browser window beside it, and the script route needs a permission nobody is
+there to grant. The first load after the model changes gets a "Preparing the
+board" page that polls `/api/ready`, rather than ten seconds of blank window
+that earns the second tap in the first place. Running the week never writes
+to the Sheet; the page says so on the button and offers "Write the tables"
+after the run's reload.
+
 ## The one irreplaceable file
 
 `data/season_2026.json` holds the picks, results, weights, scores and one

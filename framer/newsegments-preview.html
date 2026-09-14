@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FEP new segments preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Maven+Pro:wght@400;500;600;700;800&display=swap">
+<style>
+body{margin:0;padding:26px;background:#0b1512;font-family:'Maven Pro',sans-serif}
+h1{color:#eafaf6;font-size:17px;font-weight:800;margin:0 0 4px}
+h2{color:#eafaf6;font-size:14px;font-weight:800;margin:30px 0 14px}
+p.lede{color:#7f9c96;font-size:13px;margin:0 0 18px;max-width:78ch;line-height:1.55}
+button.replay{font:inherit;font-size:12px;font-weight:700;color:#06231f;background:#4ED9B0;
+  border:0;border-radius:8px;padding:8px 14px;cursor:pointer;margin:0 0 10px}
+.caption{color:#55706b;font-size:11px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;margin:0 0 8px}
+.grid{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start}
+
+.fepls{container-type:inline-size;box-sizing:border-box}
+.fepls *{box-sizing:border-box}
+.fepls-eyebrow{font-size:.78em;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;margin:0 0 6px}
+.fepls-title{font-size:1.5em;font-weight:800;letter-spacing:-.01em;margin:0}
+.fepls-sub{font-size:.95em;line-height:1.45;margin:6px 0 0;max-width:62ch}
+.fepls-caption{font-size:.72em;font-weight:700;letter-spacing:.05em;
+  margin:18px 0 0;line-height:1.35}
+.fepls-plot{display:flex;align-items:flex-end;width:100%;margin-top:8px;
+  position:relative}
+.fepls-col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:flex-end;position:relative;
+  transition:opacity .14s ease;cursor:default}
+.fepls-col[data-dim="1"]{opacity:.3}
+.fepls-val{font-size:.68em;font-weight:800;font-variant-numeric:tabular-nums;
+  line-height:1;margin-bottom:4px;white-space:nowrap}
+.fepls-barwrap{width:100%;display:flex;justify-content:center;align-items:flex-end}
+/* Bars are sized in pixels, not percentages. A percentage height inside an
+   auto-height flex wrapper has no definite parent to resolve against, and
+   every bar silently collapses to nothing. */
+.fepls-bar{width:100%;transform-origin:bottom center;flex:none}
+.fepls-baseline{height:1px;width:100%;margin-top:0}
+.fepls-strip{display:flex;width:100%;margin-top:7px}
+.fepls-cell{flex:1 1 0;min-width:0;display:flex;justify-content:center}
+.fepls-res{font-size:.66em;font-weight:800;letter-spacing:.04em;line-height:1.6}
+.fepls-names{display:flex;width:100%;margin-top:5px}
+.fepls-name{flex:1 1 0;min-width:0;font-size:.62em;font-weight:600;
+  text-align:center;line-height:1.25;overflow:hidden;padding:0 1px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.fepls-foot{font-size:.88em;line-height:1.5;margin:14px 0 0;max-width:62ch}
+.fepls-note{font-size:.78em;line-height:1.5;margin:8px 0 0;max-width:62ch}
+.fepls-key{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;
+  font-size:.74em;font-weight:600}
+.fepls-keyitem{display:inline-flex;align-items:center;gap:6px}
+.fepls-keydot{width:9px;height:9px;border-radius:2px;flex:none}
+.fepls-notice{display:flex;align-items:center;justify-content:center;
+  min-height:110px;text-align:center;font-size:.92em;line-height:1.5;
+  opacity:.85;padding:16px}
+
+@container (max-width: 620px){
+  /* Only the every-bar mode is too dense to survive here. Two or three called
+     out on purpose still fit, and they are the ones carrying the unit. */
+  .fepls-plot[data-vmode="all"] .fepls-val{display:none}
+  .fepls-title{font-size:1.28em}
+}
+/* Seventeen full game labels need far more room than seventeen bars do, so the
+   label tier switches much later than the value tier. Below this they are
+   abbreviations, which is the form that actually reads. */
+@container (max-width: 900px){
+  .fepls-name[data-tier="full"]{display:none}
+}
+@container (min-width: 901px){
+  .fepls-name[data-tier="short"]{display:none}
+}
+@container (max-width: 380px){
+  .fepls-names{display:none}
+}
+@media (prefers-reduced-motion: reduce){
+  .fepls-bar,.fepls-col{transition:none !important}
+}
+
+
+.feputh{container-type:inline-size;box-sizing:border-box}
+.feputh *{box-sizing:border-box}
+.feputh-head{display:flex;align-items:center;gap:12px;width:100%;
+  background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;
+  text-align:left}
+.feputh-head[role="button"]:focus-visible{outline:2px solid currentColor;
+  outline-offset:4px;border-radius:6px}
+.feputh-heading{flex:1 1 auto;min-width:0}
+.feputh-title{font-size:1.12em;font-weight:800;letter-spacing:-.01em;margin:0}
+.feputh-hint{font-size:.82em;margin:3px 0 0}
+.feputh-chev{flex:none;width:22px;height:22px;display:flex;align-items:center;
+  justify-content:center;font-size:.8em;font-weight:800;line-height:1}
+.feputh-chev svg{display:block}
+/* 0fr to 1fr animates to the real height, so nothing is clipped and there is
+   no magic max-height to keep in step with the copy. */
+.feputh-body{display:grid;grid-template-rows:0fr}
+.feputh-clip{overflow:hidden;min-height:0}
+.feputh-tiles{display:grid;gap:10px}
+.feputh-tile{border-radius:10px;padding:13px 14px;min-width:0}
+.feputh-label{font-size:.7em;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;margin:0 0 7px}
+.feputh-value{font-size:1.75em;font-weight:800;line-height:1.05;margin:0;
+  font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.feputh-gloss{font-size:.84em;line-height:1.45;margin:7px 0 0}
+.feputh-foot{font-size:.8em;line-height:1.5;margin:12px 0 0}
+.feputh-empty{font-size:.88em;padding:14px 0 2px}
+
+@container (min-width: 560px){
+  .feputh-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@container (max-width: 559px){
+  .feputh-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .feputh-value{font-size:1.45em}
+}
+@container (max-width: 380px){
+  .feputh-tiles{grid-template-columns:minmax(0,1fr)}
+}
+@media (prefers-reduced-motion: reduce){
+  .feputh-body,.feputh-tile,.feputh-chev{transition:none !important}
+}
+
+</style></head><body>
+<h1>Leverage Spine and Under the Hood</h1>
+<p class="lede">Generated from FEPLeverageSpine.tsx and FEPUnderTheHood.tsx by
+build-newsegments-preview.js, so the CSS, the colours and the copy are the ones the
+components ship with. Click a drawer header to open it. Sample season: three games
+played, the rest to come.</p>
+<button class="replay" onclick="replay()">Replay the reveal</button>
+<h2>Leverage Index</h2>
+<div class="grid"><div style="width:720px;flex:none">
+  <p class="caption">720px</p>
+  <div class="fepls" style="font-family:'Maven Pro',sans-serif;font-size:14px;background:linear-gradient(160deg,#04302a,#06231f);
+       color:#eafaf6;border-radius:14px;padding:18px">
+    <p class="fepls-eyebrow" style="color:#7f9c96">2026 | Week 3</p>
+    <h3 class="fepls-title">Leverage Index</h3>
+    <p class="fepls-sub" style="color:#7f9c96">Every game of the season, as tall as the share of the leaderboard riding on it.</p>
+    <p class="fepls-caption" style="color:#7f9c96">Share of the whole leaderboard that swings on each result</p>
+    <div class="fepls-plot" data-vmode="notable" style="height:180px;gap:4px"><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:56px;background:#2C7A66;opacity:0.85;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 0ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:46px;background:#8C3B3B;opacity:0.85;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 45ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:69px;background:#2C7A66;opacity:0.85;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 90ms"></span></span>
+    </div><div class="fepls-col">
+      <span class="fepls-val" style="color:#F2C14E;opacity:0;
+        transition:opacity 350ms ease-out 485ms">9%</span>
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:55px;background:#F2C14E;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        box-shadow:0 0 0 2px #F2C14E66;
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 135ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:64px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 180ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:91px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 225ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:120px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 270ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:100px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 315ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:78px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 360ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:135px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 405ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:86px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 450ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:107px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 495ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:71px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 540ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:152px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 585ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:137px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 630ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:114px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 675ms"></span></span>
+    </div><div class="fepls-col">
+      <span class="fepls-val" style="color:#eafaf6;opacity:0;
+        transition:opacity 350ms ease-out 1070ms">26%</span>
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:163px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 720ms"></span></span>
+    </div></div>
+    <div class="fepls-baseline" style="background:rgba(255,255,255,0.16)"></div>
+    <div class="fepls-strip" style="gap:4px"><span class="fepls-cell"><span class="fepls-res" style="color:#2C7A66;opacity:0;
+          transition:opacity 350ms ease-out 280ms">W</span></span><span class="fepls-cell"><span class="fepls-res" style="color:#8C3B3B;opacity:0;
+          transition:opacity 350ms ease-out 325ms">L</span></span><span class="fepls-cell"><span class="fepls-res" style="color:#2C7A66;opacity:0;
+          transition:opacity 350ms ease-out 370ms">W</span></span><span class="fepls-cell"><span class="fepls-res" style="color:#F2C14E;opacity:0;
+          transition:opacity 350ms ease-out 415ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 460ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 505ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 550ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 595ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 640ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 685ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 730ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 775ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 820ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 865ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 910ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 955ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 1000ms"></span></span></div>
+    <div class="fepls-names" style="gap:4px"><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Commanders</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Chiefs</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Rams</span><span class="fepls-name" data-tier="full" style="color:#eafaf6">@ Buccaneers</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Broncos</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Giants</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Cowboys</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Commanders</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Packers</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Cowboys</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Bears</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Chargers</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Raiders</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Bills</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Lions</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Jaguars</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Giants</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">WSH</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">TEN</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">CHI</span><span class="fepls-name" data-tier="short" style="color:#eafaf6">LAR</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">JAX</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">CAR</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">DAL</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">WSH</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">NYG</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">PIT</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">DAL</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">ARI</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">IND</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">SEA</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">HOU</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">SF</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">NYG</span></div>
+    <div class="fepls-key" style="color:#7f9c96"><span class="fepls-keyitem"><span class="fepls-keydot" style="background:#4ED9B0"></span>Still to play</span><span class="fepls-keyitem"><span class="fepls-keydot" style="background:#F2C14E"></span>Next up</span><span class="fepls-keyitem"><span class="fepls-keydot" style="background:#2C7A66"></span>Won</span><span class="fepls-keyitem"><span class="fepls-keydot" style="background:#8C3B3B"></span>Lost</span></div>
+    <p class="fepls-foot">vs Giants carries the most leverage left, at 26.3%.</p>
+  </div>
+</div><div style="width:560px;flex:none">
+  <p class="caption">560px</p>
+  <div class="fepls" style="font-family:'Maven Pro',sans-serif;font-size:14px;background:linear-gradient(160deg,#04302a,#06231f);
+       color:#eafaf6;border-radius:14px;padding:18px">
+    <p class="fepls-eyebrow" style="color:#7f9c96">2026 | Week 3</p>
+    <h3 class="fepls-title">Leverage Index</h3>
+    <p class="fepls-sub" style="color:#7f9c96">Every game of the season, as tall as the share of the leaderboard riding on it.</p>
+    <p class="fepls-caption" style="color:#7f9c96">Share of the whole leaderboard that swings on each result</p>
+    <div class="fepls-plot" data-vmode="notable" style="height:180px;gap:4px"><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:56px;background:#2C7A66;opacity:0.85;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 0ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:46px;background:#8C3B3B;opacity:0.85;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 45ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:69px;background:#2C7A66;opacity:0.85;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 90ms"></span></span>
+    </div><div class="fepls-col">
+      <span class="fepls-val" style="color:#F2C14E;opacity:0;
+        transition:opacity 350ms ease-out 485ms">9%</span>
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:55px;background:#F2C14E;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        box-shadow:0 0 0 2px #F2C14E66;
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 135ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:64px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 180ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:91px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 225ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:120px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 270ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:100px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 315ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:78px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 360ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:135px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 405ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:86px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 450ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:107px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 495ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:71px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 540ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:152px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 585ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:137px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 630ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:114px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 675ms"></span></span>
+    </div><div class="fepls-col">
+      <span class="fepls-val" style="color:#eafaf6;opacity:0;
+        transition:opacity 350ms ease-out 1070ms">26%</span>
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:163px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 720ms"></span></span>
+    </div></div>
+    <div class="fepls-baseline" style="background:rgba(255,255,255,0.16)"></div>
+    <div class="fepls-strip" style="gap:4px"><span class="fepls-cell"><span class="fepls-res" style="color:#2C7A66;opacity:0;
+          transition:opacity 350ms ease-out 280ms">W</span></span><span class="fepls-cell"><span class="fepls-res" style="color:#8C3B3B;opacity:0;
+          transition:opacity 350ms ease-out 325ms">L</span></span><span class="fepls-cell"><span class="fepls-res" style="color:#2C7A66;opacity:0;
+          transition:opacity 350ms ease-out 370ms">W</span></span><span class="fepls-cell"><span class="fepls-res" style="color:#F2C14E;opacity:0;
+          transition:opacity 350ms ease-out 415ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 460ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 505ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 550ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 595ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 640ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 685ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 730ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 775ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 820ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 865ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 910ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 955ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 1000ms"></span></span></div>
+    <div class="fepls-names" style="gap:4px"><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Commanders</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Chiefs</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Rams</span><span class="fepls-name" data-tier="full" style="color:#eafaf6">@ Buccaneers</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Broncos</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Giants</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Cowboys</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Commanders</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Packers</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Cowboys</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Bears</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Chargers</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Raiders</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Bills</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Lions</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Jaguars</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Giants</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">WSH</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">TEN</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">CHI</span><span class="fepls-name" data-tier="short" style="color:#eafaf6">LAR</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">JAX</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">CAR</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">DAL</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">WSH</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">NYG</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">PIT</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">DAL</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">ARI</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">IND</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">SEA</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">HOU</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">SF</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">NYG</span></div>
+    <div class="fepls-key" style="color:#7f9c96"><span class="fepls-keyitem"><span class="fepls-keydot" style="background:#4ED9B0"></span>Still to play</span><span class="fepls-keyitem"><span class="fepls-keydot" style="background:#F2C14E"></span>Next up</span><span class="fepls-keyitem"><span class="fepls-keydot" style="background:#2C7A66"></span>Won</span><span class="fepls-keyitem"><span class="fepls-keydot" style="background:#8C3B3B"></span>Lost</span></div>
+    <p class="fepls-foot">vs Giants carries the most leverage left, at 26.3%.</p>
+  </div>
+</div><div style="width:360px;flex:none">
+  <p class="caption">360px</p>
+  <div class="fepls" style="font-family:'Maven Pro',sans-serif;font-size:14px;background:linear-gradient(160deg,#04302a,#06231f);
+       color:#eafaf6;border-radius:14px;padding:18px">
+    <p class="fepls-eyebrow" style="color:#7f9c96">2026 | Week 3</p>
+    <h3 class="fepls-title">Leverage Index</h3>
+    <p class="fepls-sub" style="color:#7f9c96">Every game of the season, as tall as the share of the leaderboard riding on it.</p>
+    <p class="fepls-caption" style="color:#7f9c96">Share of the whole leaderboard that swings on each result</p>
+    <div class="fepls-plot" data-vmode="notable" style="height:180px;gap:4px"><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:56px;background:#2C7A66;opacity:0.85;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 0ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:46px;background:#8C3B3B;opacity:0.85;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 45ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:69px;background:#2C7A66;opacity:0.85;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 90ms"></span></span>
+    </div><div class="fepls-col">
+      <span class="fepls-val" style="color:#F2C14E;opacity:0;
+        transition:opacity 350ms ease-out 485ms">9%</span>
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:55px;background:#F2C14E;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        box-shadow:0 0 0 2px #F2C14E66;
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 135ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:64px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 180ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:91px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 225ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:120px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 270ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:100px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 315ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:78px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 360ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:135px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 405ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:86px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 450ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:107px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 495ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:71px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 540ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:152px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 585ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:137px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 630ms"></span></span>
+    </div><div class="fepls-col">
+      
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:114px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 675ms"></span></span>
+    </div><div class="fepls-col">
+      <span class="fepls-val" style="color:#eafaf6;opacity:0;
+        transition:opacity 350ms ease-out 1070ms">26%</span>
+      <span class="fepls-barwrap"><span class="fepls-bar" data-bar
+        style="height:163px;background:#4ED9B0;opacity:1;
+        border-radius:4px 4px 0 0;transform:scaleY(0);
+        
+        transition:transform 700ms cubic-bezier(0.22,1,0.36,1) 720ms"></span></span>
+    </div></div>
+    <div class="fepls-baseline" style="background:rgba(255,255,255,0.16)"></div>
+    <div class="fepls-strip" style="gap:4px"><span class="fepls-cell"><span class="fepls-res" style="color:#2C7A66;opacity:0;
+          transition:opacity 350ms ease-out 280ms">W</span></span><span class="fepls-cell"><span class="fepls-res" style="color:#8C3B3B;opacity:0;
+          transition:opacity 350ms ease-out 325ms">L</span></span><span class="fepls-cell"><span class="fepls-res" style="color:#2C7A66;opacity:0;
+          transition:opacity 350ms ease-out 370ms">W</span></span><span class="fepls-cell"><span class="fepls-res" style="color:#F2C14E;opacity:0;
+          transition:opacity 350ms ease-out 415ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 460ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 505ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 550ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 595ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 640ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 685ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 730ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 775ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 820ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 865ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 910ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 955ms"></span></span><span class="fepls-cell"><span class="fepls-res" style="color:#7f9c96;opacity:0;
+          transition:opacity 350ms ease-out 1000ms"></span></span></div>
+    <div class="fepls-names" style="gap:4px"><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Commanders</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Chiefs</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Rams</span><span class="fepls-name" data-tier="full" style="color:#eafaf6">@ Buccaneers</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Broncos</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Giants</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Cowboys</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Commanders</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Packers</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Cowboys</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Bears</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Chargers</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Raiders</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Bills</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Lions</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">@ Jaguars</span><span class="fepls-name" data-tier="full" style="color:#7f9c96">vs Giants</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">WSH</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">TEN</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">CHI</span><span class="fepls-name" data-tier="short" style="color:#eafaf6">LAR</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">JAX</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">CAR</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">DAL</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">WSH</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">NYG</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">PIT</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">DAL</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">ARI</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">IND</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">SEA</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">HOU</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">SF</span><span class="fepls-name" data-tier="short" style="color:#7f9c96">NYG</span></div>
+    <div class="fepls-key" style="color:#7f9c96"><span class="fepls-keyitem"><span class="fepls-keydot" style="background:#4ED9B0"></span>Still to play</span><span class="fepls-keyitem"><span class="fepls-keydot" style="background:#F2C14E"></span>Next up</span><span class="fepls-keyitem"><span class="fepls-keydot" style="background:#2C7A66"></span>Won</span><span class="fepls-keyitem"><span class="fepls-keydot" style="background:#8C3B3B"></span>Lost</span></div>
+    <p class="fepls-foot">vs Giants carries the most leverage left, at 26.3%.</p>
+  </div>
+</div></div>
+<h2>Under the Hood</h2>
+<div class="grid"><div style="width:720px;flex:none">
+  <p class="caption">720px always open</p>
+  <div class="feputh" data-hood data-collapsible="false" style="font-family:'Maven Pro',sans-serif;
+       font-size:14px;background:#06231f;color:#eafaf6;border-radius:14px;padding:18px">
+    <div class="feputh-head" style="cursor:default">
+      <span class="feputh-heading">
+        <span class="feputh-title" style="display:block">Under the Hood</span>
+        <span class="feputh-hint" style="color:#7f9c96;display:block;margin-top:3px">For the three of you who want the machinery</span>
+      </span>
+    </div>
+    <div class="feputh-body" style="grid-template-rows:1fr;
+         ">
+      <div class="feputh-clip"><div style="padding-top:14px">
+        <div class="feputh-tiles" style="gap:10px"><div class="feputh-tile" style="background:rgba(255,255,255,0.045);
+      border-radius:10px;border-left:3px solid #E4785F;
+      opacity:0;transform:translateY(6px);
+      transition:opacity 336ms ease-out 0ms,
+                 transform 336ms cubic-bezier(0.22,1,0.36,1) 0ms">
+      <p class="feputh-label" style="color:#7f9c96">ESPN's season</p>
+      <p class="feputh-value" style="color:#E4785F">9th</p>
+      <p class="feputh-gloss" style="color:#7f9c96">It locked 13 wins in August and has 4 of 9 right. It expected 5.2 wins by now; the Eagles have 7.</p>
+    </div><div class="feputh-tile" style="background:rgba(255,255,255,0.045);
+      border-radius:10px;border-left:3px solid #eafaf6;
+      opacity:0;transform:translateY(6px);
+      transition:opacity 336ms ease-out 60ms,
+                 transform 336ms cubic-bezier(0.22,1,0.36,1) 60ms">
+      <p class="feputh-label" style="color:#7f9c96">Points model</p>
+      <p class="feputh-value" style="color:#eafaf6">409 ± 40</p>
+      <p class="feputh-gloss" style="color:#7f9c96">Where tiebreaker 3 thinks the season lands, off 9 games of scoring so far.</p>
+    </div><div class="feputh-tile" style="background:rgba(255,255,255,0.045);
+      border-radius:10px;border-left:3px solid #eafaf6;
+      opacity:0;transform:translateY(6px);
+      transition:opacity 336ms ease-out 120ms,
+                 transform 336ms cubic-bezier(0.22,1,0.36,1) 120ms">
+      <p class="feputh-label" style="color:#7f9c96">Most volatile</p>
+      <p class="feputh-value" style="color:#eafaf6">Marsha</p>
+      <p class="feputh-gloss" style="color:#7f9c96">79.0 points of total movement, and a peak of 34.1% in Week 8.</p>
+    </div></div>
+      </div></div>
+    </div>
+  </div>
+</div><div style="width:360px;flex:none">
+  <p class="caption">360px always open</p>
+  <div class="feputh" data-hood data-collapsible="false" style="font-family:'Maven Pro',sans-serif;
+       font-size:14px;background:#06231f;color:#eafaf6;border-radius:14px;padding:18px">
+    <div class="feputh-head" style="cursor:default">
+      <span class="feputh-heading">
+        <span class="feputh-title" style="display:block">Under the Hood</span>
+        <span class="feputh-hint" style="color:#7f9c96;display:block;margin-top:3px">For the three of you who want the machinery</span>
+      </span>
+    </div>
+    <div class="feputh-body" style="grid-template-rows:1fr;
+         ">
+      <div class="feputh-clip"><div style="padding-top:14px">
+        <div class="feputh-tiles" style="gap:10px"><div class="feputh-tile" style="background:rgba(255,255,255,0.045);
+      border-radius:10px;border-left:3px solid #E4785F;
+      opacity:0;transform:translateY(6px);
+      transition:opacity 336ms ease-out 0ms,
+                 transform 336ms cubic-bezier(0.22,1,0.36,1) 0ms">
+      <p class="feputh-label" style="color:#7f9c96">ESPN's season</p>
+      <p class="feputh-value" style="color:#E4785F">9th</p>
+      <p class="feputh-gloss" style="color:#7f9c96">It locked 13 wins in August and has 4 of 9 right. It expected 5.2 wins by now; the Eagles have 7.</p>
+    </div><div class="feputh-tile" style="background:rgba(255,255,255,0.045);
+      border-radius:10px;border-left:3px solid #eafaf6;
+      opacity:0;transform:translateY(6px);
+      transition:opacity 336ms ease-out 60ms,
+                 transform 336ms cubic-bezier(0.22,1,0.36,1) 60ms">
+      <p class="feputh-label" style="color:#7f9c96">Points model</p>
+      <p class="feputh-value" style="color:#eafaf6">409 ± 40</p>
+      <p class="feputh-gloss" style="color:#7f9c96">Where tiebreaker 3 thinks the season lands, off 9 games of scoring so far.</p>
+    </div><div class="feputh-tile" style="background:rgba(255,255,255,0.045);
+      border-radius:10px;border-left:3px solid #eafaf6;
+      opacity:0;transform:translateY(6px);
+      transition:opacity 336ms ease-out 120ms,
+                 transform 336ms cubic-bezier(0.22,1,0.36,1) 120ms">
+      <p class="feputh-label" style="color:#7f9c96">Most volatile</p>
+      <p class="feputh-value" style="color:#eafaf6">Marsha</p>
+      <p class="feputh-gloss" style="color:#7f9c96">79.0 points of total movement, and a peak of 34.1% in Week 8.</p>
+    </div></div>
+      </div></div>
+    </div>
+  </div>
+</div><div style="width:560px;flex:none">
+  <p class="caption">560px collapsible</p>
+  <div class="feputh" data-hood data-collapsible="true" style="font-family:'Maven Pro',sans-serif;
+       font-size:14px;background:#06231f;color:#eafaf6;border-radius:14px;padding:18px">
+    <div class="feputh-head" role="button" style="cursor:pointer" onclick="toggleHood(this)">
+      <span class="feputh-heading">
+        <span class="feputh-title" style="display:block">Under the Hood</span>
+        <span class="feputh-hint" style="color:#7f9c96;display:block;margin-top:3px">For the three of you who want the machinery</span>
+      </span><span class="feputh-chev" style="color:#7f9c96;
+        transition:transform 420ms cubic-bezier(0.22,1,0.36,1)">
+        <svg width="13" height="8" viewBox="0 0 13 8"><path d="M1 1l5.5 5.5L12 1" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+    </div>
+    <div class="feputh-body" style="grid-template-rows:0fr;
+         transition:grid-template-rows 420ms cubic-bezier(0.22,1,0.36,1);">
+      <div class="feputh-clip"><div style="padding-top:14px">
+        <div class="feputh-tiles" style="gap:10px"><div class="feputh-tile" style="background:rgba(255,255,255,0.045);
+      border-radius:10px;border-left:3px solid #E4785F;
+      opacity:0;transform:translateY(6px);
+      transition:opacity 336ms ease-out 0ms,
+                 transform 336ms cubic-bezier(0.22,1,0.36,1) 0ms">
+      <p class="feputh-label" style="color:#7f9c96">ESPN's season</p>
+      <p class="feputh-value" style="color:#E4785F">9th</p>
+      <p class="feputh-gloss" style="color:#7f9c96">It locked 13 wins in August and has 4 of 9 right. It expected 5.2 wins by now; the Eagles have 7.</p>
+    </div><div class="feputh-tile" style="background:rgba(255,255,255,0.045);
+      border-radius:10px;border-left:3px solid #eafaf6;
+      opacity:0;transform:translateY(6px);
+      transition:opacity 336ms ease-out 60ms,
+                 transform 336ms cubic-bezier(0.22,1,0.36,1) 60ms">
+      <p class="feputh-label" style="color:#7f9c96">Points model</p>
+      <p class="feputh-value" style="color:#eafaf6">409 ± 40</p>
+      <p class="feputh-gloss" style="color:#7f9c96">Where tiebreaker 3 thinks the season lands, off 9 games of scoring so far.</p>
+    </div><div class="feputh-tile" style="background:rgba(255,255,255,0.045);
+      border-radius:10px;border-left:3px solid #eafaf6;
+      opacity:0;transform:translateY(6px);
+      transition:opacity 336ms ease-out 120ms,
+                 transform 336ms cubic-bezier(0.22,1,0.36,1) 120ms">
+      <p class="feputh-label" style="color:#7f9c96">Most volatile</p>
+      <p class="feputh-value" style="color:#eafaf6">Marsha</p>
+      <p class="feputh-gloss" style="color:#7f9c96">79.0 points of total movement, and a peak of 34.1% in Week 8.</p>
+    </div></div>
+      </div></div>
+    </div>
+  </div>
+</div></div>
+<script>
+function show(on){
+  document.querySelectorAll('[data-bar]').forEach(function(b){
+    b.style.transform = on ? 'scaleY(1)' : 'scaleY(0)';
+  });
+  document.querySelectorAll('.fepls-val,.fepls-res').forEach(function(e){
+    e.style.opacity = on ? 1 : 0;
+  });
+}
+function replay(){ show(false); setTimeout(function(){ show(true); }, 80); }
+function revealHoods(){
+  document.querySelectorAll('[data-collapsible="false"] .feputh-tile').forEach(function(t){
+    t.style.opacity = 1; t.style.transform = 'none';
+  });
+}
+function toggleHood(btn){
+  var card = btn.closest('[data-hood]');
+  var body = card.querySelector('.feputh-body');
+  var open = body.style.gridTemplateRows === '1fr';
+  body.style.gridTemplateRows = open ? '0fr' : '1fr';
+  card.querySelector('.feputh-chev').style.transform = open ? 'none' : 'rotate(180deg)';
+  card.querySelectorAll('.feputh-tile').forEach(function(t){
+    t.style.opacity = open ? 0 : 1;
+    t.style.transform = open ? 'translateY(6px)' : 'none';
+  });
+}
+if (typeof IntersectionObserver === 'function') {
+  var io = new IntersectionObserver(function(es){
+    es.forEach(function(e){ if (e.isIntersecting) show(true); });
+  }, { threshold:[0,0.35], rootMargin:'0px 0px -15% 0px' });
+  document.querySelectorAll('.fepls').forEach(function(c){ io.observe(c); });
+  var io2 = new IntersectionObserver(function(es){
+    es.forEach(function(e){ if (e.isIntersecting) revealHoods(); });
+  }, { threshold:[0,0.35], rootMargin:'0px 0px -15% 0px' });
+  document.querySelectorAll('[data-collapsible="false"]').forEach(function(c){ io2.observe(c); });
+} else { show(true); revealHoods(); }
+</script>
+</body></html>

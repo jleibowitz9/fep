@@ -20,6 +20,8 @@ or double-click `scripts/FEP.app`, which is the same thing with an icon.
 from __future__ import annotations
 
 import contextlib
+import ctypes
+import ctypes.util
 import glob
 import hashlib
 import importlib.util
@@ -177,6 +179,84 @@ def _payload(force=False):
         _payload_memo.update(key=key, data=data)
     _write_cache(key, data)
     return data
+
+
+_warm_lock = threading.Lock()
+_warm_state = {"error": None}
+
+
+def _payload_ready():
+    """Can the page be rendered now, without running the model first?"""
+    key = _fingerprint()
+    return _payload_memo["key"] == key or _read_cache(key) is not None
+
+
+def _warm_in_background():
+    """Start preparing the payload, once, and do not wait for it.
+
+    Returns False if a warm is already under way, which is the common case:
+    the page polls while it waits, and every poll must not start another.
+    """
+    if not _warm_lock.acquire(blocking=False):
+        return False
+
+    def go():
+        try:
+            _warm()
+        finally:
+            _warm_lock.release()
+    threading.Thread(target=go, daemon=True).start()
+    return True
+
+
+# --------------------------------------------------------------------------
+# whether the window is on screen
+
+# The server cannot see its own window, so the page tells it: a heartbeat
+# while it is open and a last word as it closes. That is what lets a tap of
+# the icon raise the window that is already there instead of opening another,
+# which is what Chrome does when it is handed --app a second time. Every
+# window the family ever complained about was this.
+PRESENCE_TTL = 8.0
+_presence = {"seen": 0.0}
+
+
+def _page_seen():
+    _presence["seen"] = time.time()
+
+
+def _page_gone():
+    _presence["seen"] = 0.0
+
+
+def _page_open():
+    return (time.time() - _presence["seen"]) < PRESENCE_TTL
+
+
+# A window that has been asked for but is not up yet. Chrome takes a few
+# seconds to start cold, and the page cannot beat until it has loaded, so a
+# second tap inside that gap saw "no page open" and opened a second window.
+# The moment a window is requested is recorded on disk, because the tap that
+# requested it and the tap that asks are different processes.
+OPENING_FILE = os.path.join(CACHE_DIR, "opening.txt")
+OPENING_TTL = 20.0
+
+
+def _note_opening():
+    try:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        with open(OPENING_FILE, "w") as fh:
+            fh.write(str(time.time()))
+    except OSError:
+        pass
+
+
+def _window_opening():
+    try:
+        with open(OPENING_FILE) as fh:
+            return (time.time() - float(fh.read().strip())) < OPENING_TTL
+    except (OSError, ValueError):
+        return False
 
 
 # --------------------------------------------------------------------------
@@ -557,7 +637,53 @@ def _state():
         "dirty": len([l for l in dirty.splitlines() if l.strip()]) if code == 0 else 0,
         "ahead": len([l for l in ahead.splitlines() if l.strip()]) if ahead_code == 0 else 0,
     }
+    state["page"] = {"open": _page_open()}
     return state
+
+
+# --------------------------------------------------------------------------
+# the page shown while the board is being prepared
+
+# Served in place of the dashboard when the payload has to be computed first.
+# It polls until the board is ready and then loads the real page in its own
+# place. Same palette as the app, no web font, nothing to wait on.
+LOADING_PAGE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>FEP Control</title>
+<style>
+body{margin:0;background:#0C0E10;color:#E9ECEE;font:15px/1.5 "Space Grotesk",system-ui,-apple-system,sans-serif;
+  display:flex;align-items:center;justify-content:center;height:100vh}
+.box{text-align:center;max-width:32em}
+.mark{font-weight:700;letter-spacing:.18em;font-size:12px;color:#7FA6AB;margin-bottom:22px}
+h1{font-size:22px;font-weight:600;margin:0 0 8px}
+p{color:#98A1A8;margin:0 0 20px;font-size:13px}
+.spin{display:inline-block;width:18px;height:18px;border:2px solid #394046;border-top-color:#E9ECEE;
+  border-radius:50%;animation:s .8s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+</style></head><body><div class="box">
+<div class="mark">FEP CONTROL</div>
+<h1 id="h">Preparing the board</h1>
+<p id="p">Running the model for every remaining game. About ten seconds, and only because something changed since the last time.</p>
+<div class="spin" id="spin"></div>
+<script>
+var misses=0;
+function poll(){
+  fetch('/api/ready',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    misses=0;
+    if(j.ready||j.error){location.replace(location.href);return;}
+    setTimeout(poll,500);
+  }).catch(function(){
+    if(++misses>=8){
+      document.getElementById('h').textContent='The app closed';
+      document.getElementById('p').textContent='Nothing is answering. Open it again from the FEP icon.';
+      document.getElementById('spin').style.display='none';
+      return;
+    }
+    setTimeout(poll,500);
+  });
+}
+poll();
+</script></div></body></html>
+"""
 
 
 # --------------------------------------------------------------------------
@@ -647,6 +773,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._page()
         if path == "/api/state":
             return self._json(200, _state())
+        if path == "/api/ready":
+            return self._json(200, {"ready": _payload_ready(),
+                                    "error": _warm_state["error"]})
         if path.startswith("/assets/"):
             return self._asset(path)
         self._send(404, "Not found.", "text/plain; charset=utf-8")
@@ -658,6 +787,12 @@ class Handler(BaseHTTPRequestHandler):
         if not self._authorised():
             return self._json(403, {"ok": False, "error": "This request did not "
                                     "come from the dashboard."})
+        if path == "/api/alive":
+            _page_seen()
+            return self._json(200, {"ok": True})
+        if path == "/api/gone":
+            _page_gone()
+            return self._json(200, {"ok": True})
         if path == "/api/quit":
             self._json(200, {"ok": True})
             threading.Thread(target=self.server.shutdown, daemon=True).start()
@@ -715,6 +850,18 @@ class Handler(BaseHTTPRequestHandler):
         """
         live = ('<script>window.FEP_LIVE={"token":%s};</script>'
                 % json.dumps(self.token))
+        if not _payload_ready() and _warm_state["error"] is None:
+            # The first load after a change used to sit on a blank window for
+            # the ten seconds the model takes, which reads as "nothing
+            # happened" and earns a second tap and a second window. Say that
+            # something is happening, and let the page fetch itself when the
+            # board is ready.
+            _warm_in_background()
+            return self._send(200, LOADING_PAGE, "text/html; charset=utf-8")
+        # A warm that failed is reported by rendering the page the slow way,
+        # which raises the same error where it can be shown. Cleared first, so
+        # the load after a fix gets the loading page again rather than a wait.
+        _warm_state["error"] = None
         try:
             data = _payload()
             page = dashboard_build.render(data, live=live)
@@ -775,6 +922,10 @@ def _running_url(port):
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 
+def _chrome_wanted():
+    return os.environ.get("FEP_BROWSER") != "default" and os.path.exists(CHROME)
+
+
 def _open_window(url):
     """Show the dashboard in a window that looks like an application.
 
@@ -791,15 +942,95 @@ def _open_window(url):
     FEP_BROWSER=default turns the whole preference off, and a machine without
     Chrome never sees it in the first place.
     """
-    if os.environ.get("FEP_BROWSER") != "default" and os.path.exists(CHROME):
+    if _chrome_wanted():
         try:
-            subprocess.Popen([CHROME, "--app=" + url, "--window-size=1440,900"],
+            _note_opening()
+            # The last two flags only matter when this launch is the one that
+            # starts Chrome: no welcome tab, no "make Chrome your default"
+            # bar, just the window that was asked for.
+            subprocess.Popen([CHROME, "--app=" + url, "--window-size=1440,900",
+                              "--no-first-run", "--no-default-browser-check"],
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return "chrome-app"
         except OSError:
             pass
     webbrowser.open(url)
     return "default-browser"
+
+
+def _chrome_pids():
+    """The browser processes, not the helpers, which carry a longer name."""
+    try:
+        out = subprocess.run(["/usr/bin/pgrep", "-x", "Google Chrome"],
+                             capture_output=True, text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return [int(p) for p in out.split() if p.isdigit()]
+
+
+def _activate(pid):
+    """Bring one process's windows to the front by asking AppKit directly.
+
+    Not `open -a`: that sends Chrome a reopen, and Chrome answers a reopen
+    with no normal window on screen by making one. With only the app window
+    up, that is a blank browser window beside it, which is the second window
+    this exists to prevent. (It is also what clicking Chrome's own Dock icon
+    does, so that is not a way back to the app either.) Not AppleScript:
+    that needs an automation permission nobody is there to grant, and the
+    prompt for it never appears from a detached launcher. NSRunningApplication
+    needs neither. The options are AllWindows and IgnoringOtherApps.
+    """
+    try:
+        objc = ctypes.CDLL(ctypes.util.find_library("objc"))
+        ctypes.CDLL(ctypes.util.find_library("AppKit"))
+        objc.objc_getClass.restype = ctypes.c_void_p
+        objc.objc_getClass.argtypes = [ctypes.c_char_p]
+        objc.sel_registerName.restype = ctypes.c_void_p
+        objc.sel_registerName.argtypes = [ctypes.c_char_p]
+        with_int = ctypes.cast(objc.objc_msgSend, ctypes.CFUNCTYPE(
+            ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int))
+        with_uint = ctypes.cast(objc.objc_msgSend, ctypes.CFUNCTYPE(
+            ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint))
+        app = with_int(objc.objc_getClass(b"NSRunningApplication"),
+                       objc.sel_registerName(b"runningApplicationWithProcessIdentifier:"),
+                       int(pid))
+        if not app:
+            return False
+        return bool(with_uint(app, objc.sel_registerName(b"activateWithOptions:"), 3))
+    except Exception:  # noqa: BLE001  no AppKit, no objc, a pid that vanished
+        return False
+
+
+def _focus_window():
+    """Raise the app window, wherever Chrome has it. True if anything rose."""
+    return any([_activate(pid) for pid in _chrome_pids()])
+
+
+def _state_at(url):
+    """The running server's state, or None if it will not say."""
+    try:
+        request = urllib.request.Request(url.rstrip("/") + "/api/state")
+        with urllib.request.urlopen(request, timeout=2) as response:
+            return json.loads(response.read())
+    except Exception:  # noqa: BLE001  a server that cannot answer is not open
+        return None
+
+
+def _show(url):
+    """A tap while the app is up: raise its window, or open one if none is.
+
+    The page says whether it is on screen (see _page_open). If it is, and it
+    is in Chrome, the existing window is raised. Anything else, including a
+    server that does not know the question, gets the old behaviour, which is a
+    fresh window.
+    """
+    state = _state_at(url) or {}
+    is_open = (state.get("page") or {}).get("open") or _window_opening()
+    if is_open and _chrome_wanted() and _focus_window():
+        print("Already open at {}. Raised the window.".format(url), flush=True)
+        return "raised"
+    print("Already open at {}".format(url), flush=True)
+    return _open_window(url)
 
 
 def _write_url(url):
@@ -837,9 +1068,11 @@ def _clear_url():
 
 
 def _warm():
+    _warm_state["error"] = None
     try:
         _payload()
     except Exception as exc:  # noqa: BLE001  the page will report it properly
+        _warm_state["error"] = str(exc) or exc.__class__.__name__
         print("Could not prepare the board: {}".format(exc), flush=True)
 
 
@@ -875,9 +1108,10 @@ def serve(port=DEFAULT_PORT, open_browser=True):
         # answer does not hold.
         time.sleep(0.35)
         if _answers(running):
-            print("Already open at {}".format(running), flush=True)
             if open_browser:
-                _open_window(running)
+                _show(running)
+            else:
+                print("Already open at {}".format(running), flush=True)
             return
 
     Handler.token = secrets.token_urlsafe(24)
@@ -895,7 +1129,7 @@ def serve(port=DEFAULT_PORT, open_browser=True):
     # Built before the browser asks for it where possible, so the first page
     # load is a read rather than eleven seconds of model runs. It is only ever
     # that slow when the season file has changed since the last time.
-    threading.Thread(target=_warm, daemon=True).start()
+    _warm_in_background()
     if open_browser:
         threading.Timer(0.4, _open_window, args=(url,)).start()
     # Quit from the page, a kill, and Ctrl-C all have to clear the url file, or

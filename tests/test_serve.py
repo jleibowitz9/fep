@@ -17,6 +17,10 @@ cli.py's and is tested where it lives.
                        stage only what the run itself wrote
   TestDeploymentHealth the page said "Apps Script ready" because a file existed
                        on this laptop, which is not a fact about a spreadsheet
+  TestPresence         the page says when it is on screen, and only the page
+  TestSecondTap        a tap while the app is up raises the window it has
+  TestReadiness        the board is ready or it is being prepared, once
+  TestLoadingPage      a first load shows something rather than a blank window
 """
 
 from __future__ import annotations
@@ -28,6 +32,7 @@ import shutil
 import sys
 import tempfile
 import threading
+import time
 import unittest
 import urllib.error
 import urllib.request
@@ -249,6 +254,10 @@ class TestWindow(unittest.TestCase):
         self.opened = []
         serve.webbrowser.open = lambda url: self.opened.append(("browser", url))
         serve.subprocess.Popen = lambda cmd, **kw: self.opened.append(("chrome", cmd))
+        # The real marker is what the next Dock tap reads. A test must not
+        # leave it looking as if a window is on its way.
+        self.real_opening = serve.OPENING_FILE
+        serve.OPENING_FILE = os.path.join(tempfile.mkdtemp(), "opening.txt")
         self.env = os.environ.get("FEP_BROWSER")
         os.environ.pop("FEP_BROWSER", None)
 
@@ -256,6 +265,8 @@ class TestWindow(unittest.TestCase):
         serve.CHROME = self.real_chrome
         serve.subprocess.Popen = self.real_popen
         serve.webbrowser.open = self.real_webbrowser
+        shutil.rmtree(os.path.dirname(serve.OPENING_FILE), ignore_errors=True)
+        serve.OPENING_FILE = self.real_opening
         if self.env is None:
             os.environ.pop("FEP_BROWSER", None)
         else:
@@ -877,3 +888,248 @@ class TestTheLegacySheetIsGone(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestPresence(Served):
+    """The server cannot see its window. The page tells it, and only the page."""
+
+    def setUp(self):
+        serve._page_gone()
+
+    def state(self):
+        _, body = self.get("/api/state")
+        return json.loads(body)
+
+    def test_a_page_that_has_not_spoken_is_not_open(self):
+        self.assertFalse(self.state()["page"]["open"])
+
+    def test_a_heartbeat_marks_the_page_open(self):
+        status, _ = self.post("/api/alive", {})
+        self.assertEqual(status, 200)
+        self.assertTrue(self.state()["page"]["open"])
+
+    def test_the_last_word_marks_it_closed(self):
+        self.post("/api/alive", {})
+        self.post("/api/gone", {})
+        self.assertFalse(self.state()["page"]["open"])
+
+    def test_a_heartbeat_without_the_token_is_ignored(self):
+        # Any page in the browser can reach this port. None of them gets to
+        # claim to be the app, because "open" is what stops a window opening.
+        status, _ = self.post("/api/alive", {}, token=None)
+        self.assertEqual(status, 403)
+        self.assertFalse(self.state()["page"]["open"])
+
+    def test_silence_counts_as_closed(self):
+        # A page that stopped beating without saying goodbye: a crash, a
+        # force-quit. Waiting on it forever would mean the icon never opens
+        # a window again.
+        serve._presence["seen"] = time.time() - serve.PRESENCE_TTL - 1
+        self.assertFalse(serve._page_open())
+
+
+class TestSecondTap(unittest.TestCase):
+    """Chrome handed --app twice opens two windows. A second tap must not."""
+
+    def setUp(self):
+        self.real = (serve._state_at, serve._chrome_wanted,
+                     serve._focus_window, serve._open_window)
+        self.real_opening = serve.OPENING_FILE
+        serve.OPENING_FILE = os.path.join(tempfile.mkdtemp(), "opening.txt")
+        self.calls = []
+        serve._focus_window = lambda: (self.calls.append("focus"), True)[1]
+        serve._open_window = lambda url: (self.calls.append("open"), "chrome-app")[1]
+        serve._chrome_wanted = lambda: True
+
+    def tearDown(self):
+        (serve._state_at, serve._chrome_wanted,
+         serve._focus_window, serve._open_window) = self.real
+        shutil.rmtree(os.path.dirname(serve.OPENING_FILE), ignore_errors=True)
+        serve.OPENING_FILE = self.real_opening
+
+    def test_an_open_page_is_raised_not_duplicated(self):
+        serve._state_at = lambda url: {"page": {"open": True}}
+        self.assertEqual(serve._show("http://x/"), "raised")
+        self.assertEqual(self.calls, ["focus"])
+
+    def test_no_page_means_a_window_is_opened(self):
+        serve._state_at = lambda url: {"page": {"open": False}}
+        serve._show("http://x/")
+        self.assertEqual(self.calls, ["open"])
+
+    def test_a_server_that_does_not_know_gets_a_window(self):
+        # An older server, or one that would not answer, has no "page" key.
+        # The old behaviour is the safe one there.
+        serve._state_at = lambda url: None
+        serve._show("http://x/")
+        self.assertEqual(self.calls, ["open"])
+
+    def test_the_default_browser_is_never_raised_by_name(self):
+        # `open -a "Google Chrome"` with the page in Arc would raise the wrong
+        # app and leave the right one where it was.
+        serve._chrome_wanted = lambda: False
+        serve._state_at = lambda url: {"page": {"open": True}}
+        serve._show("http://x/")
+        self.assertEqual(self.calls, ["open"])
+
+    def test_no_chrome_means_nothing_to_raise(self):
+        real = serve._chrome_pids
+        serve._chrome_pids = lambda: []
+        try:
+            self.assertFalse(self.real[2]())   # the real _focus_window
+        finally:
+            serve._chrome_pids = real
+
+    def test_the_raise_never_goes_through_open_or_applescript(self):
+        # Both make Chrome a blank window when only the app window is up.
+        with open(serve.__file__) as fh:
+            source = fh.read()
+        self.assertNotIn('"open", "-a"', source)
+        self.assertNotIn("osascript", source)
+
+    def test_a_window_still_starting_counts_as_open(self):
+        # Chrome starting cold has no page to beat yet. A tap in that gap
+        # must not be the second window.
+        with open(serve.OPENING_FILE, "w") as fh:
+            fh.write(str(time.time() - 2))
+        serve._state_at = lambda url: {"page": {"open": False}}
+        self.assertEqual(serve._show("http://x/"), "raised")
+        with open(serve.OPENING_FILE, "w") as fh:
+            fh.write(str(time.time() - serve.OPENING_TTL - 1))
+        serve._show("http://x/")
+        self.assertEqual(self.calls, ["focus", "open"])
+
+    def test_a_real_open_leaves_the_marker(self):
+        real_popen = serve.subprocess.Popen
+        serve.subprocess.Popen = lambda cmd, **kw: None
+        serve._open_window = self.real[3]
+        try:
+            serve._open_window("http://x/")
+        finally:
+            serve.subprocess.Popen = real_popen
+        self.assertTrue(serve._window_opening())
+
+    def test_a_raise_that_fails_still_opens_a_window(self):
+        serve._focus_window = lambda: (self.calls.append("focus"), False)[1]
+        serve._state_at = lambda url: {"page": {"open": True}}
+        serve._show("http://x/")
+        self.assertEqual(self.calls, ["focus", "open"])
+
+
+class TestReadiness(CacheIsolated):
+    """Ready means the page can be rendered without running the model."""
+
+    def test_nothing_prepared_is_not_ready(self):
+        self.assertFalse(serve._payload_ready())
+
+    def test_a_prepared_board_is_ready(self):
+        serve.dashboard_build.collect = lambda year: dict.fromkeys(serve.REQUIRED_KEYS, 1)
+        serve._payload()
+        self.assertTrue(serve._payload_ready())
+
+    def test_a_cache_on_disk_counts_without_the_model_running(self):
+        serve.dashboard_build.collect = lambda year: dict.fromkeys(serve.REQUIRED_KEYS, 1)
+        serve._payload()
+        serve._payload_memo.update(key=None, data=None)  # a fresh process
+        self.assertTrue(serve._payload_ready())
+
+    def test_a_warm_runs_once_at_a_time(self):
+        # The waiting page polls twice a second. Every poll starting another
+        # model run would be the opposite of a fix.
+        gate = threading.Event()
+        real = serve._warm
+        serve._warm = gate.wait
+        try:
+            self.assertTrue(serve._warm_in_background())
+            self.assertFalse(serve._warm_in_background())
+        finally:
+            gate.set()
+            time.sleep(0.1)
+            serve._warm = real
+        self.assertTrue(serve._warm_lock.acquire(blocking=False))
+        serve._warm_lock.release()
+
+    def test_a_warm_that_fails_says_so(self):
+        def boom(year):
+            raise RuntimeError("no board today")
+        serve.dashboard_build.collect = boom
+        serve._warm()
+        self.assertEqual(serve._warm_state["error"], "no board today")
+        serve._warm_state["error"] = None
+
+
+class TestLoadingPage(Served):
+    """A first load after a change used to be ten seconds of blank window,
+    which reads as "nothing happened" and earns a second tap."""
+
+    def setUp(self):
+        self.real = (serve._payload_ready, serve._warm_in_background, serve._payload)
+        self.warms = []
+        serve._warm_in_background = lambda: (self.warms.append(1), True)[1]
+        serve._warm_state["error"] = None
+
+    def tearDown(self):
+        serve._payload_ready, serve._warm_in_background, serve._payload = self.real
+        serve._warm_state["error"] = None
+
+    def test_a_board_not_yet_ready_gets_the_waiting_page(self):
+        serve._payload_ready = lambda: False
+        status, body = self.get("/")
+        self.assertEqual(status, 200)
+        self.assertIn(b"Preparing the board", body)
+        # The token is only ever handed to the real page.
+        self.assertNotIn(b"FEP_LIVE", body)
+        self.assertEqual(self.warms, [1])
+
+    def test_ready_is_readable_by_the_waiting_page(self):
+        serve._payload_ready = lambda: False
+        _, body = self.get("/api/ready")
+        self.assertFalse(json.loads(body)["ready"])
+        serve._payload_ready = lambda: True
+        _, body = self.get("/api/ready")
+        self.assertTrue(json.loads(body)["ready"])
+
+    def test_a_ready_board_gets_the_real_page(self):
+        serve._payload_ready = lambda: True
+        serve._payload = lambda force=False: payload()
+        status, body = self.get("/")
+        self.assertEqual(status, 200)
+        self.assertIn(b"FEP_LIVE", body)
+        self.assertEqual(self.warms, [])
+
+    def test_a_warm_that_failed_is_not_waited_on_forever(self):
+        # The page renders the slow way instead, which raises the same fault
+        # where it can be shown, rather than a spinner over a board that will
+        # never come.
+        serve._payload_ready = lambda: False
+        serve._warm_state["error"] = "no season file"
+
+        def boom(force=False):
+            raise FileNotFoundError("gone")
+        serve._payload = boom
+        status, body = self.get("/")
+        self.assertEqual(status, 500)
+        self.assertEqual(self.warms, [])
+        self.assertIsNone(serve._warm_state["error"])
+
+    def test_the_waiting_page_writes_no_dashes(self):
+        for dash in ("\u2014", "\u2013"):
+            self.assertNotIn(dash, serve.LOADING_PAGE)
+
+
+class TestTheSheetIsASeparateStep(unittest.TestCase):
+    """Run the week stops at git. The page has to say so where the hand is."""
+
+    def test_the_run_button_says_the_sheet_is_separate(self):
+        page = serve.dashboard_build.render(payload())
+        self.assertIn("Nothing reaches the Sheet", page)
+
+    def test_a_live_page_reports_its_presence(self):
+        page = serve.dashboard_build.render(payload(), live="<b></b>")
+        self.assertIn("/api/alive", page)
+        self.assertIn("/api/gone", page)
+
+    def test_a_finished_week_offers_the_tables(self):
+        page = serve.dashboard_build.render(payload(), live="<b></b>")
+        self.assertIn("after=week", page)
+        self.assertIn("function afterRun", page)

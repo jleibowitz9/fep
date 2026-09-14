@@ -10,14 +10,16 @@ sheet tabs have today.
 from __future__ import annotations
 
 import copy
+import json
 import os
+import re
 import random
 import sys
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fep import chart, cms, engine, season as season_mod  # noqa: E402
+from fep import analytics, chart, cms, engine, season as season_mod, sheets  # noqa: E402
 
 
 ROSTER = ["Amir", "Andy", "Buhduh", "Emer", "Hanan", "Jacob",
@@ -990,3 +992,245 @@ class DecidingColumnsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestLeverageSpineAndDrawer(unittest.TestCase):
+    """The September 2026 append: the Leverage Spine and Under the Hood.
+
+    The columns exist so two Framer components can read one CMS row each. What
+    these guard is that the row describes the week it was published in, and
+    nothing later.
+    """
+
+    def setUp(self):
+        self.season = build_season()
+
+    def _with_snapshots(self, boards, leverage=None, weights=None):
+        """A season carrying hand-built snapshots, one per entry in `boards`."""
+        season = copy.deepcopy(self.season)
+        season["snapshots"] = []
+        games = len(season["games"])
+        for week, board in enumerate(boards):
+            entry = {
+                "week": week, "weighted": dict(board), "straight": dict(board),
+                "current_points": {n: 0 for n in board},
+                "remaining_outcomes": 2, "results": [engine.UNPLAYED] * games,
+                "deciding": {}, "points_mean": 400.0, "points_sd": 40.0,
+                "points_for": [None] * games,
+                "weights": list(weights or [0.6] * games),
+                "eliminated": [],
+            }
+            if leverage is not None:
+                entry["leverage"] = copy.deepcopy(leverage)
+            season["snapshots"].append(entry)
+        return season
+
+    # ---- the schedule lives on seasons, once -----------------------------
+
+    def test_the_spine_labels_are_on_seasons_not_weeks(self):
+        seasons = cms.seasons_table(self.season)
+        weeks = cms.weeks_table(self.season)
+        self.assertIn("leverage_labels", seasons.columns)
+        self.assertIn("leverage_shorts", seasons.columns)
+        self.assertNotIn("leverage_labels", weeks.columns)
+
+    def test_every_game_appears_in_the_label_list(self):
+        row = cms.seasons_table(self.season).rows[0]
+        labels = [part.strip() for part in row["leverage_labels"].split(",")]
+        self.assertEqual(len(labels), len(self.season["games"]))
+        self.assertEqual(labels[0], self.season["games"][0]["label"])
+
+    def test_short_labels_are_real_scoreboard_abbreviations(self):
+        # First-three-letters is the bug fep/teams.py was written to end. It
+        # gave COM, STE and 49E, and a parenthetical made the London game "(LO".
+        self.assertEqual(analytics.short_label("vs. Jaguars (London)"), "JAX")
+        self.assertEqual(analytics.short_label("@ Commanders"), "WSH")
+        self.assertEqual(analytics.short_label("vs. 49ers"), "SF")
+        self.assertEqual(analytics.short_label("@ Steelers"), "PIT")
+
+    def test_the_short_label_prefers_what_the_game_recorded(self):
+        # The season file stores ESPN's abbreviation per game. It wins over
+        # anything parsed out of the display label.
+        self.assertEqual(
+            analytics.game_abbr({"opponent": "JAX", "label": "vs. Wrong"}),
+            "JAX")
+        self.assertEqual(
+            analytics.game_abbr({"opponent": "", "label": "@ Commanders"}),
+            "WSH")
+
+    def test_no_short_label_keeps_a_parenthetical(self):
+        row = cms.seasons_table(self.season).rows[0]
+        for short in row["leverage_shorts"].split(","):
+            self.assertNotIn("(", short)
+            self.assertTrue(short.strip().isupper(), short)
+
+    # ---- the spine is read, never recomputed -----------------------------
+
+    def test_the_spine_comes_off_the_snapshot(self):
+        spine = [{"leverage": 99.9, "result": ""} for _ in self.season["games"]]
+        season = self._with_snapshots([{"Amir": 100.0}], leverage=spine)
+        row = cms.weeks_table(season).rows[0]
+        values = [part.strip() for part in row["leverage_values"].split(",")]
+        self.assertEqual(len(values), len(self.season["games"]))
+        self.assertTrue(all(v == "99.9" for v in values), values)
+
+    def test_a_snapshot_without_a_spine_publishes_blank_not_garbage(self):
+        season = self._with_snapshots([{"Amir": 100.0}])
+        row = cms.weeks_table(season).rows[0]
+        self.assertEqual(row["leverage_values"], "")
+        self.assertEqual(row["leverage_results"], "")
+
+    def test_results_keep_their_place_when_a_game_is_unplayed(self):
+        spine = [{"leverage": 5.0, "result": r}
+                 for r in ["W", "L", ""] + [""] * (len(self.season["games"]) - 3)]
+        season = self._with_snapshots([{"Amir": 100.0}], leverage=spine)
+        row = cms.weeks_table(season).rows[0]
+        parts = row["leverage_results"].split(",")
+        self.assertEqual(len(parts), len(self.season["games"]))
+        self.assertEqual([p.strip() for p in parts[:3]], ["W", "L", ""])
+
+    # ---- the drawer describes its own week -------------------------------
+
+    def test_volatility_only_sees_weeks_up_to_its_own_row(self):
+        # A row published in week 1 must not describe movement from week 2.
+        roster = self.season["roster"]
+        flat = {name: 8.0 for name in roster}
+        spiked = dict(flat)
+        spiked[roster[0]] = 60.0
+        season = self._with_snapshots([flat, flat, spiked])
+
+        rows = {row["week"]: row for row in cms.weeks_table(season).rows}
+        self.assertEqual(rows[1]["volatile_value"], "",
+                         "week 1 is flat and should name nobody")
+        self.assertEqual(rows[2]["volatile_value"], roster[0])
+
+    def test_the_preseason_points_gloss_does_not_say_zero_games(self):
+        season = self._with_snapshots([{"Amir": 100.0}])
+        row = cms.weeks_table(season).rows[0]
+        self.assertIn("before a ball is kicked", row["points_gloss"])
+        self.assertNotIn("0 games", row["points_gloss"])
+
+    def test_espn_place_is_blank_before_anything_is_scored(self):
+        season = self._with_snapshots([{"Amir": 100.0}])
+        row = cms.weeks_table(season).rows[0]
+        self.assertEqual(row["espn_place"], "")
+        self.assertEqual(row["espn_gloss"], "")
+        self.assertEqual(row["espn_accent"], "")
+
+    def test_espn_locks_its_sheet_from_the_preseason_weights(self):
+        games = len(self.season["games"])
+        weights = [0.9 if i % 2 == 0 else 0.1 for i in range(games)]
+        season = self._with_snapshots([{"Amir": 100.0}], weights=weights)
+        espn = analytics.espn_as_competitor(season)
+        expected = "".join("W" if w >= 0.5 else "L" for w in weights)
+        self.assertEqual(espn["sheet"], expected)
+        self.assertEqual(espn["predicted_wins"], expected.count("W"))
+
+    def test_espn_is_placed_against_the_field_it_is_scored_with(self):
+        games = len(self.season["games"])
+        season = self._with_snapshots([{"Amir": 100.0}],
+                                      weights=[0.9] * games)
+        snap = season["snapshots"][0]
+        snap["results"] = [engine.WIN, engine.LOSS] + [engine.UNPLAYED] * (games - 2)
+        snap["current_points"] = {"Amir": 2, "Andy": 1, "Pop": 0}
+        espn = analytics.espn_as_competitor(season)
+        # Picked W on both; one landed. Amir's 2 is ahead, nobody else is.
+        self.assertEqual(espn["correct"], 1)
+        self.assertEqual(espn["decided"], 2)
+        self.assertEqual(espn["place"], 2)
+        self.assertEqual(espn["place_label"], "2nd")
+
+    def test_the_espn_verdict_is_the_brier_score_in_words(self):
+        games = len(self.season["games"])
+        for weight, result, expected in ((0.9, engine.WIN, True),
+                                         (0.9, engine.LOSS, False)):
+            with self.subTest(result=result):
+                season = self._with_snapshots([{"Amir": 100.0}],
+                                              weights=[weight] * games)
+                snap = season["snapshots"][0]
+                snap["results"] = [result] + [engine.UNPLAYED] * (games - 1)
+                espn = analytics.espn_as_competitor(season)
+                self.assertEqual(espn["beats_coinflip"], expected)
+                self.assertIn("coin flip", espn["verdict"])
+
+    def test_the_ordinal_does_not_say_11st(self):
+        self.assertEqual(analytics._ordinal(1), "1st")
+        self.assertEqual(analytics._ordinal(2), "2nd")
+        self.assertEqual(analytics._ordinal(3), "3rd")
+        self.assertEqual(analytics._ordinal(11), "11th")
+        self.assertEqual(analytics._ordinal(12), "12th")
+        self.assertEqual(analytics._ordinal(13), "13th")
+        self.assertEqual(analytics._ordinal(21), "21st")
+
+    # ---- the sheet has to accept every one of these ----------------------
+
+    def test_no_new_cell_can_be_read_as_a_formula(self):
+        # Code.gs refuses a string starting with =, + or -. A dash placeholder
+        # for an unplayed game would have been rejected on the first live push.
+        formula = re.compile(r"^[=+\-]")
+        season = self._with_snapshots(
+            [{name: 8.0 for name in self.season["roster"]}],
+            leverage=[{"leverage": 5.0, "result": ""}
+                      for _ in self.season["games"]])
+        for table in cms.tables(season).values():
+            for row in table.rows:
+                for column in table.columns:
+                    value = row.get(column)
+                    if isinstance(value, str) and value:
+                        self.assertIsNone(
+                            formula.match(value),
+                            "{}.{} looks like a formula: {!r}".format(
+                                table.name, column, value))
+
+
+class TestAWriteReplyMustNameItsTable(unittest.TestCase):
+    """A reply that says nothing about the write is not proof of a write.
+
+    Found in a live push: `standings` printed as a table called "?" with a
+    total of 0, and the command still exited 0. `_call_appsscript` checks only
+    `ok`, and `doGet` answers `ok` too. Its payload is the health response, and
+    a POST can land there because Apps Script answers with a 302 and urllib
+    turns a redirected POST into a GET.
+    """
+
+    HEALTH = {
+        "ok": True,
+        "service": "fep-sheet-writer",
+        "version": "2026.09.11-a",
+        "tableTabs": sheets.TABLE_TABS,
+        "tokenConfigured": True,
+    }
+
+    def test_a_real_write_reply_passes_through_untouched(self):
+        reply = {"ok": True, "tab": "standings", "total": 240, "added": 0}
+        self.assertIs(sheets._verify_reply("standings", reply), reply)
+
+    def test_the_health_response_is_not_a_successful_write(self):
+        result = sheets._verify_reply("standings", self.HEALTH)
+        self.assertTrue(result["error"])
+        self.assertEqual(result["tab"], "standings")
+        self.assertEqual(result["total"], 0)
+        self.assertIn("health response", result["error"])
+        self.assertIn("unknown", result["error"])
+
+    def test_a_reply_about_a_different_table_is_refused(self):
+        # Nothing should ever accept "I wrote picks" as an answer to "write
+        # weeks", whatever else the payload says.
+        result = sheets._verify_reply("weeks", {"ok": True, "tab": "picks",
+                                                "total": 432})
+        self.assertTrue(result["error"])
+        self.assertEqual(result["tab"], "weeks")
+
+    def test_a_reply_that_is_not_a_dict_is_refused(self):
+        for reply in ([], "ok", None, 7):
+            with self.subTest(reply=reply):
+                result = sheets._verify_reply("games", reply)
+                self.assertTrue(result["error"])
+                self.assertEqual(result["tab"], "games")
+
+    def test_the_error_says_re_running_is_safe(self):
+        # It is: an identical push is a no-op down to the row. Without saying
+        # so, the honest response to "unknown" is to do nothing, which is the
+        # one thing that leaves the sheet wrong.
+        result = sheets._verify_reply("weeks", self.HEALTH)
+        self.assertIn("Re-run", result["error"])

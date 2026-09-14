@@ -686,7 +686,11 @@ async function run(action, extra, label){
   followUp(action, {});
   logOut(head+"\n\n"+(out.log||'Done.'));
   toast((out.label||'Done')+" ✓");
-  if(RELOADS[action]) setTimeout(()=>location.reload(), 700);
+  // The reload wipes this log, so a finished week leaves a one-shot note in the
+  // URL for the next load to offer the step that comes after it. Not state:
+  // the note is removed from the address as soon as it has been read.
+  if(RELOADS[action]) setTimeout(()=>location.replace(
+    location.pathname+(action==='week'?'?after=week':'')+location.hash), 700);
 }
 
 /* ---- the control room, rendered into the Run tab ---- */
@@ -699,7 +703,7 @@ function controlPanel(){
       machine. What it printed appears at the bottom of this tab, unedited.</p>
     <div class="ctl">
       <button class="btn" data-run="week"
-        title="Pull results and weights from ESPN, run the model, snapshot the week, write the stat pack and chart, rebuild this page, commit and push">Run the week</button>
+        title="Pull results and weights from ESPN, run the model, snapshot the week, write the stat pack and chart, rebuild this page, commit and push to GitHub. Nothing reaches the Sheet: that is Write the tables, below.">Run the week</button>
       <button class="btn ghost" data-run="refresh" title="Results, scores and ESPN weights only. Nothing is snapshotted.">Refresh from ESPN</button>
       <button class="btn ghost" data-run="board" title="Run the model and print the board without saving anything">Run the model</button>
       <button class="btn ghost" data-run="leverage">Rank remaining games</button>
@@ -721,8 +725,9 @@ function controlPanel(){
 
   <div class="mt">
     <div class="card"><h3>CMS tables <span class="tag" id="ctlSheetTag"></span></h3>
-      <p class="muted tiny" style="line-height:1.6">The tables Framer reads. Columns are
-        appended and never inserted, so a preview is worth reading before a write.</p>
+      <p class="muted tiny" style="line-height:1.6">The tables Framer reads, in the Google
+        Sheet. Running the week does not write here; this button does, and it asks twice.
+        Columns are appended and never inserted, so a preview is worth reading before a write.</p>
       <div class="ctl">
         <button class="btn ghost" data-run="cms-preview">Preview</button>
         <button class="btn ghost" data-run="cms-csv">Export CSVs</button>
@@ -837,6 +842,19 @@ function paintState(){
 
 /* ---- wiring, once, for everything the control room renders later ---- */
 if(LIVE){
+  // The server cannot see this window, so the page says it is here: a beat
+  // every few seconds while open, a last word as it closes. A tap of the Dock
+  // icon then raises this window instead of opening a second one. A 403 means
+  // the token is from a server that has since been restarted, and the cure is
+  // to reload and be handed the new one.
+  const beat=()=>fetch('/api/alive',{method:'POST',headers:{'X-FEP-Token':window.FEP_LIVE.token}})
+    .then(r=>{ if(r.status===403) location.reload(); }).catch(()=>{});
+  beat(); setInterval(beat, 3000);
+  window.addEventListener('pagehide', ()=>{
+    fetch('/api/gone',{method:'POST',keepalive:true,
+      headers:{'X-FEP-Token':window.FEP_LIVE.token}}).catch(()=>{});
+  });
+
   // A write that leaves this machine gets a second press rather than a browser
   // dialog: the button says what it is about to do and waits five seconds.
   document.body.addEventListener('click', e=>{
@@ -918,9 +936,30 @@ if(LIVE){
 
   const rb=document.getElementById('runBtn');
   rb.className='btn'; rb.textContent='Run the week'; rb.dataset.run='week';
-  rb.title='ESPN, the model, the snapshot, the stat pack, the chart, this page, and git';
+  rb.title='ESPN, the model, the snapshot, the stat pack, the chart, this page, and git. The Sheet is a separate button.';
 
-  fetch('/api/state').then(r=>r.json()).then(s=>{STATE=s;paintState();}).catch(()=>{});
+  fetch('/api/state').then(r=>r.json()).then(s=>{STATE=s;paintState();afterRun();}).catch(()=>{});
+}
+
+// A week that has just been run reloads the page, and the reload is where the
+// question "did that reach the Sheet?" gets asked. It did not: the run stops
+// at git on purpose, so the board can be looked at before anything leaves this
+// machine. Say so, and put the next step where the hand already is.
+function afterRun(){
+  let after=null;
+  try{
+    after=new URLSearchParams(location.search).get('after');
+    if(after) history.replaceState(null,'',location.pathname+location.hash);
+  }catch(_){}
+  if(after!=='week') return;
+  const el=document.getElementById('ctlFollow'); if(!el) return;
+  el.innerHTML=`<span class="tiny muted">The week is recorded and saved to git. Nothing has
+      reached the Sheet: when the board looks right, write the tables.</span>
+    <button class="btn ghost" data-run="cms-preview">Preview the tables</button>
+    <button class="btn danger" data-run="cms-live" data-needs="cms"
+      data-confirm="Write the tables now">Write the tables</button>`;
+  el.hidden=false;
+  toast("Week recorded and saved. The Sheet is next, in the Run tab.");
 }
 
 document.getElementById('nav').onclick = e => {

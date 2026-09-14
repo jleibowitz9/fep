@@ -171,7 +171,8 @@ def cmd_week(argv):
     board = season_mod.run(season, through_week=week)
     entry, status = season_mod.snapshot(
         season, week, board, correction=correction,
-        counterfactual=analytics.counterfactual_for_week(season, week))
+        counterfactual=analytics.counterfactual_for_week(season, week),
+        leverage=analytics.spine(season, week))
     season_path = season_mod.save(season)
 
     pack = analytics.full_pack(season, board, week, through_week=week)
@@ -256,9 +257,17 @@ def cmd_cms(argv):
     for result in sheets.push_tables(
             season, only=only,
             allow_correction="--allow-correction" in argv):
-        if result.get("error"):
-            failures.append(result)
-            print("  {:<20} REFUSED".format(result["tab"]))
+        # A reply with no table in it is not a table that was written.
+        # sheets._verify_reply turns those into errors; this is the backstop,
+        # so a malformed result can never be printed as a row called "?" with
+        # a zero count and still exit 0.
+        if result.get("error") or not result.get("tab"):
+            failure = dict(result)
+            failure.setdefault("tab", "unknown")
+            failure.setdefault(
+                "error", "the deployment returned a reply with no table in it")
+            failures.append(failure)
+            print("  {:<20} REFUSED".format(failure["tab"]))
             continue
         # `unchanged` is the number that matters on a frozen table: it means
         # the rows already published were replayed and not one of them moved.
@@ -280,7 +289,7 @@ def cmd_cms(argv):
         if result.get("corrected"):
             parts.append("{} CORRECTED".format(len(result["corrected"])))
         print("  {:<20} {}  ({} total{})".format(
-            result.get("tab", "?"), ", ".join(parts), result.get("total", 0),
+            result["tab"], ", ".join(parts), result.get("total", 0),
             ", frozen" if result.get("frozen") else ""))
 
     if failures:
