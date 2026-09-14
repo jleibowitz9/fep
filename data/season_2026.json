@@ -284,12 +284,12 @@
       "venue": "Lincoln Financial Field",
       "date": "2026-09-13",
       "division": true,
-      "result": "A",
+      "result": "W",
       "result_source": "espn",
-      "points_for": null,
-      "points_against": null,
+      "points_for": 24,
+      "points_against": 22,
       "points_source": "espn",
-      "weight": 0.6573,
+      "weight": 0.66,
       "weight_source": "espn"
     },
     {
@@ -308,7 +308,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.6615,
+      "weight": 0.6551,
       "weight_source": "espn"
     },
     {
@@ -327,7 +327,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.4906,
+      "weight": 0.4772,
       "weight_source": "espn"
     },
     {
@@ -346,7 +346,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.4036,
+      "weight": 0.5178,
       "weight_source": "espn"
     },
     {
@@ -365,7 +365,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.5242,
+      "weight": 0.5261,
       "weight_source": "espn"
     },
     {
@@ -384,7 +384,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.7068,
+      "weight": 0.6996,
       "weight_source": "espn"
     },
     {
@@ -403,7 +403,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.5402,
+      "weight": 0.5383,
       "weight_source": "espn"
     },
     {
@@ -422,7 +422,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.5578,
+      "weight": 0.5621,
       "weight_source": "espn"
     },
     {
@@ -441,7 +441,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.6545,
+      "weight": 0.666,
       "weight_source": "espn"
     },
     {
@@ -460,7 +460,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.6317,
+      "weight": 0.6345,
       "weight_source": "espn"
     },
     {
@@ -479,7 +479,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.4567,
+      "weight": 0.475,
       "weight_source": "espn"
     },
     {
@@ -498,7 +498,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.6862,
+      "weight": 0.6981,
       "weight_source": "espn"
     },
     {
@@ -517,7 +517,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.6194,
+      "weight": 0.617,
       "weight_source": "espn"
     },
     {
@@ -536,7 +536,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.5118,
+      "weight": 0.5041,
       "weight_source": "espn"
     },
     {
@@ -555,7 +555,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.5623,
+      "weight": 0.5646,
       "weight_source": "espn"
     },
     {
@@ -574,7 +574,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.4181,
+      "weight": 0.3435,
       "weight_source": "espn"
     },
     {
@@ -593,7 +593,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.5712,
+      "weight": 0.5733,
       "weight_source": "espn"
     }
   ],
@@ -898,6 +898,156 @@
           "kind": "remaining"
         }
       ]
+    },
+    {
+      "week": 1,
+      "taken_at": "2026-09-14T08:32:58",
+      "note": "",
+      "is_bye": false,
+      "remaining_outcomes": 65536,
+      "weighted": {
+        "Amir": 8.4,
+        "Andy": 11.5,
+        "Buhduh": 7.9,
+        "Emer": 9.9,
+        "Hanan": 7.1,
+        "Jacob": 11.5,
+        "Jay": 8.2,
+        "Jen": 6.9,
+        "Marsha": 4.9,
+        "Nathan": 10.1,
+        "Pop": 7.8,
+        "Sarah": 5.9
+      },
+      "straight": {
+        "Amir": 8.0,
+        "Andy": 10.4,
+        "Buhduh": 7.6,
+        "Emer": 8.2,
+        "Hanan": 3.9,
+        "Jacob": 15.8,
+        "Jay": 5.4,
+        "Jen": 8.5,
+        "Marsha": 2.7,
+        "Nathan": 10.4,
+        "Pop": 13.9,
+        "Sarah": 5.2
+      },
+      "current_points": {
+        "Amir": 1,
+        "Andy": 1,
+        "Buhduh": 1,
+        "Emer": 1,
+        "Hanan": 1,
+        "Jacob": 1,
+        "Jay": 1,
+        "Jen": 1,
+        "Marsha": 1,
+        "Nathan": 1,
+        "Pop": 1,
+        "Sarah": 1
+      },
+      "deciding": {
+        "outright": 61.5,
+        "tb1": 16.1,
+        "tb2": 9.5,
+        "tb3": 12.9,
+        "split": 0.0
+      },
+      "points_mean": 396.0,
+      "points_sd": 98.4,
+      "results": [
+        "W",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A"
+      ],
+      "points_for": [
+        24,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "weights": [
+        0.66,
+        0.6551,
+        0.4772,
+        0.5178,
+        0.5261,
+        0.6996,
+        0.5383,
+        0.5621,
+        0.666,
+        0.6345,
+        0.475,
+        0.6981,
+        0.617,
+        0.5041,
+        0.5646,
+        0.3435,
+        0.5733
+      ],
+      "eliminated": [],
+      "game": {
+        "index": 0,
+        "event_id": "401872929",
+        "label": "vs. Commanders",
+        "opponent": "WSH",
+        "opponent_name": "Commanders",
+        "home": true,
+        "neutral_site": false,
+        "venue": "Lincoln Financial Field",
+        "division": true,
+        "result": "W",
+        "points_for": 24,
+        "points_against": 22
+      },
+      "counterfactual": {
+        "game_index": 0,
+        "label": "vs. Commanders",
+        "actual": "W",
+        "hypothetical": "L",
+        "board": {
+          "Amir": 9.2,
+          "Andy": 12.2,
+          "Buhduh": 8.3,
+          "Emer": 9.4,
+          "Hanan": 5.0,
+          "Jacob": 12.0,
+          "Jay": 8.2,
+          "Jen": 7.5,
+          "Marsha": 4.2,
+          "Nathan": 10.9,
+          "Pop": 6.6,
+          "Sarah": 6.4
+        }
+      }
     }
   ],
   "sheet": {
@@ -916,10 +1066,30 @@
     "points_model": "shrunk"
   },
   "created_at": "2026-09-02T22:02:30",
-  "updated_at": "2026-09-14T07:37:45",
+  "updated_at": "2026-09-14T08:32:58",
   "bye_weeks": [
     10
   ],
-  "last_refresh": "2026-09-10T21:08:54",
-  "last_refresh_changes": []
+  "last_refresh": "2026-09-14T08:32:58",
+  "last_refresh_changes": [
+    "game 0 result A -> W",
+    "game 0 points None -> 24",
+    "game 0 weight 0.6573 -> 0.66",
+    "game 1 weight 0.6615 -> 0.6551",
+    "game 2 weight 0.4906 -> 0.4772",
+    "game 3 weight 0.4036 -> 0.5178",
+    "game 4 weight 0.5242 -> 0.5261",
+    "game 5 weight 0.7068 -> 0.6996",
+    "game 6 weight 0.5402 -> 0.5383",
+    "game 7 weight 0.5578 -> 0.5621",
+    "game 8 weight 0.6545 -> 0.666",
+    "game 9 weight 0.6317 -> 0.6345",
+    "game 10 weight 0.4567 -> 0.475",
+    "game 11 weight 0.6862 -> 0.6981",
+    "game 12 weight 0.6194 -> 0.617",
+    "game 13 weight 0.5118 -> 0.5041",
+    "game 14 weight 0.5623 -> 0.5646",
+    "game 15 weight 0.4181 -> 0.3435",
+    "game 16 weight 0.5712 -> 0.5733"
+  ]
 }
