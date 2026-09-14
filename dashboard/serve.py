@@ -264,34 +264,83 @@ def _warm_in_background():
 # --------------------------------------------------------------------------
 # whether the window is on screen
 
-# The server cannot see its own window, so the page tells it: a heartbeat
-# while it is open and a last word as it closes. That is what lets a tap of
-# the icon raise the window that is already there instead of opening another,
-# which is what Chrome does when it is handed --app a second time. Every
-# window the family ever complained about was this.
-PRESENCE_TTL = 8.0
-_presence = {"seen": 0.0}
-
-
-def _page_seen():
-    _presence["seen"] = time.time()
-
-
-def _page_gone():
-    _presence["seen"] = 0.0
+# The server cannot see its own window, so the page tells it: it holds one
+# connection open for as long as it is on screen, and the server counts the
+# connections it is holding. That is what lets a tap of the icon raise the
+# window that is already there instead of opening another, which is what
+# Chrome does when it is handed --app a second time. Every window the family
+# ever complained about was this.
+#
+# A held connection rather than a heartbeat on a timer, because a timer is
+# the wrong instrument: Chrome throttles a hidden page's timers to one wake a
+# minute after five minutes, and a minimised window is exactly the one whose
+# icon gets tapped. A connection is not throttled, it needs no last word on
+# the way out (closing the window closes it), and the waiting page can hold
+# one before it has a token. `open` is the real page; `opening` is the
+# waiting page, or a window that has been asked for and is not up yet.
+PRESENCE_TICK = 0.5
+_presence = {"open": 0, "opening": 0}
+_presence_lock = threading.Lock()
 
 
 def _page_open():
-    return (time.time() - _presence["seen"]) < PRESENCE_TTL
+    return _presence["open"] > 0 or _presence["opening"] > 0
+
+
+def _presence_state():
+    return {"open": _presence["open"] > 0, "opening": _presence["opening"] > 0}
+
+
+def _hold_presence(handler, kind):
+    """Answer a presence request by never finishing it.
+
+    A byte every half second, so the write fails within a second of the
+    window closing: that is how the server learns the page has gone. The
+    count is kept under a lock because two windows can be up at once (the
+    reload after a run is one closing as another opens), and it is a count,
+    not a timestamp, so the order in which they arrive does not matter.
+    """
+    with _presence_lock:
+        _presence[kind] += 1
+    _clear_opening()
+    try:
+        handler.send_response(200)
+        handler.send_header("Content-Type", "text/plain; charset=utf-8")
+        handler.send_header("Cache-Control", "no-store")
+        handler.end_headers()
+        while True:
+            handler.wfile.write(b".\n")
+            time.sleep(PRESENCE_TICK)
+    except OSError:
+        pass  # the window closed, which is the only way out
+    finally:
+        with _presence_lock:
+            _presence[kind] -= 1
+        handler.close_connection = True
+
+
+def _forget_presence():
+    with _presence_lock:
+        _presence.update(open=0, opening=0)
 
 
 # A window that has been asked for but is not up yet. Chrome takes a few
-# seconds to start cold, and the page cannot beat until it has loaded, so a
-# second tap inside that gap saw "no page open" and opened a second window.
-# The moment a window is requested is recorded on disk, because the tap that
-# requested it and the tap that asks are different processes.
+# seconds to start cold, and the page cannot hold a connection until it has
+# loaded, so a second tap inside that gap saw "no page open" and opened a
+# second window. The moment a window is requested is recorded on disk,
+# because the tap that requested it and the tap that asks are different
+# processes. The marker is cleared the moment any page connects: left in
+# place, a window closed and reopened inside its twenty seconds was "raised"
+# rather than opened, and nothing appeared.
 OPENING_FILE = os.path.join(CACHE_DIR, "opening.txt")
 OPENING_TTL = 20.0
+
+
+def _clear_opening():
+    try:
+        os.remove(OPENING_FILE)
+    except OSError:
+        pass
 
 
 def _note_opening():
@@ -689,7 +738,7 @@ def _state():
         "dirty": len([l for l in dirty.splitlines() if l.strip()]) if code == 0 else 0,
         "ahead": len([l for l in ahead.splitlines() if l.strip()]) if ahead_code == 0 else 0,
     }
-    state["page"] = {"open": _page_open()}
+    state["page"] = _presence_state()
     state["last_run"] = dict(_last_run)
     return state
 
@@ -718,6 +767,13 @@ p{color:#98A1A8;margin:0 0 20px;font-size:13px}
 <p id="p">Running the model for every remaining game. About ten seconds, and only because something changed since the last time.</p>
 <div class="spin" id="spin"></div>
 <script>
+// Held open for as long as this page is on screen, so a tap of the icon
+// during the wait raises this window rather than opening a second one.
+fetch('/api/preparing',{cache:'no-store'}).then(function(r){
+  var rd=r.body.getReader();
+  function drain(){return rd.read().then(function(x){if(!x.done)return drain();});}
+  return drain();
+}).catch(function(){});
 var misses=0;
 function poll(){
   fetch('/api/ready',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
@@ -837,6 +893,19 @@ class Handler(BaseHTTPRequestHandler):
                 _warm_in_background()
             return self._json(200, {"ready": ready,
                                     "error": _warm_state["error"]})
+        if path == "/api/presence":
+            # The page, saying it is on screen for as long as this stays
+            # open. Any page in the browser can reach this port, and none of
+            # them gets to claim to be the app, because "open" is what stops
+            # a window opening: the token is required.
+            if not self._authorised():
+                return self._json(403, {"ok": False, "error": "This request did "
+                                        "not come from the dashboard."})
+            return _hold_presence(self, "open")
+        if path == "/api/preparing":
+            # The waiting page, which has no token. It counts as a window on
+            # its way, which is all a tap needs to know.
+            return _hold_presence(self, "opening")
         if path.startswith("/assets/"):
             return self._asset(path)
         self._send(404, "Not found.", "text/plain; charset=utf-8")
@@ -848,12 +917,6 @@ class Handler(BaseHTTPRequestHandler):
         if not self._authorised():
             return self._json(403, {"ok": False, "error": "This request did not "
                                     "come from the dashboard."})
-        if path == "/api/alive":
-            _page_seen()
-            return self._json(200, {"ok": True})
-        if path == "/api/gone":
-            _page_gone()
-            return self._json(200, {"ok": True})
         if path == "/api/quit":
             self._json(200, {"ok": True})
             threading.Thread(target=self.server.shutdown, daemon=True).start()
@@ -1041,6 +1104,16 @@ def _activate(pid):
     that needs an automation permission nobody is there to grant, and the
     prompt for it never appears from a detached launcher. NSRunningApplication
     needs neither. The options are AllWindows and IgnoringOtherApps.
+
+    The answer is read back, not taken from the call. `activateWithOptions:`
+    returns YES when the request was accepted, and since macOS 14 activation
+    is cooperative: a process that is not itself the active app, which a
+    python spawned from the launcher never is, can have its request accepted
+    and then quietly declined. Believing the YES meant a tap that printed
+    "Raised the window" and showed nothing, which is worse than the second
+    window it replaced. So this waits, briefly, for `isActive` to say Chrome
+    actually came forward, and a raise that did not happen reports False,
+    which _show answers with a window.
     """
     try:
         objc = ctypes.CDLL(ctypes.util.find_library("objc"))
@@ -1049,18 +1122,34 @@ def _activate(pid):
         objc.objc_getClass.argtypes = [ctypes.c_char_p]
         objc.sel_registerName.restype = ctypes.c_void_p
         objc.sel_registerName.argtypes = [ctypes.c_char_p]
+        sel = objc.sel_registerName
         with_int = ctypes.cast(objc.objc_msgSend, ctypes.CFUNCTYPE(
             ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int))
-        with_uint = ctypes.cast(objc.objc_msgSend, ctypes.CFUNCTYPE(
-            ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint))
+        # NSUInteger is a machine word, so the argument is a c_ulong.
+        with_ulong = ctypes.cast(objc.objc_msgSend, ctypes.CFUNCTYPE(
+            ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_ulong))
+        no_args = ctypes.cast(objc.objc_msgSend, ctypes.CFUNCTYPE(
+            ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p))
         app = with_int(objc.objc_getClass(b"NSRunningApplication"),
-                       objc.sel_registerName(b"runningApplicationWithProcessIdentifier:"),
-                       int(pid))
+                       sel(b"runningApplicationWithProcessIdentifier:"), int(pid))
         if not app:
             return False
-        return bool(with_uint(app, objc.sel_registerName(b"activateWithOptions:"), 3))
+        if not with_ulong(app, sel(b"activateWithOptions:"), 3):
+            return False
+        is_active = sel(b"isActive")
+        deadline = time.time() + ACTIVATE_WAIT
+        while True:
+            if no_args(app, is_active):
+                return True
+            if time.time() >= deadline:
+                return False
+            time.sleep(0.05)
     except Exception:  # noqa: BLE001  no AppKit, no objc, a pid that vanished
         return False
+
+
+# How long a raise is given to actually happen before it is called a miss.
+ACTIVATE_WAIT = 1.0
 
 
 def _focus_window():

@@ -96,16 +96,24 @@ relax any of it to make something convenient.
 
 **The icon raises the window it has; it does not open another.** Chrome given
 `--app` twice opens two windows, which is what a second tap of the Dock icon
-used to do. So the page beats `/api/alive` while it is on screen, `serve.py`
-reports that in `/api/state` as `page.open`, and a tap while a page is open
-activates Chrome through `NSRunningApplication` (`_activate`). Not `open -a`
+used to do. So the page holds a connection to `/api/presence` open for as
+long as it is on screen (the waiting page holds `/api/preparing`, which needs
+no token), `serve.py` counts those and reports them in `/api/state` as
+`page.open` and `page.opening`, and a tap while a page is open activates
+Chrome through `NSRunningApplication` (`_activate`). A held connection, not a
+heartbeat on a timer: Chrome throttles a hidden page's timers to one wake a
+minute, and a minimised window is the one whose icon gets tapped. The raise
+is read back through `isActive` rather than trusted, because since macOS 14
+a request from a process that is not the active app can be accepted and then
+declined; a raise that did not happen opens a window instead. Not `open -a`
 and not AppleScript: a reopen with only an app window up makes Chrome a blank
 browser window beside it, and the script route needs a permission nobody is
 there to grant. The first load after the model changes gets a "Preparing the
 board" page that polls `/api/ready`, rather than ten seconds of blank window
 that earns the second tap in the first place. Running the week never writes
-to the Sheet; the page says so on the button and offers "Write the tables"
-after the run's reload.
+to the Sheet; the page says so on the button, and the server's record of its
+last run (`state.last_run`) is what makes the page offer "Write the tables"
+after a week that recorded something, on every load until they are written.
 
 ## The one irreplaceable file
 

@@ -17,8 +17,10 @@ cli.py's and is tested where it lives.
                        stage only what the run itself wrote
   TestDeploymentHealth the page said "Apps Script ready" because a file existed
                        on this laptop, which is not a fact about a spreadsheet
-  TestPresence         the page says when it is on screen, and only the page
-  TestSecondTap        a tap while the app is up raises the window it has
+  TestPresence         the page says when it is on screen, and only the page,
+                       by holding a connection rather than beating a timer
+  TestSecondTap        a tap while the app is up raises the window it has,
+                       and a raise that did not happen opens one instead
   TestReadiness        the board is ready or it is being prepared, once
   TestLoadingPage      a first load shows something rather than a blank window
   TestLastRun          the server, not the URL, knows whether the last week
@@ -27,6 +29,7 @@ cli.py's and is tested where it lives.
 
 from __future__ import annotations
 
+import http.client
 import importlib.util
 import json
 import os
@@ -893,41 +896,117 @@ if __name__ == "__main__":
 
 
 class TestPresence(Served):
-    """The server cannot see its window. The page tells it, and only the page."""
+    """The server cannot see its window. The page tells it, and only the page.
+
+    By holding a connection open, not by beating on a timer: a minimised
+    window's timers are throttled to one wake a minute, and a minimised
+    window is exactly the one whose icon gets tapped.
+    """
 
     def setUp(self):
-        serve._page_gone()
+        serve._forget_presence()
+        self.held = []
+        self.real_opening = serve.OPENING_FILE
+        serve.OPENING_FILE = os.path.join(tempfile.mkdtemp(), "opening.txt")
+
+    def tearDown(self):
+        for held in self.held:
+            held.close()
+        self.settle(lambda: not serve._page_open())
+        shutil.rmtree(os.path.dirname(serve.OPENING_FILE), ignore_errors=True)
+        serve.OPENING_FILE = self.real_opening
+        serve._forget_presence()
 
     def state(self):
         _, body = self.get("/api/state")
         return json.loads(body)
 
-    def test_a_page_that_has_not_spoken_is_not_open(self):
-        self.assertFalse(self.state()["page"]["open"])
+    class Held:
+        """One presence connection, closed the way a closing window closes it.
 
-    def test_a_heartbeat_marks_the_page_open(self):
-        status, _ = self.post("/api/alive", {})
-        self.assertEqual(status, 200)
+        http.client keeps the socket alive for as long as the response object
+        holds it, so closing the connection alone leaves the server talking
+        to a socket that is still open. Both have to go.
+        """
+
+        def __init__(self, conn, response):
+            self.conn, self.response, self.status = conn, response, response.status
+
+        def close(self):
+            self.response.close()
+            self.conn.close()
+
+    def hold(self, path, token="test-token"):
+        """Open a presence connection and keep it, the way a page does."""
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        conn.request("GET", path, headers={"X-FEP-Token": token} if token else {})
+        held = self.Held(conn, conn.getresponse())
+        self.held.append(held)
+        return held, held.response
+
+    def settle(self, condition, within=3.0):
+        deadline = time.time() + within
+        while not condition() and time.time() < deadline:
+            time.sleep(0.05)
+        return condition()
+
+    def test_a_page_that_has_not_connected_is_not_open(self):
+        self.assertEqual(self.state()["page"], {"open": False, "opening": False})
+
+    def test_a_held_connection_marks_the_page_open(self):
+        _, response = self.hold("/api/presence")
+        self.assertEqual(response.status, 200)
+        self.assertEqual(self.state()["page"], {"open": True, "opening": False})
+
+    def test_closing_the_window_closes_it(self):
+        # Nothing is said on the way out. The connection drops with the page,
+        # and the server notices within a tick or two.
+        conn, _ = self.hold("/api/presence")
         self.assertTrue(self.state()["page"]["open"])
+        conn.close()
+        self.assertTrue(self.settle(lambda: not self.state()["page"]["open"]))
 
-    def test_the_last_word_marks_it_closed(self):
-        self.post("/api/alive", {})
-        self.post("/api/gone", {})
-        self.assertFalse(self.state()["page"]["open"])
+    def test_two_windows_are_a_count_not_a_timestamp(self):
+        # The reload after a run is one page closing as another opens, in
+        # either order. A count survives that; the old "last word" did not.
+        first, _ = self.hold("/api/presence")
+        second, _ = self.hold("/api/presence")
+        first.close()
+        time.sleep(3 * serve.PRESENCE_TICK)
+        self.assertTrue(self.state()["page"]["open"])
+        second.close()
+        self.assertTrue(self.settle(lambda: not self.state()["page"]["open"]))
 
-    def test_a_heartbeat_without_the_token_is_ignored(self):
+    def test_a_connection_without_the_token_is_refused(self):
         # Any page in the browser can reach this port. None of them gets to
         # claim to be the app, because "open" is what stops a window opening.
-        status, _ = self.post("/api/alive", {}, token=None)
-        self.assertEqual(status, 403)
+        _, response = self.hold("/api/presence", token=None)
+        self.assertEqual(response.status, 403)
         self.assertFalse(self.state()["page"]["open"])
 
-    def test_silence_counts_as_closed(self):
-        # A page that stopped beating without saying goodbye: a crash, a
-        # force-quit. Waiting on it forever would mean the icon never opens
-        # a window again.
-        serve._presence["seen"] = time.time() - serve.PRESENCE_TTL - 1
-        self.assertFalse(serve._page_open())
+    def test_the_waiting_page_counts_as_a_window_on_its_way(self):
+        # It has no token, and it is on screen: a tap during the wait must
+        # raise it, not open a second window beside it.
+        _, response = self.hold("/api/preparing", token=None)
+        self.assertEqual(response.status, 200)
+        self.assertEqual(self.state()["page"], {"open": False, "opening": True})
+        self.assertTrue(serve._page_open())
+
+    def test_a_page_arriving_clears_the_opening_marker(self):
+        # Left in place, a window closed and reopened inside the marker's
+        # twenty seconds was "raised" rather than opened, and nothing appeared.
+        serve._note_opening()
+        self.assertTrue(serve._window_opening())
+        self.hold("/api/presence")
+        self.assertTrue(self.settle(lambda: not serve._window_opening()))
+
+    def test_the_page_holds_and_never_beats(self):
+        page = serve.dashboard_build.render(payload(), live="<b></b>")
+        self.assertIn("/api/presence", page)
+        self.assertNotIn("/api/alive", page)
+        self.assertNotIn("/api/gone", page)
+        self.assertNotIn("setInterval(beat", page)
+        self.assertIn("/api/preparing", serve.LOADING_PAGE)
 
 
 class TestSecondTap(unittest.TestCase):
@@ -1016,6 +1095,26 @@ class TestSecondTap(unittest.TestCase):
         serve._state_at = lambda url: {"page": {"open": True}}
         serve._show("http://x/")
         self.assertEqual(self.calls, ["focus", "open"])
+
+    def test_a_raise_is_read_back_not_believed(self):
+        # activateWithOptions: says YES when the request was accepted. Since
+        # macOS 14 a request from a process that is not the active app can be
+        # accepted and then declined, and the tap then showed nothing at all.
+        with open(serve.__file__) as fh:
+            source = fh.read()
+        activate = source[source.index("def _activate"):source.index("def _focus_window")]
+        self.assertIn('b"isActive"', activate)
+        self.assertGreater(serve.ACTIVATE_WAIT, 0)
+
+    def test_a_window_that_was_closed_is_opened_not_raised(self):
+        # The marker says a window is on its way for twenty seconds. A page
+        # that connected in the meantime clears it, so closing that page and
+        # tapping again inside the twenty seconds opens a window.
+        serve._note_opening()
+        serve._clear_opening()             # what a page connecting does
+        serve._state_at = lambda url: {"page": {"open": False, "opening": False}}
+        serve._show("http://x/")
+        self.assertEqual(self.calls, ["open"])
 
 
 class TestReadiness(CacheIsolated):
@@ -1151,8 +1250,7 @@ class TestTheSheetIsASeparateStep(unittest.TestCase):
 
     def test_a_live_page_reports_its_presence(self):
         page = serve.dashboard_build.render(payload(), live="<b></b>")
-        self.assertIn("/api/alive", page)
-        self.assertIn("/api/gone", page)
+        self.assertIn("/api/presence", page)
 
     def test_a_finished_week_offers_the_tables_off_the_servers_record(self):
         page = serve.dashboard_build.render(payload(), live="<b></b>")

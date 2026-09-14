@@ -865,18 +865,26 @@ function paintState(){
 
 /* ---- wiring, once, for everything the control room renders later ---- */
 if(LIVE){
-  // The server cannot see this window, so the page says it is here: a beat
-  // every few seconds while open, a last word as it closes. A tap of the Dock
-  // icon then raises this window instead of opening a second one. A 403 means
-  // the token is from a server that has since been restarted, and the cure is
-  // to reload and be handed the new one.
-  const beat=()=>fetch('/api/alive',{method:'POST',headers:{'X-FEP-Token':window.FEP_LIVE.token}})
-    .then(r=>{ if(r.status===403) location.reload(); }).catch(()=>{});
-  beat(); setInterval(beat, 3000);
-  window.addEventListener('pagehide', ()=>{
-    fetch('/api/gone',{method:'POST',keepalive:true,
-      headers:{'X-FEP-Token':window.FEP_LIVE.token}}).catch(()=>{});
-  });
+  // The server cannot see this window, so the page holds a connection open
+  // to it for as long as it is on screen. A tap of the Dock icon then raises
+  // this window instead of opening a second one. Not a heartbeat on a timer:
+  // Chrome throttles a hidden page's timers to one wake a minute, and a
+  // minimised window is exactly the one whose icon gets tapped. Closing the
+  // window closes the connection, so there is nothing to say on the way out.
+  // A 403 means the token is from a server that has since been restarted,
+  // and the cure is to reload and be handed the new one. Anything else that
+  // ends it is the server going away; try again, in case it comes back.
+  const hold=()=>fetch('/api/presence',{cache:'no-store',
+      headers:{'X-FEP-Token':window.FEP_LIVE.token}})
+    .then(r=>{
+      if(r.status===403){ location.reload(); return; }
+      const reader=r.body.getReader();
+      const drain=()=>reader.read().then(({done})=>{ if(!done) return drain(); });
+      return drain();
+    })
+    .catch(()=>{})
+    .then(()=>setTimeout(hold, 2000));
+  hold();
 
   // A write that leaves this machine gets a second press rather than a browser
   // dialog: the button says what it is about to do and waits five seconds.
