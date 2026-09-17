@@ -62,6 +62,33 @@ GH_USER = "jleibowitz9"
 # in the tree belongs to whoever is working on it.
 BACKUP_PATHS = ["data", "newsletters", "chart-data"]
 
+# Where the tools this server shells out to actually live on a Mac. Launched
+# from the Dock, the app gets the system PATH alone (/usr/bin:/bin:/usr/sbin:
+# /sbin), and that is not where Homebrew puts gh or gpg. The first week run
+# from a Dock-launched app therefore recorded the week, staged it, and then
+# failed to commit it: git found itself but not the gpg it is configured to
+# sign with, so "cannot run gpg" appeared where "Committed 4 path(s)" should.
+# The same run from a Terminal-launched server worked, because that PATH had
+# Homebrew on it -- which is exactly the kind of difference that hides until
+# the one launch route nobody tested is the one that gets used.
+#
+# Appended, not prepended: a server started from a shell keeps the shell's own
+# ordering, and only gains the directories it was missing.
+TOOL_DIRS = ("/opt/homebrew/bin", "/usr/local/bin")
+
+
+def _widen_path(environ=None, dirs=TOOL_DIRS):
+    """Add the tool directories the launcher's PATH lacks. Returns the PATH."""
+    environ = os.environ if environ is None else environ
+    have = [p for p in environ.get("PATH", "").split(os.pathsep) if p]
+    extra = [d for d in dirs if os.path.isdir(d) and d not in have]
+    if extra:
+        environ["PATH"] = os.pathsep.join(have + extra)
+    return environ.get("PATH", "")
+
+
+_widen_path()
+
 
 def _load_build():
     """`build.py` sits next to this file and is too generic a name to import."""

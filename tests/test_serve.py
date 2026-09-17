@@ -1301,6 +1301,29 @@ class TestTheSheetIsASeparateStep(unittest.TestCase):
         self.assertNotIn("ctlFollow", painter)
 
 
+class TestThePathReachesHomebrew(unittest.TestCase):
+    """The Dock launches the app with the system PATH alone, and gpg and gh
+    are not on it. The server adds where they live, once, at import."""
+
+    def test_missing_tool_directories_are_appended(self):
+        with tempfile.TemporaryDirectory() as tools:
+            env = {"PATH": "/usr/bin:/bin"}
+            path = serve._widen_path(env, dirs=(tools, "/no/such/dir"))
+            # Appended after what was there, and only if it exists on disk.
+            self.assertEqual(path, "/usr/bin:/bin:" + tools)
+            self.assertEqual(env["PATH"], path)
+
+    def test_a_directory_already_present_is_not_added_twice(self):
+        with tempfile.TemporaryDirectory() as tools:
+            env = {"PATH": tools + ":/usr/bin"}
+            self.assertEqual(serve._widen_path(env, dirs=(tools,)), tools + ":/usr/bin")
+
+    def test_the_server_widened_its_own_path_on_import(self):
+        for directory in serve.TOOL_DIRS:
+            if os.path.isdir(directory):
+                self.assertIn(directory, os.environ["PATH"].split(os.pathsep))
+
+
 class TestLastRun(Served):
     """The server remembers what its last button press did."""
 

@@ -94,6 +94,15 @@ the page it rendered, and the writes that leave this machine arm on the first
 press and fire on the second. `tests/test_serve.py` holds that boundary. Do not
 relax any of it to make something convenient.
 
+**The Dock launches the app with the system PATH alone.** `/usr/bin:/bin:
+/usr/sbin:/sbin`, nothing from Homebrew, which is where `gh` and `gpg` live on
+this machine, and the global git config signs every commit with gpg. The first
+week run from a Dock-launched app recorded the week and then failed at "Saving
+to git" with `cannot run gpg`; from a Terminal-launched server the same run
+worked. `serve.py` now appends `TOOL_DIRS` to its own PATH at import
+(`_widen_path`). If a tool the server shells out to is "not found" only from
+the Dock, that list is the place to look, not the launcher script.
+
 **The icon raises the window it has; it does not open another.** Chrome given
 `--app` twice opens two windows, which is what a second tap of the Dock icon
 used to do. So the page holds a connection to `/api/presence` open for as
