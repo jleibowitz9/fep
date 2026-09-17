@@ -507,6 +507,12 @@ SNAPSHOT_RECORD_FIELDS = (
 SNAPSHOT_FILLABLE_FIELDS = ("counterfactual", "leverage")
 
 
+def _when(stamp) -> str:
+    """`2026-09-14T08:32:58` as `2026-09-14 08:32`, for a sentence."""
+    text = str(stamp or "")
+    return text[:16].replace("T", " ") if len(text) >= 16 else (text or "date unknown")
+
+
 def snapshot_fills(stored: dict, incoming: dict) -> Optional[List[str]]:
     """The fillable fields `incoming` adds to `stored`, if that is all it does.
 
@@ -679,13 +685,22 @@ def snapshot(season: dict, week: int, board: engine.Board, note: str = "",
             season["snapshots"].sort(key=lambda s: s["week"])
             return entry, status
         if not correction:
+            # Refused, and framed as the choice it is. The usual way here is
+            # a week run before the lines had settled (a Monday morning, with
+            # a game still to play that night), run again once they had. The
+            # record is kept, nothing is saved, and the two ways forward are
+            # both named: leave it, or re-record it with today's numbers and
+            # say why. When it was recorded is part of the message because
+            # that is what the choice turns on.
             raise engine.SeasonError(
-                "week {} is already recorded and this run does not match it:\n"
+                "week {} is already recorded ({}) and this run does not match it:\n"
                 "  {}\n"
-                "  A snapshot is what the family saw that week. If this is a\n"
-                "  genuine correction, say so and it will be recorded:\n"
+                "  A snapshot is what the family saw that week, so it has been\n"
+                "  left as it was and nothing was saved. To keep it, do nothing.\n"
+                "  To re-record the week with today's numbers, say why and it\n"
+                "  goes on the record:\n"
                 "    python3 cli.py week {} --correction \"why\"".format(
-                    week, "\n  ".join(drift), week))
+                    week, _when(stored.get("taken_at")), "\n  ".join(drift), week))
         entry["corrections"] = list(stored.get("corrections") or []) + [{
             "at": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "reason": correction,

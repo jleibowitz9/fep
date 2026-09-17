@@ -215,6 +215,15 @@ def _week_status(result):
     return "created"
 
 
+WEEK_NUMBER = re.compile(r"\bWeek (\d+)\b")
+
+
+def _week_number(result):
+    """Which week cli.py week said it ran, or None if it never got that far."""
+    found = WEEK_NUMBER.search(result["log"] or "")
+    return int(found.group(1)) if found else None
+
+
 def _note_run(name, result):
     """Record one action's outcome, and what it means for the Sheet."""
     global _last_run
@@ -222,14 +231,18 @@ def _note_run(name, result):
         status = _week_status(result)
         _last_run = {
             "action": name, "ok": bool(result["ok"]), "status": status,
+            "week": _week_number(result),
             "at": time.strftime("%Y-%m-%dT%H:%M:%S"),
             # A week that recorded something has not reached the Sheet: the
             # run stops at git on purpose. A replay that changed nothing has
-            # nothing new to send.
+            # nothing new to send -- but the page still offers the tables
+            # after it, because "nothing new" is not "already written", and
+            # the server cannot tell those apart until a write goes through.
             "sheet_pending": status in ("created", "corrected", "filled"),
+            "sheet_written": False,
         }
     elif name == "cms-live" and result["ok"]:
-        _last_run = dict(_last_run, sheet_pending=False)
+        _last_run = dict(_last_run, sheet_pending=False, sheet_written=True)
 
 
 def _forget_runs():
@@ -564,8 +577,9 @@ def _week(payload):
     have to remember to finish.
     """
     argv = [str(payload["week"])] if payload.get("week") not in (None, "") else []
-    # A refused week offers "Record as a correction" on the page; the reason
-    # typed there is the one that goes on the record, so it is passed through
+    # A refused week offers "Re-record the week" on the page, with a reason
+    # the page fills in from what happened and leaves editable; whatever is
+    # in that field is what goes on the record, so it is passed through
     # verbatim rather than invented here.
     if str(payload.get("correction") or "").strip():
         argv += ["--correction", str(payload["correction"]).strip()]

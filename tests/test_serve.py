@@ -1269,6 +1269,28 @@ class TestTheSheetIsASeparateStep(unittest.TestCase):
         body = page[page.index("function paintState"):]
         self.assertLess(body.index("paintAfterRun();"), body.index("paintHealth();"))
 
+    def test_the_offer_is_painted_off_the_written_flag_not_the_pending_one(self):
+        # A replay that recorded nothing used to paint nothing. The offer now
+        # stays until a write goes through, and says which of the two happened.
+        page = serve.dashboard_build.render(payload(), live="<b></b>")
+        painter = page[page.index("function paintAfterRun"):]
+        painter = painter[:painter.index("\n}")]
+        self.assertIn("sheet_written", painter)
+        self.assertIn("this run matched it", painter)
+        self.assertIn("Nothing has reached the Sheet", painter)
+
+    def test_a_refused_week_is_offered_as_a_choice(self):
+        page = serve.dashboard_build.render(payload(), live="<b></b>")
+        follow = page[page.index("function followUp"):]
+        follow = follow[:follow.index("\n}")]
+        self.assertIn('data-follow="keep-record"', follow)
+        self.assertIn('data-follow="week-correction"', follow)
+        # The reason is filled in from what happened, and stays editable.
+        self.assertIn('id="ctlReason"', follow)
+        self.assertIn("ESPN's lines moved after the week was recorded", follow)
+        # The refusal's own timestamp is read, with or without one.
+        self.assertIn("is already recorded(?: \\(([^)]*)\\))? and this run does not match", follow)
+
     def test_the_offer_has_its_own_element(self):
         # followUp() owns #ctlFollow and empties it after every action, so an
         # offer placed there vanished the moment Preview was pressed.
@@ -1309,10 +1331,30 @@ class TestLastRun(Served):
         _, body = self.get("/api/state")
         self.assertTrue(json.loads(body)["last_run"]["sheet_pending"])
 
-    def test_a_replay_that_changed_nothing_offers_nothing(self):
+    def test_a_replay_that_changed_nothing_has_nothing_pending(self):
+        # Nothing new to send. The page still offers the tables after it (see
+        # test_a_replay_still_offers_the_tables_until_they_are_written): the
+        # server cannot tell "nothing new" from "never written".
         self._stub("week", log="2026 FEP | Week 1  (already recorded, unchanged)")
         last = self._run("week")
         self.assertEqual(last["status"], "unchanged")
+        self.assertFalse(last["sheet_pending"])
+        self.assertFalse(last["sheet_written"])
+
+    def test_the_week_number_is_read_off_the_run(self):
+        self._stub("week", log="  espn: game 0 result A -> W\n\n2026 FEP | Week 1\n  stat pack ...")
+        self.assertEqual(self._run("week")["week"], 1)
+        self._stub("week", log="2026 FEP | Week 10  (bye week)")
+        self.assertEqual(self._run("week")["week"], 10)
+        self._stub("week", ok=False, log="")
+        self.assertIsNone(self._run("week")["week"])
+
+    def test_a_replay_still_offers_the_tables_until_they_are_written(self):
+        self._stub("week", log="2026 FEP | Week 1  (already recorded, unchanged)")
+        self.assertFalse(self._run("week")["sheet_written"])
+        self._stub("cms-live", ok=True)
+        last = self._run("cms-live")
+        self.assertTrue(last["sheet_written"])
         self.assertFalse(last["sheet_pending"])
 
     def test_a_correction_and_a_fill_are_named(self):

@@ -129,12 +129,27 @@ depends on frozen rows staying frozen. Correct it, re-run that week explicitly,
 and check what the CMS diff actually contains before `--live`.
 
 Three refusals ask you to do the same thing again with a flag, and in the app
-each one offers the button instead of the command: a re-run that does not match
-its snapshot offers **Record as a correction** with a field for the reason (it
-goes into the record, so the page asks rather than fills it in); a frozen CMS
-table refusing a changed row offers **Write as a correction**; a late pick sheet
-offers **Load anyway**. The terminal equivalents are `week N --correction "why"`,
-`cms --live --allow-correction` and `picks file.csv --force`.
+each one offers the button instead of the command. A frozen CMS table refusing
+a changed row offers **Write as a correction**; a late pick sheet offers **Load
+anyway**. The terminal equivalents are `cms --live --allow-correction` and
+`picks file.csv --force`.
+
+The third is the one that comes up every season, and it is a choice rather
+than a retry. **Running a week a second time never touches the Sheet**, and
+never touches the record on its own either. If the numbers still match, the run
+says `already recorded, unchanged` and the page still offers **Write the
+tables**, because the run cannot know whether the first run's tables were ever
+written. If the numbers have moved (the usual case: the week was run on Monday
+morning, a game was still to be played that night, and ESPN's lines moved once
+it had), the run stops, says when the week was recorded and what moved, and the
+page offers two buttons: **Keep week N as recorded**, which changes nothing, or
+**Re-record week N with today's numbers**, with the reason pre-filled from what
+happened and editable. Re-recording is logged on the entry as a correction and
+leaves the Sheet untouched until you press **Write the tables**; if the Sheet
+already has that week, the frozen `weeks` table will then refuse and offer
+**Write as a correction**. The terminal equivalent is `week N --correction
+"why"`. To update the board on the page with today's lines without touching the
+record at all, press **Refresh from ESPN**.
 
 ## The bye week
 

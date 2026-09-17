@@ -638,18 +638,37 @@ const RELOADS = {week:1, refresh:1, picks:1, override:1};
 let LAST_CSV = null;
 
 // Three refusals in cli.py end with "do this again, with this flag". The
-// terminal shows the command; the page offers the button. The reason for a
-// correction is typed here because it is what goes into the audit trail, so
-// the page must ask for it rather than supply it.
+// terminal shows the command; the page offers the button.
+//
+// A week run again after its record was taken is the one that is a choice
+// rather than a retry. The usual shape: the week was run on Monday morning,
+// a game was still to be played that night, and ESPN's lines for the rest of
+// the season moved once it had. Re-running the week then does not match the
+// record, and cli.py refuses to touch it. The page says so in those terms and
+// offers both ways forward: keep the week as recorded, or re-record it with
+// today's numbers. Neither reaches the Sheet; that stays a separate button.
+//
+// The reason for a re-record goes into the audit trail. It is filled in from
+// what actually happened (when the week was recorded, and that the lines
+// moved since) so that one click is an honest entry, and left editable so
+// that a different reason can be given when there is one.
 function followUp(action, out){
   const el=document.getElementById('ctlFollow'); if(!el) return;
   const text=(out.error||'')+'\n'+(out.log||'');
   let html='';
-  const refused=/week (\d+) is already recorded and this run does not match/.exec(text);
+  const refused=/week (\d+) is already recorded(?: \(([^)]*)\))? and this run does not match/.exec(text);
   if(action==='week' && refused){
-    html=`<span class="tiny muted">Week ${refused[1]} is frozen. If this is a genuine correction, say why and record it:</span>
-      <input id="ctlReason" class="reason" placeholder="ESPN corrected the score" maxlength="140">
-      <button class="btn danger" data-follow="week-correction" data-week="${refused[1]}">Record as a correction</button>`;
+    const week=refused[1], when=refused[2]||'';
+    const today=new Date().toISOString().slice(0,10);
+    const reason=`Re-run on ${today}: ESPN's lines moved after the week was recorded${when?' on '+when:''}`;
+    html=`<span class="tiny muted">Week ${week} was recorded${when?' on '+when:''} and today's numbers differ
+        (what moved is listed above). The record has not been touched and nothing was saved.
+        Keep it, or re-record the week with today's numbers. Either way nothing reaches the Sheet
+        until you write the tables.</span>
+      <input id="ctlReason" class="reason" value="${reason.replace(/"/g,'&quot;')}" maxlength="140"
+        title="Goes on the record with the change. Edit it if the reason is something else.">
+      <button class="btn ghost" data-follow="keep-record" data-week="${week}">Keep week ${week} as recorded</button>
+      <button class="btn danger" data-follow="week-correction" data-week="${week}">Re-record week ${week} with today's numbers</button>`;
   } else if(action==='cms-live' && /frozen table|allowCorrection/i.test(text)){
     html=`<span class="tiny muted">A frozen table refused a changed row. Every change is listed above.</span>
       <button class="btn danger" data-run="cms-live" data-extra='{"allow_correction":true}'
@@ -759,19 +778,33 @@ function controlPanel(){
 // A week that has just been run stops at git on purpose, so the board can be
 // looked at before anything leaves this machine. The question "did that reach
 // the Sheet?" is answered by the server's own record of its last run, not by a
-// note in the URL: true on every load, gone once the tables are written, and
-// silent for a replay that recorded nothing. Painted before the deployment
-// gate runs, so the button it offers is shut like every other one when the
+// note in the URL: true on every load, and gone once the tables are written.
+//
+// A replay that recorded nothing is not silent any more. It used to be, on
+// the grounds that there was nothing new to send; but a second run of a week
+// is also how you find out that the first run's tables were never written,
+// and the page then offered nothing at all. So the offer stays, worded for
+// what happened: the week is unchanged, nothing was sent, and the tables can
+// still be written if they never were. Painted before the deployment gate
+// runs, so the button it offers is shut like every other one when the
 // deployment has not been checked.
 function paintAfterRun(){
   const el=document.getElementById('ctlAfter'); if(!el) return;
   const last=(STATE||{}).last_run||{};
-  const pending = last.action==='week' && last.ok && last.sheet_pending;
-  if(!pending){ el.innerHTML=''; el.hidden=true; return; }
-  const what = {corrected:'recorded as a correction', filled:'filled in'}[last.status]
-    || 'recorded';
-  el.innerHTML=`<span class="tiny muted">The week is ${what} and saved to git. Nothing has
-      reached the Sheet: when the board looks right, write the tables.</span>
+  const show = last.action==='week' && last.ok && !last.sheet_written;
+  if(!show){ el.innerHTML=''; el.hidden=true; return; }
+  const wk = last.week!=null ? 'Week '+last.week : 'The week';
+  let note;
+  if(last.sheet_pending){
+    const what = {corrected:'recorded as a correction', filled:'filled in'}[last.status]
+      || 'recorded';
+    note = `${wk} is ${what} and saved to git. Nothing has reached the Sheet:
+      when the board looks right, write the tables.`;
+  } else {
+    note = `${wk} was already recorded and this run matched it, so nothing changed
+      and nothing was sent to the Sheet. If its tables were never written, they can be now.`;
+  }
+  el.innerHTML=`<span class="tiny muted">${note}</span>
     <button class="btn ghost" data-run="cms-preview">Preview the tables</button>
     <button class="btn danger" data-run="cms-live" data-needs="cms"
       data-confirm="Write the tables now">Write the tables</button>`;
@@ -915,7 +948,16 @@ if(LIVE){
       const reason=(document.getElementById('ctlReason')||{}).value||'';
       if(!reason.trim()) return toast("Say why. It goes into the record.");
       run('week',{week:b.dataset.week, correction:reason.trim()},
-          'Recording week '+b.dataset.week+' as a correction');
+          'Re-recording week '+b.dataset.week);
+    }
+    if(b.dataset.follow==='keep-record'){
+      // The choice that changes nothing, made explicit so the refusal above
+      // does not sit there reading like an error that still needs fixing.
+      followUp('week', {});
+      logOut('Week '+b.dataset.week+' kept as recorded. Nothing changed and nothing '+
+        'was sent to the Sheet.\n\nRefresh from ESPN updates the board on this page '+
+        'with today\'s lines without touching the record.');
+      toast('Week '+b.dataset.week+' kept as recorded');
     }
     if(b.dataset.follow==='override'){
       const tr=b.closest('tr'), i=tr.dataset.i;

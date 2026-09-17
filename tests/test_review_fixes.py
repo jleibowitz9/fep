@@ -832,6 +832,22 @@ class TestSnapshotsFreeze(unittest.TestCase):
         self.assertIn("weighted.", message)      # names what moved
         self.assertIn("--correction", message)   # and how to mean it
 
+    def test_a_refusal_says_when_the_week_was_recorded_and_names_both_ways_out(self):
+        # The week run on a Monday morning and run again after that night's
+        # game is a choice, not a fault: keep the record, or re-record it.
+        # The time it was recorded is what the choice turns on, so the
+        # refusal carries it in the same sentence the page reads.
+        season_mod.get_snapshot(self.season, 0)["taken_at"] = "2026-09-14T08:32:58"
+        self.season["games"][14]["weight"] = 0.99
+        board = season_mod.run(self.season, through_week=0)
+        with self.assertRaises(engine.SeasonError) as caught:
+            season_mod.snapshot(self.season, 0, board)
+        message = str(caught.exception)
+        self.assertIn("week 0 is already recorded (2026-09-14 08:32) and this run "
+                      "does not match it", message)
+        self.assertIn("To keep it, do nothing", message)
+        self.assertIn("re-record the week with today's numbers", message)
+
     def test_a_refused_replay_leaves_the_stored_week_alone(self):
         before = copy.deepcopy(season_mod.get_snapshot(self.season, 0))
         self.season["games"][14]["weight"] = 0.99
@@ -1519,7 +1535,8 @@ class TestControlRoomFollowUps(unittest.TestCase):
         self.assertIn("override", self.serve.REWARM)
 
     def test_the_page_carries_the_controls(self):
-        for needle in ('data-follow="week-correction"', 'data-follow="override"',
+        for needle in ('data-follow="week-correction"', 'data-follow="keep-record"',
+                       'data-follow="override"',
                        'data-follow="override-clear"', "JSON.parse(b.dataset.extra)",
                        'id="ctlFollow"', "pointsSource", "override:1"):
             self.assertIn(needle, self.template, needle)
@@ -1542,7 +1559,11 @@ class TestCounterfactualIsRecorded(unittest.TestCase):
     def test_the_four_cases_with_no_counterfactual_return_none(self):
         self.assertIsNone(analytics.counterfactual_for_week(self.season, 0))
         self.assertIsNone(analytics.counterfactual_for_week(self.season, self.season["bye_week"]))
-        self.assertIsNone(analytics.counterfactual_for_week(self.season, 1))   # unplayed
+        # The first week still to be played, found rather than assumed: this
+        # said week 1 until week 1 was played, and then failed for a season.
+        unplayed = next(g["nfl_week"] for g in self.season["games"]
+                        if g["result"] == engine.UNPLAYED)
+        self.assertIsNone(analytics.counterfactual_for_week(self.season, unplayed))
         self.assertIsNone(analytics.counterfactual_for_week(self._played(1, engine.TIE), 1))
 
     def test_a_played_week_records_the_flipped_board(self):
