@@ -265,6 +265,11 @@ class TestWindow(unittest.TestCase):
         serve.OPENING_FILE = os.path.join(tempfile.mkdtemp(), "opening.txt")
         self.env = os.environ.get("FEP_BROWSER")
         os.environ.pop("FEP_BROWSER", None)
+        # These are about the browser window. A web app on the machine running
+        # the tests would answer first, so the tests look in an empty folder.
+        self.real_webapp_dir = serve.WEBAPP_DIR
+        serve.WEBAPP_DIR = tempfile.mkdtemp()
+        self.named = os.environ.pop("FEP_WEBAPP", None)
 
     def tearDown(self):
         serve.CHROME = self.real_chrome
@@ -272,6 +277,10 @@ class TestWindow(unittest.TestCase):
         serve.webbrowser.open = self.real_webbrowser
         shutil.rmtree(os.path.dirname(serve.OPENING_FILE), ignore_errors=True)
         serve.OPENING_FILE = self.real_opening
+        shutil.rmtree(serve.WEBAPP_DIR, ignore_errors=True)
+        serve.WEBAPP_DIR = self.real_webapp_dir
+        if self.named is not None:
+            os.environ["FEP_WEBAPP"] = self.named
         if self.env is None:
             os.environ.pop("FEP_BROWSER", None)
         else:
@@ -302,6 +311,119 @@ class TestWindow(unittest.TestCase):
         serve.subprocess.Popen = boom
         self.assertEqual(serve._open_window("http://x/"), "default-browser")
         self.assertEqual(self.opened, [("browser", "http://x/")])
+
+
+class TestWebApp(unittest.TestCase):
+    """Once the page is added to the Dock from Safari, that app owns the window.
+
+    A Chrome --app window is Chrome's: its icon gets the dot, a tap on it
+    opens a blank browser window, and raising it from a background process
+    can be declined, which opens a second one. The web app answers all three,
+    and is preferred whenever it is installed.
+    """
+
+    def setUp(self):
+        import plistlib
+        self.plistlib = plistlib
+        self.real = (serve.WEBAPP_DIR, serve.CHROME, serve.subprocess.run,
+                     serve.subprocess.Popen, serve.webbrowser.open,
+                     serve.OPENING_FILE, serve._state_at, serve._focus_window)
+        serve.WEBAPP_DIR = tempfile.mkdtemp()
+        serve.OPENING_FILE = os.path.join(tempfile.mkdtemp(), "opening.txt")
+        serve.CHROME = __file__
+        self.opened = []
+        serve.subprocess.run = lambda cmd, **kw: self.opened.append(("open", cmd))
+        serve.subprocess.Popen = lambda cmd, **kw: self.opened.append(("chrome", cmd))
+        serve.webbrowser.open = lambda url: self.opened.append(("browser", url))
+        serve._focus_window = lambda: (self.opened.append(("focus", None)), True)[1]
+        serve._state_at = lambda url: {"page": {"open": True}}
+        self.env = {k: os.environ.pop(k, None) for k in ("FEP_BROWSER", "FEP_WEBAPP")}
+
+    def tearDown(self):
+        shutil.rmtree(serve.WEBAPP_DIR, ignore_errors=True)
+        shutil.rmtree(os.path.dirname(serve.OPENING_FILE), ignore_errors=True)
+        (serve.WEBAPP_DIR, serve.CHROME, serve.subprocess.run,
+         serve.subprocess.Popen, serve.webbrowser.open,
+         serve.OPENING_FILE, serve._state_at, serve._focus_window) = self.real
+        for k, v in self.env.items():
+            if v is not None:
+                os.environ[k] = v
+
+    def install(self, name, bundle_id):
+        app = os.path.join(serve.WEBAPP_DIR, name)
+        os.makedirs(os.path.join(app, "Contents"))
+        with open(os.path.join(app, "Contents", "Info.plist"), "wb") as fh:
+            self.plistlib.dump({"CFBundleIdentifier": bundle_id,
+                                "CFBundleName": name[:-4]}, fh)
+        return app
+
+    def test_nothing_installed_means_chrome_as_before(self):
+        self.assertIsNone(serve._webapp())
+        self.assertEqual(serve._open_window("http://127.0.0.1:8765/"), "chrome-app")
+
+    def test_it_is_found_by_what_it_is_and_what_it_is_called(self):
+        self.install("Recipes.app", serve.WEBAPP_ID_PREFIX + "AAAA")
+        self.install("FEP.app", "com.google.Chrome.app.bbbb")  # a Chrome PWA
+        self.assertIsNone(serve._webapp())
+        app = self.install("FEP Control.app", serve.WEBAPP_ID_PREFIX + "CCCC")
+        self.assertEqual(serve._webapp(), app)
+
+    def test_a_bundle_that_is_not_an_app_is_skipped(self):
+        os.makedirs(os.path.join(serve.WEBAPP_DIR, "FEP Notes.app", "Contents"))
+        self.assertIsNone(serve._webapp())
+
+    def test_fep_webapp_names_one_outright(self):
+        os.environ["FEP_WEBAPP"] = serve.WEBAPP_DIR
+        self.assertEqual(serve._webapp(), serve.WEBAPP_DIR)
+        os.environ["FEP_WEBAPP"] = "/nowhere/FEP.app"
+        self.assertIsNone(serve._webapp())
+
+    def test_the_window_is_the_web_app_when_it_is_installed(self):
+        app = self.install("FEP Control.app", serve.WEBAPP_ID_PREFIX + "CCCC")
+        self.assertEqual(serve._open_window("http://127.0.0.1:8765/"), "webapp")
+        self.assertEqual(self.opened, [("open", ["/usr/bin/open", "-a", app])])
+        self.assertTrue(serve._window_opening())
+
+    def test_a_second_tap_goes_through_the_web_app_too(self):
+        # Not NSRunningApplication, which can be declined, and never a second
+        # window: open -a raises the one there is.
+        app = self.install("FEP Control.app", serve.WEBAPP_ID_PREFIX + "CCCC")
+        self.assertEqual(serve._show("http://127.0.0.1:8765/"), "raised")
+        self.assertEqual(self.opened, [("open", ["/usr/bin/open", "-a", app])])
+
+    def test_a_server_on_another_port_keeps_the_browser_window(self):
+        # The app's start page was baked in on the usual port.
+        self.install("FEP Control.app", serve.WEBAPP_ID_PREFIX + "CCCC")
+        self.assertEqual(serve._open_window("http://127.0.0.1:8766/"), "chrome-app")
+        self.assertEqual(self.opened[0][0], "chrome")
+
+    def test_the_preference_can_be_turned_off(self):
+        self.install("FEP Control.app", serve.WEBAPP_ID_PREFIX + "CCCC")
+        os.environ["FEP_BROWSER"] = "default"
+        self.assertEqual(serve._open_window("http://127.0.0.1:8765/"), "default-browser")
+
+    def test_an_open_that_fails_falls_back_to_chrome(self):
+        self.install("FEP Control.app", serve.WEBAPP_ID_PREFIX + "CCCC")
+        def boom(cmd, **kw):
+            raise OSError("no")
+        serve.subprocess.run = boom
+        self.assertEqual(serve._open_window("http://127.0.0.1:8765/"), "chrome-app")
+
+    def test_the_page_offers_itself_in_its_head(self):
+        # Safari takes the name and the standalone window from the manifest
+        # and the Dock icon from the touch icon, and reads both from <head>.
+        page = serve._with_links("<html><head><title>x</title></head><body>b</body></html>")
+        head = page.split("</head>")[0]
+        self.assertIn('rel="manifest" href="/manifest.webmanifest"', head)
+        self.assertIn('rel="apple-touch-icon"', head)
+        self.assertIn("</head>", serve._with_links(serve.LOADING_PAGE))
+
+    def test_the_manifest_points_at_icons_that_exist(self):
+        for icon in serve.MANIFEST["icons"]:
+            path = os.path.join(ROOT, "dashboard", icon["src"].lstrip("/"))
+            self.assertTrue(os.path.isfile(path), icon["src"])
+        self.assertEqual(serve.MANIFEST["display"], "standalone")
+        self.assertEqual(serve.MANIFEST["name"], serve.WEBAPP_NAME)
 
 
 class TestRunningServer(CacheIsolated):
@@ -544,6 +666,16 @@ class TestPaths(Served):
     def test_an_unknown_route_is_not_served(self):
         status, _ = self.get("/data/season_2026.json")
         self.assertEqual(status, 404)
+
+    def test_the_manifest_is_served_as_one(self):
+        with urllib.request.urlopen(self.url("/manifest.webmanifest")) as response:
+            self.assertEqual(response.headers.get("Content-Type"),
+                             "application/manifest+json")
+            body = json.loads(response.read())
+        self.assertEqual(body["start_url"], "/")
+        for icon in body["icons"]:
+            status, _ = self.get(icon["src"])
+            self.assertEqual(status, 200, icon["src"])
 
 
 class TestRendering(unittest.TestCase):
@@ -1032,12 +1164,19 @@ class TestSecondTap(unittest.TestCase):
         serve._focus_window = lambda: (self.calls.append("focus"), True)[1]
         serve._open_window = lambda url: (self.calls.append("open"), "chrome-app")[1]
         serve._chrome_wanted = lambda: True
+        self.real_webapp_dir = serve.WEBAPP_DIR
+        serve.WEBAPP_DIR = tempfile.mkdtemp()
+        self.named = os.environ.pop("FEP_WEBAPP", None)
 
     def tearDown(self):
         (serve._state_at, serve._chrome_wanted,
          serve._focus_window, serve._open_window) = self.real
         shutil.rmtree(os.path.dirname(serve.OPENING_FILE), ignore_errors=True)
         serve.OPENING_FILE = self.real_opening
+        shutil.rmtree(serve.WEBAPP_DIR, ignore_errors=True)
+        serve.WEBAPP_DIR = self.real_webapp_dir
+        if self.named is not None:
+            os.environ["FEP_WEBAPP"] = self.named
 
     def test_an_open_page_is_raised_not_duplicated(self):
         serve._state_at = lambda url: {"page": {"open": True}}

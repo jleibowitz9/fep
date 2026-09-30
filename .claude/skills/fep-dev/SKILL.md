@@ -113,6 +113,19 @@ did not help; the launcher lingering did. `fep-app` now waits `MIN_TICKS`
 quarter seconds from starting the server before it exits, on every successful
 path. If the icon ever "does nothing" again, check that first.
 
+**The window should be the web app's, not Chrome's.** A Chrome `--app`
+window belongs to Chrome: Chrome's icon carries the Dock's dot, a tap on it
+answers with a blank browser window, and raising the window from the server
+(below) can be declined, which opens a second one. So `serve.py` serves a
+manifest and a touch icon, in `<head>` via `_with_links`, and once Jacob has
+done Safari's "Add to Dock" (README: "The app in the Dock") there is a real
+app in `~/Applications`. `_webapp()` finds it by bundle id prefix
+`com.apple.Safari.WebApp.` and FEP in the name; `_open_window` and `_show`
+then use `open -a`, which raises the window there is and makes one only when
+there is none. Its start page is baked to the usual port, so a server that
+moved ports keeps the Chrome window and says so. Everything below is the
+fallback for a machine without the web app.
+
 **The icon raises the window it has; it does not open another.** Chrome given
 `--app` twice opens two windows, which is what a second tap of the Dock icon
 used to do. So the page holds a connection to `/api/presence` open for as

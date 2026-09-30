@@ -28,6 +28,7 @@ import importlib.util
 import io
 import json
 import os
+import plistlib
 import re
 import secrets
 import signal
@@ -38,6 +39,7 @@ import threading
 import time
 import traceback
 import urllib.error
+import urllib.parse
 import urllib.request
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -947,6 +949,8 @@ class Handler(BaseHTTPRequestHandler):
             # The waiting page, which has no token. It counts as a window on
             # its way, which is all a tap needs to know.
             return _hold_presence(self, "opening")
+        if path == "/manifest.webmanifest":
+            return self._send(200, json.dumps(MANIFEST), "application/manifest+json")
         if path.startswith("/assets/"):
             return self._asset(path)
         self._send(404, "Not found.", "text/plain; charset=utf-8")
@@ -1023,7 +1027,7 @@ class Handler(BaseHTTPRequestHandler):
             # something is happening, and let the page fetch itself when the
             # board is ready.
             _warm_in_background()
-            return self._send(200, LOADING_PAGE, "text/html; charset=utf-8")
+            return self._send(200, _with_links(LOADING_PAGE), "text/html; charset=utf-8")
         # A warm that failed is reported by rendering the page the slow way,
         # which raises the same error where it can be shown. Cleared first, so
         # the load after a fix gets the loading page again rather than a wait.
@@ -1041,7 +1045,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(500, "The page could not be built.\n\n"
                               + traceback.format_exc(),
                               "text/plain; charset=utf-8")
-        self._send(200, page, "text/html; charset=utf-8")
+        self._send(200, _with_links(page), "text/html; charset=utf-8")
 
     def _asset(self, path):
         """Static files, from the assets folder and nowhere else."""
@@ -1084,6 +1088,106 @@ def _running_url(port):
     return None
 
 
+# --------------------------------------------------------------------------
+# the window as an app of its own
+
+# A Chrome --app window belongs to Chrome. Chrome's icon is the one with the
+# Dock's dot under it, a tap on that icon answers with a blank browser window,
+# and a tap on the FEP icon has to ask macOS to raise another app's window,
+# which since macOS 14 it may accept and then quietly decline (see _activate),
+# at which point a second window opens. Every one of those is the same fact:
+# the window has the wrong owner.
+#
+# So the page offers itself as a web app. Safari's "Add to Dock" makes a real
+# application in ~/Applications with this icon and this name, whose window is
+# its own. Raising it is then `open -a`, which goes through Launch Services
+# and is not declined, and which opens one window when there is none and
+# none when there is one. Installing it is the one step a person does, once,
+# in Safari (see README.md); until then Chrome is used as before.
+WEBAPP_DIR = os.path.expanduser("~/Applications")
+WEBAPP_ID_PREFIX = "com.apple.Safari.WebApp."
+WEBAPP_NAME = "FEP Control"
+MANIFEST = {
+    "name": WEBAPP_NAME,
+    "short_name": "FEP",
+    "id": "/",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#0B2A2E",
+    "theme_color": "#0B2A2E",
+    "icons": [
+        {"src": "/assets/fep-icon-180.png", "sizes": "180x180", "type": "image/png"},
+        {"src": "/assets/fep-icon-512.png", "sizes": "512x512", "type": "image/png"},
+    ],
+}
+# Safari reads the manifest for the name and the standalone window, and the
+# touch icon for the Dock icon. Both have to be in <head>; __LIVE__ is not.
+HEAD_LINKS = ('<link rel="manifest" href="/manifest.webmanifest">'
+              '<link rel="apple-touch-icon" href="/assets/fep-icon-180.png">')
+
+
+def _with_links(page):
+    return page.replace("</head>", HEAD_LINKS + "</head>", 1)
+
+
+def _webapp(folder=None):
+    """The installed web app, as a path, or None.
+
+    Found by what it is (a Safari web app, by bundle identifier) and what it
+    is called (FEP somewhere in the name), because the URL it was made from is
+    not recorded anywhere this can read. FEP_WEBAPP names one outright.
+    """
+    named = os.environ.get("FEP_WEBAPP")
+    if named:
+        return named if os.path.isdir(named) else None
+    folder = folder or WEBAPP_DIR
+    try:
+        names = sorted(os.listdir(folder))
+    except OSError:
+        return None
+    for name in names:
+        if not name.endswith(".app") or "fep" not in name.lower():
+            continue
+        plist = os.path.join(folder, name, "Contents", "Info.plist")
+        try:
+            with open(plist, "rb") as fh:
+                info = plistlib.load(fh)
+        except (OSError, ValueError):
+            continue
+        if str(info.get("CFBundleIdentifier", "")).startswith(WEBAPP_ID_PREFIX):
+            return os.path.join(folder, name)
+    return None
+
+
+def _webapp_for(url):
+    """The web app, if it is the right thing to open for this url.
+
+    Its start page was baked in when it was added, on the usual port. A
+    server that had to move to the next port up is not what it would show,
+    so that case keeps the browser window, and says so in the log.
+    """
+    if os.environ.get("FEP_BROWSER") == "default":
+        return None
+    app = _webapp()
+    if app and urllib.parse.urlsplit(url).port != DEFAULT_PORT:
+        print("Not using the web app: it opens port {}, and this server is at {}"
+              .format(DEFAULT_PORT, url), flush=True)
+        return None
+    return app
+
+
+def _open_webapp(app):
+    """Raise the web app, or launch it: one window either way. True if it went."""
+    try:
+        _note_opening()
+        subprocess.run(["/usr/bin/open", "-a", app], check=True, timeout=20,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 # Chrome's --app mode is the only reliably chrome-less window on this machine.
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
@@ -1106,8 +1210,12 @@ def _open_window(url):
     arguments on the way past.
 
     FEP_BROWSER=default turns the whole preference off, and a machine without
-    Chrome never sees it in the first place.
+    Chrome never sees it in the first place. An installed web app comes ahead
+    of both: that window is the app's own, which Chrome's never is.
     """
+    app = _webapp_for(url)
+    if app and _open_webapp(app):
+        return "webapp"
     if _chrome_wanted():
         try:
             _note_opening()
@@ -1216,6 +1324,12 @@ def _show(url):
     server that does not know the question, gets the old behaviour, which is a
     fresh window.
     """
+    app = _webapp_for(url)
+    if app and _open_webapp(app):
+        # No question to ask: open -a raises the window there is, and makes
+        # one only when there is none. That is the whole point of the app.
+        print("Already open at {}. Raised the window.".format(url), flush=True)
+        return "raised"
     state = _state_at(url) or {}
     is_open = (state.get("page") or {}).get("open") or _window_opening()
     if is_open and _chrome_wanted() and _focus_window():

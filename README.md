@@ -85,6 +85,22 @@ and `reconcile_totals()` recomputes all 104 competitor-seasons from their own
 pick grids. 102 match exactly; the two that do not are single-cell source-sheet
 quirks where the stated total is authoritative.
 
+## The app in the Dock
+
+`scripts/FEP.app` is the icon: it starts the server if none is running and
+opens the page in a window. Out of the box that window is Chrome's, which
+means Chrome's icon gets the Dock's dot and a tap on either icon can open a
+window you did not want. To give the page a window of its own, once:
+
+1. Tap FEP in the Dock, then open <http://127.0.0.1:8765/> in Safari.
+2. File, then Add to Dock. Keep the name FEP Control (anything with FEP in
+   it works) and add it.
+
+Safari puts a real application in `~/Applications`. From then on the FEP icon
+opens or raises that app, its icon carries the dot, and a tap on it never
+makes a second window. Chrome is not involved. `FEP_BROWSER=default` turns
+this off, and `FEP_WEBAPP=/path/to/an.app` names the app outright.
+
 ## Where things live
 
 | | |
