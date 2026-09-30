@@ -377,6 +377,17 @@ class TestLauncher(unittest.TestCase):
         # failure or long enough to be the slowest part of the launch.
         self.assertIn("/api/state", self.script)
 
+    def test_it_outlives_the_launch_check(self):
+        # Since macOS 27 an app whose executable exits within about half a
+        # second of launch counts as a failed launch, and the system then
+        # ends everything it started: the server got a SIGTERM a second
+        # after it was up, on every tap, and closed cleanly. Detaching it
+        # further (its own session) changed nothing; the launcher living two
+        # seconds fixed it. So every successful exit goes through linger.
+        self.assertIn("MIN_TICKS=8", self.script)
+        self.assertEqual(self.script.count("answering && { linger; exit 0; }"), 2)
+        self.assertNotIn("answering && exit 0", self.script)
+
 
 class TestWeeklySequence(CacheIsolated):
     """The week is three steps, and the order of them is the point.

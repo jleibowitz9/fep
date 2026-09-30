@@ -69,20 +69,37 @@ answering() {
   /usr/bin/curl -fsS -m 1 "http://127.0.0.1:$PORT/api/state" >/dev/null 2>&1
 }
 
+# This script must exit promptly, but not instantly. Since macOS 27 (September
+# 2026) an app whose executable exits within about half a second of launch is
+# treated as a launch that failed, and the system then ends everything it
+# started: the server got a SIGTERM a second after it was up, on every tap,
+# and closed cleanly with nothing in any log to say why. The same script run
+# from Terminal was fine, and so was the launcher once it lived two seconds.
+# It is the launcher's lifetime that matters, not the server's parentage:
+# a server in its own session (setsid) died the same way. So the exit waits
+# until MIN_TICKS quarter seconds have passed since the server was started.
+# One second was enough on a busy machine; two is the margin. The only cost
+# is the icon bouncing for that long. TestLauncher in tests/test_serve.py
+# pins this.
+MIN_TICKS=8
+TICKS=0
+tick() { sleep 0.25; TICKS=$((TICKS + 1)); }
+linger() { while [ "$TICKS" -lt "$MIN_TICKS" ]; do tick; done; }
+
 # Only a start that actually failed gets an alert, and a failure is the child
 # exiting without anything answering. A slow start is not a failure: alerting on
 # a timeout meant a dialog saying the app could not start while the log directly
 # behind it showed the app starting perfectly well.
 while kill -0 "$PID" 2>/dev/null; do
-  answering && exit 0
-  sleep 0.25
+  answering && { linger; exit 0; }
+  tick
 done
 
 # The child exiting on its own is the normal path when a server was already up:
 # serve.py opened the window and stopped. Give the socket a moment either way.
 for _ in 1 2 3 4; do
-  answering && exit 0
-  sleep 0.25
+  answering && { linger; exit 0; }
+  tick
 done
 
 alert "The app could not start.

@@ -103,6 +103,16 @@ worked. `serve.py` now appends `TOOL_DIRS` to its own PATH at import
 (`_widen_path`). If a tool the server shells out to is "not found" only from
 the Dock, that list is the place to look, not the launcher script.
 
+**The launcher must live two seconds, since macOS 27.** An app whose
+executable exits within about half a second of launch is treated as a launch
+that failed, and the system then ends everything it started. From 2026-09-21
+that gave the server a SIGTERM a second after every tap, and it closed cleanly
+(`Closed.` in `app.log`, nothing else, nothing in the unified log), while the
+same script run from Terminal was fine. Putting the server in its own session
+did not help; the launcher lingering did. `fep-app` now waits `MIN_TICKS`
+quarter seconds from starting the server before it exits, on every successful
+path. If the icon ever "does nothing" again, check that first.
+
 **The icon raises the window it has; it does not open another.** Chrome given
 `--app` twice opens two windows, which is what a second tap of the Dock icon
 used to do. So the page holds a connection to `/api/presence` open for as
