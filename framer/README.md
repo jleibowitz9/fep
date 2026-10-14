@@ -265,9 +265,17 @@ Auto exists because Framer cannot bind CMS rows into an array property. In Auto:
 - `{names}` in the ribbon is `rafters.this_week`, alphabetical
 - the season label defaults to `FEP {year}` when left empty
 
-**Photos** are set once, as a list of name and photo, and matched to the
-banners by name (case and spaces ignored). The week file has no images. A
-name with no photo gets the silhouette.
+**Photos** come from the **Profile Pictures** component, in both modes. It
+has one variant per competitor, named by first name, and the rafters import it
+by URL and pick the variant by the banner's name (case and spaces ignored).
+So a new competitor or a new photo is a change to that component only.
+
+- The variant names are read off the component, so a name with no variant
+  gets the silhouette rather than the Primary variant (Amir).
+- `ERROR` is never matched by name.
+- A Manual competitor's own Photo, if set, wins over the variant.
+- If Profile Pictures is republished, the import URL in `FEPRafters.tsx`
+  may need its version updated.
 
 On the Framer canvas it shows the finished state, centred on this week's
 class. In Auto the ceremony waits for the file to load, so it never plays to

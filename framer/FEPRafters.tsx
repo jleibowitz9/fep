@@ -6,8 +6,11 @@
 //   Manual   the banners come from the Competitors array, filled by hand.
 //   Auto     fetch {baseUrl}/{year}/week-NN.json and read its `rafters` block.
 //            Banners, this week's names, the empty hooks and the season label
-//            all come from the file. Photos are set once in the Photos list and
-//            matched by name, since the week file carries no images.
+//            all come from the file.
+//
+// Photos in both modes come from the Profile Pictures component, one variant
+// per competitor named by first name. A Manual competitor's own Photo, if
+// set, wins over it.
 //
 // Framer cannot bind CMS rows into an array prop, which is why Auto reads the
 // week file rather than the CMS. The newsletter still binds this component's
@@ -18,6 +21,7 @@ import * as React from "react"
 import { useEffect, useMemo, useRef, useState, useId } from "react"
 import { addPropertyControls, ControlType, RenderTarget } from "framer"
 import { useInView } from "framer-motion"
+import ProfilePictures from "https://framer.com/m/Profile-Pictures-D5IVuk.js@XYSR2b2CKDBIqnqlk9u1"
 
 // ---------- Base geometry (everything scales to the component's height) ----------
 const ARENA_H = 640
@@ -50,8 +54,6 @@ type Competitor = {
     picks: string
     status: "past" | "new"
 }
-
-type Photo = { src?: string; srcSet?: string; alt?: string }
 
 // The week file's `rafters` block, as written by fep/cms.py.
 type Rafters = {
@@ -109,6 +111,18 @@ function useFetchedRafters(enabled: boolean, baseUrl: string, year: number, week
 
 const nameKey = (n: string) => String(n || "").trim().toLowerCase()
 
+// The Profile Pictures variant for a competitor, or null for the silhouette.
+// The variant names are read off the component itself, so a new competitor
+// needs only a new variant there. Without this check an unknown name would
+// fall back to the Primary variant and show Amir on someone else's banner.
+// ERROR is that component's own placeholder, so it is never matched by name.
+function photoVariant(name: string): string | null {
+    const titles: unknown = (ProfilePictures as any)?.propertyControls?.variant?.optionTitles
+    if (!Array.isArray(titles)) return name || null
+    const hit = titles.find((t) => typeof t === "string" && t !== "ERROR" && nameKey(t) === nameKey(name))
+    return hit || null
+}
+
 /**
  * @framerSupportedLayoutWidth any
  * @framerSupportedLayoutHeight fixed
@@ -123,7 +137,6 @@ export default function FEPRafters(rawProps: any) {
         year = 2026,
         week = 1,
         baseUrl = DATA_URL,
-        photos = [],
         competitors: manualCompetitors = [],
         emptyHooks: manualHooks = 5,
         showChampionHook: manualChampion = true,
@@ -159,17 +172,14 @@ export default function FEPRafters(rawProps: any) {
     const competitors: Competitor[] = useMemo(() => {
         if (!auto) return manualCompetitors || []
         if (!rafters) return []
-        const byName = new Map<string, Photo>()
-        for (const p of photos || []) if (p && p.name && p.photo) byName.set(nameKey(p.name), p.photo)
         return rafters.banners.map((b) => ({
             name: b.name,
-            photo: byName.get(nameKey(b.name)),
             week: b.week,
             peak: `${Number(b.peak).toFixed(1)}%`,
             picks: `${b.correct} of ${b.decided}`,
             status: (b.week === fetched.fileWeek ? "new" : "past") as Competitor["status"],
         }))
-    }, [auto, manualCompetitors, rafters, photos, fetched.fileWeek])
+    }, [auto, manualCompetitors, rafters, fetched.fileWeek])
     const emptyHooks = auto ? (rafters ? rafters.alive - 1 : 0) : manualHooks
     const showChampionHook = auto ? !!rafters : manualChampion
 
@@ -595,6 +605,7 @@ function Banner({ c, arriving, dimmed, props }: { c: Competitor; arriving: boole
         nameFont, numberFont, labelFont, pastBrightness, showStripe, showTassel,
     } = props
     const baseFilter = "drop-shadow(0 18px 22px rgba(0,0,0,.55))"
+    const variant = photoVariant(c.name)
     return (
         <article className={arriving ? "fr-arrive" : ""} aria-label={`${c.name}, eliminated week ${c.week}`}
             style={{ position: "relative", width: BANNER_W, height: BANNER_H, margin: "-3px auto 0", filter: dimmed ? `${baseFilter} brightness(${pastBrightness})` : baseFilter }}>
@@ -641,6 +652,8 @@ function Banner({ c, arriving, dimmed, props }: { c: Competitor; arriving: boole
                         background: "radial-gradient(circle at 40% 30%, #a3acad, #596264)" }}>
                         {c.photo?.src ? (
                             <img src={c.photo.src} srcSet={c.photo.srcSet} alt={c.photo.alt || c.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        ) : variant ? (
+                            <ProfilePictures variant={variant} style={{ width: "100%", height: "100%" }} />
                         ) : (
                             <svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden>
                                 <circle cx="32" cy="25" r="11" fill="#3f4749" /><path d="M8 66c2-14 12-21 24-21s22 7 24 21z" fill="#3f4749" />
@@ -703,20 +716,6 @@ addPropertyControls(FEPRafters, {
         description: "The folder holding the year folders. Loads {baseUrl}/{year}/week-NN.json.",
         hidden: (p: any) => p.source !== "auto",
     },
-    photos: {
-        type: ControlType.Array,
-        title: "Photos",
-        description: "Set once. Matched to the week file's banners by name.",
-        control: {
-            type: ControlType.Object,
-            controls: {
-                name: { type: ControlType.String, title: "Name", defaultValue: "Name" },
-                photo: { type: ControlType.ResponsiveImage, title: "Photo" },
-            },
-        },
-        defaultValue: [],
-        hidden: (p: any) => p.source !== "auto",
-    },
     competitors: {
         type: ControlType.Array,
         title: "Competitors",
@@ -761,7 +760,7 @@ addPropertyControls(FEPRafters, {
         description: "{names} = this week's eliminations. {alive} = empty hooks plus champion hook. {season} = the season label.",
         hidden: (p: any) => !p.showRibbon,
     },
-    showPhoto: { type: ControlType.Boolean, title: "Photos", defaultValue: true },
+    showPhoto: { type: ControlType.Boolean, title: "Photos", defaultValue: true, description: "From the Profile Pictures component, matched by first name." },
     grayscalePhotos: { type: ControlType.Boolean, title: "Grayscale", defaultValue: true, hidden: (p: any) => !p.showPhoto },
 
     // Colors
