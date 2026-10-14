@@ -260,6 +260,45 @@ def _ranks(series: List[dict], index: int) -> Dict[str, int]:
     return ranks
 
 
+def rafters_layer(series: List[dict], week: int,
+                  correct: Optional[Dict[int, Dict[str, int]]],
+                  decided: Optional[Dict[int, int]]) -> Optional[dict]:
+    """Everyone out by this week, one banner each, for FEPRafters.
+
+    Read off the same series the chart draws, so a banner's week is exactly
+    where that competitor's line ends. Correct picks and games decided come
+    from the snapshot of the week they went out, not from today's results,
+    so a banner says what the board said when they were eliminated.
+
+    `this_week` is who went out in the file's own week. The component plays
+    its ceremony for them and nobody else; the newsletter hides it entirely
+    when the list is empty (bound to `weeks.eliminated_this_week`).
+
+    None when the caller has no snapshot counts to give, which is how a file
+    rebuilt from a published chart file (no picks in it) says it cannot know.
+    """
+    if correct is None or decided is None:
+        return None
+    out = [s for s in series if s["eliminated_at"] is not None]
+    out.sort(key=lambda s: (s["eliminated_at"], s["name"]))
+    return {
+        "roster": len(series),
+        "alive": len(series) - len(out),
+        "this_week": [s["name"] for s in out if s["eliminated_at"] == week],
+        "banners": [
+            {
+                "name": s["name"],
+                "color": s["color"],
+                "week": s["eliminated_at"],
+                "peak": s["peak"],
+                "correct": (correct.get(s["eliminated_at"]) or {}).get(s["name"]),
+                "decided": decided.get(s["eliminated_at"]),
+            }
+            for s in out
+        ],
+    }
+
+
 DECIDING_LAYERS = (
     ("outright", "Correct Picks"),
     ("tb1", "Tiebreaker 1 - Season Record"),
@@ -305,6 +344,8 @@ def build_payload(
     eliminated: Optional[Dict[int, Sequence[str]]] = None,
     deciding: Optional[Dict[int, Dict[str, float]]] = None,
     outcomes: Optional[Dict[int, int]] = None,
+    correct: Optional[Dict[int, Dict[str, int]]] = None,
+    decided: Optional[Dict[int, int]] = None,
 ) -> dict:
     """The data a chart needs for one week, and nothing after it.
 
@@ -368,6 +409,7 @@ def build_payload(
         "ranks": [_ranks(series, i) for i in range(len(weeks))],
         "dim": DIM,
         "deciding": layer,
+        "rafters": rafters_layer(series, last, correct, decided),
     }
 
 

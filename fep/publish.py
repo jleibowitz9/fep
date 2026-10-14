@@ -61,6 +61,8 @@ def publish_week(
     correction: Optional[str] = None,
     deciding: Optional[Dict[int, Dict[str, float]]] = None,
     outcomes: Optional[Dict[int, int]] = None,
+    correct: Optional[Dict[int, Dict[str, int]]] = None,
+    decided: Optional[Dict[int, int]] = None,
 ) -> str:
     """Write one week's chart file. A week already published does not move.
 
@@ -79,6 +81,7 @@ def publish_week(
         weeks=weeks, board_by_week=board_by_week, roster=roster,
         games=games, year=year, upto_week=week, colors=colors,
         eliminated=eliminated, deciding=deciding, outcomes=outcomes,
+        correct=correct, decided=decided,
     )
     directory = out_dir or os.path.join(CHART_DATA_DIR, str(year))
     os.makedirs(directory, exist_ok=True)
@@ -115,11 +118,14 @@ def publish_all(
     correction: Optional[str] = None,
     deciding: Optional[Dict[int, Dict[str, float]]] = None,
     outcomes: Optional[Dict[int, int]] = None,
+    correct: Optional[Dict[int, Dict[str, int]]] = None,
+    decided: Optional[Dict[int, int]] = None,
 ) -> List[str]:
     """Republish every week that has data. Cheap, and keeps corrections honest."""
     return [
         publish_week(weeks, board_by_week, roster, games, year, week, out_dir,
-                     colors, eliminated, correction, deciding, outcomes)
+                     colors, eliminated, correction, deciding, outcomes,
+                     correct, decided)
         for week in sorted(weeks)
     ]
 
@@ -157,6 +163,15 @@ def publish_from_season(season: dict, week: Optional[int] = None,
         "outcomes": {s["week"]: s["remaining_outcomes"]
                      for s in season.get("snapshots", [])
                      if s.get("remaining_outcomes") is not None} or None,
+        # The rafters: each banner's picks line is read off the snapshot of the
+        # week that competitor went out. "A" is an unplayed game; a tie counts
+        # as decided, since it settles every pick that week (as FALSE).
+        "correct": {s["week"]: s["current_points"]
+                    for s in season.get("snapshots", [])
+                    if s.get("current_points") is not None} or None,
+        "decided": {s["week"]: sum(1 for r in s["results"] if r != "A")
+                    for s in season.get("snapshots", [])
+                    if s.get("results") is not None} or None,
     }
     if week is None:
         return publish_all(*args, out_dir=out_dir, correction=correction, **extra)

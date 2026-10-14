@@ -496,6 +496,73 @@ class EliminationTest(unittest.TestCase):
         self.assertEqual(cms.eliminated_week(season, "Amir"), 1)
 
 
+class RaftersTest(unittest.TestCase):
+    """weeks.eliminated_this_week and the chart file's rafters block.
+
+    The newsletter shows FEPRafters only when the column is non-empty, and the
+    component plays its ceremony for the file's `this_week`. If the two ever
+    disagreed, a page would show an empty ceremony or hide a real one.
+    """
+
+    def setUp(self):
+        self.season = build_season()
+        walk(self.season, 18)
+        self.rows = {r["week"]: r for r in cms.weeks_table(self.season).rows}
+
+    def _file(self, week):
+        import tempfile
+        from fep import publish
+        with tempfile.TemporaryDirectory() as tmp:
+            path = publish.publish_from_season(self.season, week=week,
+                                               out_dir=tmp)[0]
+            with open(path) as fh:
+                return json.load(fh)
+
+    def test_the_column_and_the_file_name_the_same_people(self):
+        for week, row in sorted(self.rows.items()):
+            column = [n for n in row["eliminated_this_week"].split(", ") if n]
+            self.assertEqual(column, self._file(week)["rafters"]["this_week"],
+                             "week {}".format(week))
+
+    def test_everyone_eliminated_appears_once_in_their_own_week(self):
+        seen = {}
+        for week, row in sorted(self.rows.items()):
+            for name in filter(None, row["eliminated_this_week"].split(", ")):
+                self.assertNotIn(name, seen, "{} went out twice".format(name))
+                seen[name] = week
+        for name in self.season["roster"]:
+            self.assertEqual(seen.get(name), cms.eliminated_week(self.season, name),
+                             name)
+        self.assertTrue(seen, "the fixture season eliminates nobody")
+
+    def test_a_banner_reads_the_snapshot_of_the_week_it_went_out(self):
+        last = max(self.rows)
+        rafters = self._file(last)["rafters"]
+        snapshots = {s["week"]: s for s in self.season["snapshots"]}
+        self.assertEqual(rafters["alive"] + len(rafters["banners"]),
+                         rafters["roster"])
+        for banner in rafters["banners"]:
+            snap = snapshots[banner["week"]]
+            self.assertEqual(banner["correct"],
+                             snap["current_points"][banner["name"]])
+            self.assertEqual(banner["decided"],
+                             sum(1 for r in snap["results"] if r != engine.UNPLAYED))
+        order = [(b["week"], b["name"]) for b in rafters["banners"]]
+        self.assertEqual(order, sorted(order))
+
+    def test_a_file_cannot_show_a_banner_from_its_future(self):
+        for week in sorted(self.rows):
+            for banner in self._file(week)["rafters"]["banners"]:
+                self.assertLessEqual(banner["week"], week)
+
+    def test_no_snapshot_counts_means_no_block(self):
+        """A payload rebuilt from a published file has no picks to count."""
+        boards = {s["week"]: s["weighted"] for s in self.season["snapshots"]}
+        payload = chart.build_payload(sorted(boards), boards,
+                                      self.season["roster"], year=2026)
+        self.assertIsNone(payload["rafters"])
+
+
 class WeekOverWeekChangeTest(unittest.TestCase):
 
     def test_change_is_blank_when_the_previous_week_is_missing(self):
@@ -536,7 +603,14 @@ class ColumnOrderTest(unittest.TestCase):
         "weeks": ["slug", "season", "week", "label", "is_bye", "game",
                   "game_label", "opponent", "home_away", "result", "wins",
                   "losses", "leader", "leader_pct", "remaining_outcomes",
-                  "still_alive", "decided_outright"],
+                  "still_alive", "decided_outright", "decided_tb1",
+                  "decided_tb2", "decided_tb3", "decided_split",
+                  "decided_outright_change", "decided_tb1_change",
+                  "decided_tb2_change", "decided_tb3_change",
+                  "counterfactual_result", "leverage_values",
+                  "leverage_results", "espn_place", "espn_gloss",
+                  "espn_accent", "points_value", "points_gloss",
+                  "volatile_value", "volatile_gloss", "eliminated_this_week"],
         "picks": ["slug", "season", "week_ref", "nfl_week", "game",
                   "competitor", "name", "pick"],
         "standings": ["slug", "season", "week", "week_ref", "competitor",

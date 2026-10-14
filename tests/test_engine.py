@@ -649,6 +649,12 @@ class PastYearsAreImmutableTest(unittest.TestCase):
         deciding = {s["week"]: s["deciding"] for s in season_mod.load(2025)["snapshots"]}
         outcomes = {s["week"]: s["remaining_outcomes"]
                     for s in season_mod.load(2025)["snapshots"]}
+        snapshots = season_mod.load(2025)["snapshots"]
+        correct = {s["week"]: s["current_points"] for s in snapshots}
+        decided = {s["week"]: sum(1 for r in s["results"] if r != "A")
+                   for s in snapshots}
+        eliminated = {s["week"]: s["eliminated"] for s in snapshots
+                      if s.get("eliminated") is not None}
 
         for week in weeks:
             path = os.path.join(here, "chart-data", "2025",
@@ -659,6 +665,15 @@ class PastYearsAreImmutableTest(unittest.TestCase):
                                           2025, upto_week=week)
             layer = published.pop("deciding", None)
             rebuilt.pop("deciding", None)
+            # The rafters block, like the Decision Tree, needs the snapshots'
+            # pick counts, which the final file does not carry. Checked against
+            # the season file instead.
+            rafters = published.pop("rafters", None)
+            rebuilt.pop("rafters", None)
+            self.assertEqual(rafters, chart.rafters_layer(
+                chart.build_series([w for w in weeks if w <= week], board, roster,
+                                   eliminated=eliminated),
+                week, correct, decided), "week {} rafters changed".format(week))
             self.assertEqual(json.dumps(published, sort_keys=True),
                              json.dumps(rebuilt, sort_keys=True),
                              "week {} changed".format(week))

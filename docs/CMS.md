@@ -139,6 +139,17 @@ it, so a row published in week N cannot move in week N+1. All nine are in
 `FILLABLE_COLUMNS` (Code.gs `2026.09.14-a`), so the 2026 push after the
 append reports `weeks: 1 filled in` and nothing `CORRECTED`.
 
+**`weeks` also says who went out that week.** `eliminated_this_week`, appended
+in October 2026, is that week's newly eliminated names (`Jacob, Sarah`), blank
+when nobody went out. Bind FEPRafters' visibility to it being non-empty; the
+component reads its banners from the `rafters` block in the same week's chart
+file (`chart-data/<year>/week-NN.json`), which names the same people in
+`this_week` -- `tests/test_cms.py` `RaftersTest` holds the two together. Out
+means mathematically out, from the snapshot's `eliminated`, compared against
+the snapshot before. Fillable like the other appended columns (Code.gs
+`2026.10.14-a`), so the first push of each season after the append reports
+`weeks: N filled in` and nothing `CORRECTED`.
+
 **`standings` carries the counterfactual board.** `counterfactual_weighted`,
 `counterfactual_rank` and `counterfactual_change` (counterfactual minus actual,
 so positive means the other result would have been better for them) come from

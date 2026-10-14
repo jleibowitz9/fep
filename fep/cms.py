@@ -555,6 +555,10 @@ WEEK_COLUMNS = [
     "espn_place", "espn_gloss", "espn_accent",
     "points_value", "points_gloss",
     "volatile_value", "volatile_gloss",
+    # Appended October 2026, never inserted. Who went out this week, for
+    # FEPRafters: the newsletter binds the component's visibility to it being
+    # non-empty, and the component reads the rest from the week's chart file.
+    "eliminated_this_week",
 ]
 
 DECIDING_KEYS = ("outright", "tb1", "tb2", "tb3", "split")
@@ -587,6 +591,7 @@ def weeks_table(season: dict) -> Table:
     byes = set(_bye_weeks(season))
     by_week = {g["nfl_week"]: g for g in season["games"]}
     rows, previous_deciding, previous_week = [], None, None
+    previous_out = set()
     # The snapshots up to and including the one being written. Anything derived
     # from a run of weeks reads this rather than the whole season, so a row
     # published in week 3 describes week 3 and not the season that followed it.
@@ -674,6 +679,15 @@ def weeks_table(season: dict) -> Table:
         loudest = (max(movement, key=lambda n: (movement[n], n))
                    if movement and max(movement.values()) > 0 else "")
 
+        # Out now and not out at the snapshot before, which is exactly the set
+        # whose line ends at this week in this week's chart file (both compare
+        # against the previous snapshot, gap or not). Structural, with the same
+        # rounded-board fallback as still_alive.
+        out_now = (set(snapshot["eliminated"])
+                   if snapshot.get("eliminated") is not None
+                   else {n for n, v in board.items() if v == 0})
+        newly_out = sorted(out_now - previous_out)
+
         rows.append({
             "slug": "{}-w{:02d}".format(year, week),
             "season": str(year),
@@ -740,8 +754,10 @@ def weeks_table(season: dict) -> Table:
             "decided_tb2_change": decided_change("tb2"),
             "decided_tb3_change": decided_change("tb3"),
             "counterfactual_result": hypothetical,
+            "eliminated_this_week": ", ".join(newly_out),
         })
         previous_deciding, previous_week = deciding, week
+        previous_out = out_now
     return Table("weeks", WEEK_COLUMNS, rows)
 
 

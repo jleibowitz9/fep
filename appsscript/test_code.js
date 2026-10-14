@@ -364,6 +364,18 @@ check('a spine value moving afterwards is refused',
 check('every one of the nine is on the fillable list',
       NINE.every(n => FILLABLE_COLUMNS.weeks.indexOf(n) !== -1), FILLABLE_COLUMNS.weeks);
 
+console.log('\n--- eliminated_this_week fills in the same way ---');
+// Appended October 2026, after nineteen 2025 weeks and six 2026 weeks were out.
+const WCOLS4 = WCOLS3.concat(['eliminated_this_week']);
+r = post({op:'writeTable', tab:'weeks', year:2026, columns:WCOLS4,
+          rows:[w00.concat(filledNine).concat(['Marsha'])]});
+check('the new column fills in once, and is not a correction',
+      r.ok && r.filled===1 && r.corrected.length===0, r);
+r = post({op:'writeTable', tab:'weeks', year:2026, columns:WCOLS4,
+          rows:[w00.concat(filledNine).concat(['Marsha, Pop'])]});
+check('a name added afterwards is refused',
+      !r.ok && /frozen table/.test(r.error) && /eliminated_this_week/.test(r.error), r);
+
 console.log('\n--- the sheet is widened before it is read ---');
 delete SHEETS['games'];   // a fresh tab, 26 columns wide, like a new Sheet
 const WIDE = ['slug','season'].concat(Array.from({length:25}, (_, i) => 'c' + i));   // 27
