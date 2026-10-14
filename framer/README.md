@@ -237,3 +237,45 @@ Regenerates `decisiontree-preview.html` from the component's own CSS, its own
 geometry and its own contrast rule, so what you look at is what ships. Same
 arrangement as `scrollbar-preview.html`. It runs the defaults check on the way
 through.
+
+---
+
+# The FEP Rafters in Framer
+
+`FEPRafters.tsx`. Eliminated competitors as banners hoisted into the arena
+rafters. This week's class is lowered, lit and hoisted one at a time when the
+component scrolls into view. Earlier weeks hang dimmed, and an empty hook
+hangs for everyone still alive, plus the champion's hook, which stays empty.
+
+The newsletter binds the component's visibility to
+`weeks.eliminated_this_week`, so it only appears in weeks with an elimination.
+
+## Two sources
+
+| Source | Where the banners come from |
+|---|---|
+| **Manual** (default) | The Competitors list, filled in by hand. Works exactly as before Auto existed. |
+| **Auto (JSON)** | The `rafters` block of `{baseUrl}/{year}/week-NN.json`, the same file the chart reads. |
+
+Auto exists because Framer cannot bind CMS rows into an array property. In Auto:
+
+- a banner is **new** when its week is the file's week
+- peak shows as `4.2%` and picks as `2 of 5`
+- empty hooks are `rafters.alive - 1`, plus the champion's hook
+- `{names}` in the ribbon is `rafters.this_week`, alphabetical
+- the season label defaults to `FEP {year}` when left empty
+
+**Photos** are set once, as a list of name and photo, and matched to the
+banners by name (case and spaces ignored). The week file has no images. A
+name with no photo gets the silhouette.
+
+On the Framer canvas it shows the finished state, centred on this week's
+class. In Auto the ceremony waits for the file to load, so it never plays to
+an empty rafters.
+
+## Weekly use
+
+Set Source to Auto and bind **Week** to the newsletter's week. Nothing else
+changes week to week.
+
+The ribbon text takes `{names}`, `{alive}` and `{season}`.
