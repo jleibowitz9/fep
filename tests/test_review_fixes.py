@@ -67,6 +67,11 @@ September 2026, third review (the Leverage Spine):
                              refused as drift on replay, because the weekly
                              run always sends one; and the real week 0 had
                              been given a spine by hand, with the wrong codes
+
+September 2026, from use:
+
+  TestWhatIfStacks           the What If tab took one change at a time, so
+                             "lose tonight, then win next week" had no answer
 """
 
 from __future__ import annotations
@@ -74,6 +79,7 @@ from __future__ import annotations
 import contextlib
 import copy
 import importlib.util
+import io
 import json
 import os
 import re
@@ -1358,6 +1364,63 @@ class TestOverrideHasAPath(_TempSeason):
         cli = self._cli()
         with self.assertRaises(engine.SeasonError):
             cli.COMMANDS["override"](["3", "points", "24"])
+
+
+class TestWhatIfStacks(_TempSeason):
+    """The What If tab took one change at a time. "Lose tonight, then win next
+    week" is two, and it is not the sum of two one-game boards."""
+
+    def setUp(self):
+        super().setUp()
+        self.season = season_mod.load(2026)
+
+    def test_one_forced_game_is_the_board_the_page_ships(self):
+        shipped = analytics.whatif_boards(self.season)
+        for i in (3, 10):
+            for r in (engine.WIN, engine.LOSS):
+                self.assertEqual(analytics.scenario_board(self.season, {i: r}),
+                                 shipped[str(i)][r])
+
+    def test_a_stack_is_run_as_one_season(self):
+        results = season_mod.results(self.season)
+        both = list(results)
+        both[3], both[4] = engine.LOSS, engine.WIN
+        board = analytics._run(self.season, both)
+        self.assertEqual(analytics.scenario_board(self.season, {3: engine.LOSS, 4: engine.WIN}),
+                         {n: round(board.weighted[n], 1) for n in board.order})
+
+    def test_it_refuses_what_it_cannot_mean(self):
+        with self.assertRaises(engine.SeasonError):
+            analytics.scenario_board(self.season, {99: engine.WIN})
+        with self.assertRaises(engine.SeasonError):
+            analytics.scenario_board(self.season, {3: engine.UNPLAYED})
+
+    def test_the_command_takes_weeks_and_saves_nothing(self):
+        before = open(season_mod.path_for(2026)).read()
+        cli = self._cli()
+        week4 = season_mod.game_index_for_week(self.season, 4)
+        week5 = season_mod.game_index_for_week(self.season, 5)
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            cli.COMMANDS["whatif"](["w4=L", "w5=w", "--json"])
+        out = json.loads(buffer.getvalue())
+        self.assertEqual(out["forced"], {str(week4): "L", str(week5): "W"})
+        self.assertEqual(out["board"], analytics.scenario_board(
+            self.season, {week4: engine.LOSS, week5: engine.WIN}))
+        self.assertEqual(open(season_mod.path_for(2026)).read(), before)
+        with self.assertRaises(SystemExit):
+            cli.COMMANDS["whatif"](["w4=T"])
+
+    def test_the_app_asks_for_a_stack_without_touching_anything(self):
+        serve = _load_serve()
+        label, fn, mutates = serve.ACTIONS["whatif"]
+        self.assertFalse(mutates)
+        self.assertNotIn("whatif", serve.REWARM)
+        out = fn({"forced": {"3": "L", "4": "W"}})
+        self.assertTrue(out["ok"], out.get("error"))
+        self.assertEqual(out["board"], analytics.scenario_board(
+            self.season, {3: engine.LOSS, 4: engine.WIN}))
+        self.assertFalse(fn({"forced": {}})["ok"])
 
 
 class TestAliveIsOneFact(unittest.TestCase):

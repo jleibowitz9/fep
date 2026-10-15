@@ -567,7 +567,7 @@ const VIEW_META={
   board:['The Board',PRESEASON?'The opening line':`${D.outcomes.toLocaleString()} outcomes remain`],
   story:['Stories','The week, ranked by what matters'],
   picks:['The Picks',`${D.year} sheet comparison`],
-  whatif:['What If','Change one result at a time'],
+  whatif:['What If','Change as many results as you like'],
   chart:['Trends','Weekly movement and ten-season context'],
   run:['Build & share','Payload audit and handoff commands'],
 };
@@ -1449,7 +1449,7 @@ function rankAt(week,name){
   document.getElementById('v-whatif').innerHTML=`
   <div class="grid g12">
     <div class="card"><h3>Force a result
-        <span class="tag">played games are set to what happened; change one to see the season that did not</span></h3>
+        <span class="tag">played games are set to what happened; change any number of them, played or not</span></h3>
       ${rows.join('')}
       <p class="muted tiny" style="margin-top:10px;line-height:1.6">
         The percentage on the right is leverage for games still to come, and for games
@@ -1463,10 +1463,10 @@ function rankAt(week,name){
     </div>
   </div>`;
 
-  function paint(board,label,note){
+  function paint(board,label,note,changed){
     document.getElementById('wifState').textContent=label;
     document.getElementById('wifNote').textContent=note||'';
-    document.getElementById('wifReset').style.display=note?'block':'none';
+    document.getElementById('wifReset').style.display=changed?'block':'none';
     document.getElementById('wifBody').innerHTML=D.roster.slice()
       .sort((a,b)=>board[b]-board[a]).map(n=>{
         const d=board[n]-D.board[n];
@@ -1475,37 +1475,83 @@ function rankAt(week,name){
           <td class="r num" style="font-weight:700">${pct(board[n])}</td>
           <td class="r num tiny ${d>0.05?'up':d<-0.05?'down':'flat'}">${Math.abs(d)>0.05?sgn(d):''}</td></tr>`;}).join('');
   }
-  function toReality(){
+
+  // The games changed away from reality, game index -> 'W' or 'L'. Any number
+  // of them. One change reads the board shipped with the page; a stack is not
+  // the sum of its single-game boards, so it is run through the model as one
+  // season by `cli.py whatif`, which only the app can do.
+  const chosen={};
+  const stacked={};            // boards already asked for, by stackKey()
+  let asking=false;
+  const stackKey=()=>Object.keys(chosen).map(Number).sort((a,b)=>a-b).map(i=>i+'='+chosen[i]).join(' ');
+  const cmdFor=()=>'python3 cli.py whatif '+Object.keys(chosen).map(Number).sort((a,b)=>a-b)
+    .map(i=>'w'+D.games.find(x=>x.i===i).week+'='+chosen[i]).join(' ');
+
+  function describe(){
+    return Object.keys(chosen).map(Number).sort((a,b)=>a-b).map(i=>{
+      const g=D.games.find(x=>x.i===i);
+      return `Week ${g.week} ${g.label} ${chosen[i]}` + (g.result!=='A' ? ` (really ${g.result})` : '');
+    }).join(' · ');
+  }
+
+  function show(){
     document.querySelectorAll('#v-whatif .seg').forEach(seg=>{
-      const want=reality[+seg.dataset.i];
+      const i=+seg.dataset.i, want=chosen[i]||reality[i];
       seg.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.v===want));
     });
-    paint(D.board,'as it stands','');
+    const idx=Object.keys(chosen).map(Number);
+    if(!idx.length) return paint(D.board,'as it stands','',false);
+
+    if(idx.length===1){
+      const i=idx[0], v=chosen[i], g=D.games.find(x=>x.i===i);
+      const alt=(D.whatif||{})[i];
+      if(!alt||!alt[v]) return paint(D.board,'as it stands','No precomputed board for that game.',true);
+      const done=g.result!=='A';
+      return paint(alt[v],
+        done ? `if ${g.label} had been a ${v}` : `if the Eagles ${v==='W'?'win':'lose'} ${g.label}`,
+        done ? `Week ${g.week} really finished ${g.result}. This is the season that did not happen.`
+             : `Week ${g.week} has not been played. This is one of the two ways it can go.`, true);
+    }
+
+    const key=stackKey(), label=`${idx.length} results changed`;
+    if(stacked[key]) return paint(stacked[key],label,describe(),true);
+    if(!LIVE){
+      paint(D.board,'as it stands',
+        `Changing more than one game needs the app, which runs the model for the combination. `+
+        `In a terminal: ${cmdFor()}`,true);
+      return;
+    }
+    document.getElementById('wifState').innerHTML=`<span class="spin"></span>running the model`;
+    document.getElementById('wifReset').style.display='block';
+    ask();
   }
-  toReality();
+
+  // One request at a time. Clicks made while the model runs are not queued
+  // one by one: when the answer comes back, the page asks again only if the
+  // set of changes it is showing has moved on.
+  async function ask(){
+    if(asking) return;
+    asking=true;
+    const key=stackKey(), forced=Object.assign({},chosen);
+    let out;
+    try{ out=await api('whatif',{forced}); }
+    catch(e){ out={ok:false,error:'The app did not answer.'}; }
+    asking=false;
+    if(out.ok && out.board) stacked[key]=out.board;
+    if(stackKey()!==key) return show();
+    if(!out.ok) paint(D.board,'as it stands',out.error||'The model could not run that.',true);
+    else paint(out.board,`${Object.keys(forced).length} results changed`,describe(),true);
+  }
+
+  show();
 
   document.getElementById('v-whatif').addEventListener('click',e=>{
-    if(e.target.id==='wifReset') return toReality();
+    if(e.target.id==='wifReset'){ Object.keys(chosen).forEach(k=>delete chosen[k]); return show(); }
     const b=e.target.closest('.seg button'); if(!b) return;
-    const seg=b.parentElement, i=+seg.dataset.i, v=b.dataset.v;
-
-    if(v===reality[i]) return toReality();   // back to what really happened
-
-    // One change at a time: the precomputed boards are exact single-game
-    // counterfactuals, and stacking two would not be one.
-    document.querySelectorAll('#v-whatif .seg').forEach(s=>{
-      const want = s===seg ? v : reality[+s.dataset.i];
-      s.querySelectorAll('button').forEach(x=>x.classList.toggle('on', x.dataset.v===want));
-    });
-
-    const g=D.games.find(x=>x.i===i);
-    const alt=(D.whatif||{})[i];
-    if(!alt||!alt[v]) return paint(D.board,'as it stands','No precomputed board for that game.');
-    const done=g.result!=='A';
-    paint(alt[v],
-      done ? `if ${esc(g.label)} had been a ${v}` : `if the Eagles ${v==='W'?'win':'lose'} ${esc(g.label)}`,
-      done ? `Week ${g.week} really finished ${g.result}. This is the season that did not happen.`
-           : `Week ${g.week} has not been played. This is one of the two ways it can go.`);
+    const i=+b.parentElement.dataset.i, v=b.dataset.v;
+    if(v===reality[i]) delete chosen[i];   // back to what really happened
+    else chosen[i]=v;
+    show();
   });
 })();
 

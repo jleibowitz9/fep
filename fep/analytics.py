@@ -172,6 +172,29 @@ def whatif_boards(season: dict, sims: Optional[dict] = None) -> Dict[str, dict]:
     return out
 
 
+def scenario_board(season: dict, forced: Dict[int, str]) -> Dict[str, float]:
+    """The board with any number of games forced to a W or an L at once.
+
+    `whatif_boards` is one game at a time, precomputed, because it is shipped
+    with the page. Stacking two changes ("lose tonight, then win next week")
+    is not the sum of two single-game boards, so a stack is run through the
+    model as one season. Every game not named keeps its real result, or stays
+    unplayed. A forced game keeps whatever Eagles points it has, the same
+    convention as leverage_for_game.
+    """
+    results = list(season_mod.results(season))
+    for index, result in forced.items():
+        if not 0 <= index < len(results):
+            raise engine.SeasonError("There is no game {}; the games are 0 to {}.".format(
+                index, len(results) - 1))
+        if result not in (engine.WIN, engine.LOSS):
+            raise engine.SeasonError("A what if is a W or an L. Got {!r} for game {}.".format(
+                result, index))
+        results[index] = result
+    board = _run(season, results)
+    return {n: round(board.weighted[n], 1) for n in board.order}
+
+
 def individual_leverage(season: dict, game_index: int) -> Dict[str, float]:
     """Signed swing per competitor. Positive means an Eagles win helps them."""
     result = leverage_for_game(season, game_index)

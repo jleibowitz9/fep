@@ -713,6 +713,26 @@ def _override(payload):
     return Result(ok=ok, error=error, log="\n".join(logs))
 
 
+def _whatif(payload):
+    """A stacked What If board: `cli.py whatif ... --json`. Saves nothing.
+
+    The page ships one-game boards and only asks for this when more than one
+    game is changed at once. The board comes back parsed, beside the log.
+    """
+    forced = payload.get("forced") or {}
+    if not isinstance(forced, dict) or not forced:
+        return Result(ok=False, error="Which games?", log="")
+    argv = ["{}={}".format(i, v) for i, v in sorted(forced.items(), key=lambda kv: str(kv[0]))]
+    result = _capture(cli.COMMANDS["whatif"], argv + ["--json"])
+    if result["ok"]:
+        try:
+            result["board"] = json.loads(result["log"].splitlines()[-1])["board"]
+        except (ValueError, IndexError, KeyError):
+            return Result(ok=False, error="The model answered with something unreadable.",
+                          log=result["log"])
+    return result
+
+
 ACTIONS = {
     # name: (what the page calls it, the callable, does it change anything)
     "week": ("Run the week", _week, True),
@@ -725,6 +745,7 @@ ACTIONS = {
     "backup": ("Save to git", _backup, True),
     "picks": ("Load a pick sheet", _picks, True),
     "override": ("Override a game", _override, True),
+    "whatif": ("What if", _whatif, False),
     "board": ("Run the model", _command("board"), False),
     "leverage": ("Rank the remaining games", _command("leverage"), False),
 }

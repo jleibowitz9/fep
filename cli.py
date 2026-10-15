@@ -14,6 +14,8 @@ The FEP weekly run, headless.
     python3 cli.py picks <file>    load picks from a CSV
     python3 cli.py override <game> <field> <value|--clear>
                                    pin a result, weight or score by hand
+    python3 cli.py whatif <game>=<W|L> ...
+                                   the board if those games went that way
 
     python3 cli.py who <name>      career record and picking personality
     python3 cli.py h2h <a> <b>     head to head across every shared season
@@ -598,6 +600,48 @@ def cmd_override(argv):
             print("  board: unchanged")
 
 
+def cmd_whatif(argv):
+    """The board if any number of games went a given way. Saves nothing.
+
+        python3 cli.py whatif w4=L              the week 4 game is a loss
+        python3 cli.py whatif w4=L w5=W         lose week 4, then win week 5
+        python3 cli.py whatif 3=L --json        one JSON line, for the dashboard
+
+    The dashboard's What If tab ships one-game boards with the page; this is
+    what it asks for when more than one game is changed at once.
+    """
+    usage = ("usage: python3 cli.py whatif <game>=<W|L> [<game>=<W|L> ...] [--json]\n"
+             "  <game> is a game index (0..16) or an NFL week like w5")
+    as_json = "--json" in argv
+    refs = [a for a in argv if a != "--json"]
+    if not refs:
+        sys.exit(usage)
+    season = _load()
+    _require_picks(season)
+    forced = {}
+    for ref in refs:
+        game, sep, value = ref.partition("=")
+        value = value.strip().upper()
+        if not sep or value not in (engine.WIN, engine.LOSS):
+            sys.exit("Each change is <game>=W or <game>=L. Got {!r}.\n{}".format(ref, usage))
+        forced[_game_ref(season, game)] = value
+    board = analytics.scenario_board(season, forced)
+    if as_json:
+        import json
+        return print(json.dumps({"forced": {str(i): r for i, r in sorted(forced.items())},
+                                 "board": board}))
+    now = season_mod.run(season).weighted
+    games = {g["index"]: g for g in season["games"]}
+    print("\nIf " + ", then ".join(
+        "week {} {} is a{} {}".format(games[i]["nfl_week"], games[i]["label"],
+                                      "n" if r == engine.LOSS else "", r)
+        for i, r in sorted(forced.items())) + "\n")
+    for name in sorted(board, key=lambda n: -board[n]):
+        delta = board[name] - now[name]
+        print("  {:<8} {:>5.1f}%  {}".format(
+            name, board[name], "{:+.1f}".format(delta) if abs(delta) >= 0.05 else ""))
+
+
 def cmd_who(argv):
     if not argv:
         sys.exit("usage: python3 cli.py who <name>")
@@ -679,6 +723,7 @@ COMMANDS = {
     "cms": cmd_cms,
     "picks": cmd_picks,
     "override": cmd_override,
+    "whatif": cmd_whatif,
     "token": cmd_token,
     "dashboard": cmd_dashboard,
     "who": cmd_who,
