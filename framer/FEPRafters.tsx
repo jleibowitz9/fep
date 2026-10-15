@@ -18,7 +18,7 @@
 // elimination.
 
 import * as React from "react"
-import { useEffect, useMemo, useRef, useState, useId } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useId } from "react"
 import { addPropertyControls, ControlType, RenderTarget } from "framer"
 import { useInView } from "framer-motion"
 import ProfilePictures from "https://framer.com/m/Profile-Pictures-D5IVuk.js@XYSR2b2CKDBIqnqlk9u1"
@@ -116,6 +116,11 @@ function useFetchedRafters(enabled: boolean, baseUrl: string, year: number, week
 
     return state
 }
+
+// A layout effect runs before the browser paints, so a measurement or a scroll
+// made in one is never seen in its wrong first position. Framer also renders
+// on the server, where only useEffect exists.
+const useBeforePaint = typeof window !== "undefined" ? useLayoutEffect : useEffect
 
 const nameKey = (n: string) => String(n || "").trim().toLowerCase()
 
@@ -217,13 +222,15 @@ export default function FEPRafters(rawProps: any) {
     // Scale to height
     const [h, setH] = useState(ARENA_H)
     const [w, setW] = useState(1000)
-    useEffect(() => {
+    useBeforePaint(() => {
         const el = rootRef.current
         if (!el) return
-        const ro = new ResizeObserver(() => {
+        const measure = () => {
             setH(el.clientHeight || ARENA_H)
             setW(el.clientWidth || 1000)
-        })
+        }
+        measure()
+        const ro = new ResizeObserver(measure)
         ro.observe(el)
         return () => ro.disconnect()
     }, [])
@@ -392,6 +399,7 @@ export default function FEPRafters(rawProps: any) {
         setDark(false)
         setLit(new Set())
         setArrived(new Set())
+        setArriveKey({})
         setPhase("armed")
     }
 
@@ -400,8 +408,8 @@ export default function FEPRafters(rawProps: any) {
         setPhase("running")
         setArrived(new Set())
         setLit(new Set())
+        setArriveKey({})
         if (!newIdx.length) { setPhase("done"); return }
-        if (autoPan) scrollerRef.current?.scrollTo({ left: 0, behavior: "auto" })
         await sleep(400); if (me !== runRef.current) return
         setDark(true)
         await sleep(500); if (me !== runRef.current) return
@@ -412,11 +420,16 @@ export default function FEPRafters(rawProps: any) {
             setLit((p) => new Set(p).add(i))
             await sleep(500); if (me !== runRef.current) return
             await hoist(i); if (me !== runRef.current) return
+            // Settle the lift in this same task, before any frame is drawn: clear
+            // the lowered transform React put inline, then drop the finished
+            // animation. Leaving either to React's next commit showed the
+            // banner gone and the ropes at full length for a frame or two.
+            const lift = slotRefs.current[i]?.querySelector(".fr-lift") as HTMLElement | null
+            if (lift) {
+                lift.style.transform = ""
+                lift.getAnimations().forEach((a) => a.cancel())
+            }
             setArrived((p) => new Set(p).add(i))
-            requestAnimationFrame(() => {
-                const lift = slotRefs.current[i]?.querySelector(".fr-lift") as HTMLElement
-                lift?.getAnimations().forEach((a) => a.cancel())
-            })
             arrive(i)
             await sleep(gapBetween * 1000); if (me !== runRef.current) return
         }
@@ -444,11 +457,15 @@ export default function FEPRafters(rawProps: any) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [inView, skip, ready, classKey])
 
-    // On the Framer canvas, show the finished state centered on this week's class
-    useEffect(() => {
-        if (skip && newIdx.length) centerOn((newIdx[0] + newIdx[newIdx.length - 1]) / 2, false)
+    // On the Framer canvas, show the finished state centered on this week's class.
+    // Before the ceremony, wait centred on the first banner to rise, which is
+    // where the ceremony pans first, so a lone banner never moves at all.
+    useBeforePaint(() => {
+        if (!newIdx.length) return
+        if (skip) centerOn((newIdx[0] + newIdx[newIdx.length - 1]) / 2, false)
+        else if (phase === "armed" && autoPan) centerOn(newIdx[0], false)
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [skip, h, w, slotWidth, classKey])
+    }, [skip, phase, h, w, slotWidth, classKey])
 
     // ---------- Art ----------
     const svgUrl = (svg: string) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
@@ -530,7 +547,7 @@ export default function FEPRafters(rawProps: any) {
                                     <i style={{ position: "absolute", bottom: 0, right: 28, width: 3, height: "100%", background: ropeBg, borderRadius: 2 }} />
                                 </div>
                                 {rod(trimColor)}
-                                <Banner key={`b${arriveKey[i] || 0}`} c={c} arriving={!!arriveKey[i]} dimmed={!isNew} props={props} />
+                                <Banner c={c} arriving={!!arriveKey[i]} dimmed={!isNew} props={props} />
                             </div>
                         </div>
                     </div>
