@@ -65,6 +65,10 @@ type Rafters = {
 
 const DATA_URL = "https://raw.githubusercontent.com/jleibowitz9/fep/main/chart-data"
 
+// Gaps between the banner's elements, top to bottom, in banner pixels.
+// Written again as the Spacing control's defaults; keep the two in step.
+const SPACING = { top: 24, seasonToPhoto: 12, photoToName: 14, nameToNumber: 10, numberToLabel: 8, labelToRule: 12, ruleToStats: 12, betweenStats: 4 }
+
 function useFetchedRafters(enabled: boolean, baseUrl: string, year: number, week: number) {
     const [state, setState] = useState<{ rafters: Rafters | null; fileWeek: number; error: string | null }>({
         rafters: null, fileWeek: week, error: null,
@@ -141,24 +145,25 @@ export default function FEPRafters(rawProps: any) {
         emptyHooks: manualHooks = 5,
         showChampionHook: manualChampion = true,
         // content
-        seasonLabel: seasonLabelProp = "", weekLabel = "Week", eliminatedLabel = "Eliminated", peakLabel = "Peak",
-        picksSuffix = "right", newTagText = "Retired this week", showNewTag = true,
+        seasonLabel: seasonLabelProp = "", eliminatedLabel = "Week eliminated", peakLabel = "Peak",
+        picksSuffix = "right", newTagText = "Eliminated this week", showNewTag = true,
         reservedLabel = "Reserved", championLabel = "Champion's hook. Always empty.",
-        ribbonText = "Retired this week: {names}   ●   {season}   ●   {alive} still alive   ●   Go Birds   ●   ",
+        ribbonText = "Eliminated this week: {names}   ●   {season}   ●   {alive} still alive   ●   Go Birds   ●   ",
         showRibbon = true, showPhoto = true, grayscalePhotos = true,
         // colors
-        bgTop = "#13252A", bgBottom = "#050B0C", bannerColor = "#005D66", bannerEdge = "#00353A", trimColor = "#C9D2D4",
-        stripeColor = "#4FAE5B", textColor = "#F4F7F7", numberTop = "#CFD8DA", numberBottom = "#93A0A2",
-        accentColor = "#4FAE5B", ropeColor = "#CDBF9C", trussColor = "#3A484B", ledColor = "#79E07F",
-        spotColor = "rgba(255, 244, 214, 0.17)", tagColor = "#E9EFF0", tagTextColor = "#081113",
+        bgTop = "#13252A", bgBottom = "#050B0C", bannerColor = "#33464A", bannerEdge = "#1C2729", trimColor = "#A9B3B5",
+        stripeColor = "#566468", textColor = "#E4E9EA", numberTop = "#B9C2C4", numberBottom = "#7C898B",
+        ropeColor = "#CDBF9C", trussColor = "#3A484B", ledColor = "#E3A857",
+        spotColor = "rgba(255, 244, 214, 0.1)", tagColor = "#C4CCCE", tagTextColor = "#081113",
         // fonts
         nameFont = { fontSize: 34 }, numberFont = { fontSize: 94 }, labelFont = { fontSize: 11 },
         // motion
         trigger = 50, replayOnReenter = false, autoPan = true, hoistDuration = 3.6, gapBetween = 0.9,
         settleSwing = 2.4, idleSway = 0.45, dimAmount = 0.7, pastBrightness = 0.78, dust = 1, parallax = 0.42,
-        reducedMotionSafe = true,
+        reducedMotionSafe = true, arrivalShine = false,
         // layout
         slotWidth = 236, edgePadding = 180, cornerRadius = 8, showStripe = true, showTassel = true, edgeFade = 7,
+        spacing = SPACING,
         style,
     } = rawProps
 
@@ -184,9 +189,9 @@ export default function FEPRafters(rawProps: any) {
     const showChampionHook = auto ? !!rafters : manualChampion
 
     // Banner reads the resolved values, not the raw props.
-    const props = { ...rawProps, seasonLabel, weekLabel, eliminatedLabel, peakLabel, picksSuffix, showPhoto, grayscalePhotos,
-        bannerColor, bannerEdge, trimColor, stripeColor, textColor, numberTop, numberBottom, accentColor,
-        nameFont, numberFont, labelFont, pastBrightness, showStripe, showTassel }
+    const props = { ...rawProps, seasonLabel, eliminatedLabel, peakLabel, picksSuffix, showPhoto, grayscalePhotos,
+        bannerColor, bannerEdge, trimColor, stripeColor, textColor, numberTop, numberBottom,
+        nameFont, numberFont, labelFont, pastBrightness, showStripe, showTassel, arrivalShine, spacing }
 
     const isCanvas = RenderTarget.current() === RenderTarget.canvas
     const rootRef = useRef<HTMLDivElement>(null)
@@ -600,14 +605,15 @@ export default function FEPRafters(rawProps: any) {
 function Banner({ c, arriving, dimmed, props }: { c: Competitor; arriving: boolean; dimmed: boolean; props: any }) {
     const id = useId().replace(/:/g, "")
     const {
-        seasonLabel, weekLabel, eliminatedLabel, peakLabel, picksSuffix, showPhoto, grayscalePhotos,
-        bannerColor, bannerEdge, trimColor, stripeColor, textColor, numberTop, numberBottom, accentColor,
-        nameFont, numberFont, labelFont, pastBrightness, showStripe, showTassel,
+        seasonLabel, eliminatedLabel, peakLabel, picksSuffix, showPhoto, grayscalePhotos,
+        bannerColor, bannerEdge, trimColor, stripeColor, textColor, numberTop, numberBottom,
+        nameFont, numberFont, labelFont, pastBrightness, showStripe, showTassel, arrivalShine, spacing,
     } = props
+    const gap = { ...SPACING, ...(spacing || {}) }
     const baseFilter = "drop-shadow(0 18px 22px rgba(0,0,0,.55))"
     const variant = photoVariant(c.name)
     return (
-        <article className={arriving ? "fr-arrive" : ""} aria-label={`${c.name}, eliminated week ${c.week}`}
+        <article className={arriving && arrivalShine ? "fr-arrive" : ""} aria-label={`${c.name}, eliminated week ${c.week}`}
             style={{ position: "relative", width: BANNER_W, height: BANNER_H, margin: "-3px auto 0", filter: dimmed ? `${baseFilter} brightness(${pastBrightness})` : baseFilter }}>
             <svg viewBox={`0 0 ${BANNER_W} ${BANNER_H}`} width={BANNER_W} height={BANNER_H} style={{ position: "absolute", inset: 0 }} aria-hidden>
                 <defs>
@@ -644,10 +650,10 @@ function Banner({ c, arriving, dimmed, props }: { c: Competitor; arriving: boole
                 {showTassel && <ellipse cx="98" cy="425" rx="3.6" ry="6" fill={trimColor} />}
             </svg>
             <div className="fr-sheen" style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden", clipPath: "polygon(0 0,100% 0,100% 85.6%,50% 95.4%,0 85.6%)" }} />
-            <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: 345, padding: "20px 20px 0", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", color: textColor }}>
+            <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: 345, padding: `${gap.top}px 20px 0`, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", color: textColor }}>
                 <span style={{ fontSize: 11, letterSpacing: "0.3em", fontWeight: 700, textTransform: "uppercase", color: trimColor, paddingLeft: "0.3em", ...labelFont }}>{seasonLabel}</span>
                 {showPhoto && (
-                    <div style={{ width: 54, height: 54, borderRadius: "50%", overflow: "hidden", marginTop: 10, flexShrink: 0,
+                    <div style={{ width: 54, height: 54, borderRadius: "50%", overflow: "hidden", marginTop: gap.seasonToPhoto, flexShrink: 0,
                         boxShadow: `0 0 0 2px ${bannerEdge}, 0 0 0 3.5px ${trimColor}, 0 4px 8px rgba(0,0,0,.4)`, filter: grayscalePhotos ? "grayscale(1)" : undefined,
                         background: "radial-gradient(circle at 40% 30%, #a3acad, #596264)" }}>
                         {c.photo?.src ? (
@@ -661,18 +667,14 @@ function Banner({ c, arriving, dimmed, props }: { c: Competitor; arriving: boole
                         )}
                     </div>
                 )}
-                <div style={{ fontSize: 34, lineHeight: 0.9, fontWeight: 900, letterSpacing: "0.02em", textTransform: "uppercase", marginTop: 12,
+                <div style={{ fontSize: 34, lineHeight: 0.9, fontWeight: 900, letterSpacing: "0.02em", textTransform: "uppercase", marginTop: showPhoto ? gap.photoToName : gap.seasonToPhoto,
                     textShadow: "0 1px 0 rgba(0,0,0,.55)", whiteSpace: "nowrap", ...nameFont, color: textColor }}>{c.name}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 6 }}>
-                    <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: 11, letterSpacing: "0.26em", fontWeight: 700,
-                        textTransform: "uppercase", color: accentColor, ...labelFont }}>{weekLabel}</span>
-                    <span style={{ fontSize: 94, lineHeight: 0.8, fontWeight: 900, paddingTop: 6, fontVariantNumeric: "tabular-nums", ...numberFont,
-                        background: `linear-gradient(180deg, #ffffff 0%, ${numberTop} 45%, ${numberBottom} 100%)`, WebkitBackgroundClip: "text", backgroundClip: "text",
-                        color: "transparent", filter: `drop-shadow(0 3px 0 ${bannerEdge}) drop-shadow(0 0 1px rgba(0,0,0,.6))` }}>{c.week}</span>
-                </div>
-                <div style={{ fontSize: 11, letterSpacing: "0.24em", fontWeight: 600, textTransform: "uppercase", color: trimColor, opacity: 0.85, marginTop: 4, paddingLeft: "0.24em", ...labelFont }}>{eliminatedLabel}</div>
-                <div style={{ width: 44, height: 1, background: `linear-gradient(90deg, transparent, ${trimColor}, transparent)`, margin: "10px 0 8px" }} />
-                <div style={{ display: "flex", gap: 10, fontWeight: 500, color: trimColor, fontVariantNumeric: "tabular-nums", ...labelFont, fontSize: 13.5 }}>
+                <span style={{ fontSize: 94, lineHeight: 0.8, fontWeight: 900, paddingTop: 6, marginTop: gap.nameToNumber, fontVariantNumeric: "tabular-nums", ...numberFont,
+                    background: `linear-gradient(180deg, ${numberTop} 0%, ${numberBottom} 100%)`, WebkitBackgroundClip: "text", backgroundClip: "text",
+                    color: "transparent", filter: `drop-shadow(0 3px 0 ${bannerEdge}) drop-shadow(0 0 1px rgba(0,0,0,.6))` }}>{c.week}</span>
+                <div style={{ fontSize: 11, letterSpacing: "0.24em", fontWeight: 600, textTransform: "uppercase", color: trimColor, opacity: 0.85, marginTop: gap.numberToLabel, paddingLeft: "0.24em", ...labelFont }}>{eliminatedLabel}</div>
+                <div style={{ width: 44, height: 1, flexShrink: 0, background: `linear-gradient(90deg, transparent, ${trimColor}, transparent)`, margin: `${gap.labelToRule}px 0 ${gap.ruleToStats}px` }} />
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: gap.betweenStats, fontWeight: 500, color: trimColor, fontVariantNumeric: "tabular-nums", ...labelFont, fontSize: 13.5, lineHeight: 1.2 }}>
                     <span>{peakLabel} <b style={{ color: textColor }}>{c.peak}</b></span>
                     <span><b style={{ color: textColor }}>{c.picks}</b> {picksSuffix}</span>
                 </div>
@@ -745,18 +747,17 @@ addPropertyControls(FEPRafters, {
 
     // Text
     seasonLabel: { type: ControlType.String, title: "Season Label", defaultValue: "", placeholder: "FEP {year}", description: "Leave empty for FEP and the Year." },
-    weekLabel: { type: ControlType.String, title: "Week Label", defaultValue: "Week" },
-    eliminatedLabel: { type: ControlType.String, title: "Eliminated Label", defaultValue: "Eliminated" },
+    eliminatedLabel: { type: ControlType.String, title: "Eliminated Label", defaultValue: "Week eliminated" },
     peakLabel: { type: ControlType.String, title: "Peak Label", defaultValue: "Peak" },
     picksSuffix: { type: ControlType.String, title: "Picks Suffix", defaultValue: "right" },
     showNewTag: { type: ControlType.Boolean, title: "New Tag", defaultValue: true },
-    newTagText: { type: ControlType.String, title: "New Tag Text", defaultValue: "Retired this week", hidden: (p: any) => !p.showNewTag },
+    newTagText: { type: ControlType.String, title: "New Tag Text", defaultValue: "Eliminated this week", hidden: (p: any) => !p.showNewTag },
     reservedLabel: { type: ControlType.String, title: "Hook Label", defaultValue: "Reserved" },
     championLabel: { type: ControlType.String, title: "Champion Label", defaultValue: "Champion's hook. Always empty.", hidden: (p: any) => !p.showChampionHook },
     showRibbon: { type: ControlType.Boolean, title: "Ribbon Board", defaultValue: true },
     ribbonText: {
         type: ControlType.String, title: "Ribbon Text", displayTextArea: true,
-        defaultValue: "Retired this week: {names}   ●   {season}   ●   {alive} still alive   ●   Go Birds   ●   ",
+        defaultValue: "Eliminated this week: {names}   ●   {season}   ●   {alive} still alive   ●   Go Birds   ●   ",
         description: "{names} = this week's eliminations. {alive} = empty hooks plus champion hook. {season} = the season label.",
         hidden: (p: any) => !p.showRibbon,
     },
@@ -766,19 +767,18 @@ addPropertyControls(FEPRafters, {
     // Colors
     bgTop: { type: ControlType.Color, title: "Arena Top", defaultValue: "#13252A" },
     bgBottom: { type: ControlType.Color, title: "Arena Bottom", defaultValue: "#050B0C" },
-    bannerColor: { type: ControlType.Color, title: "Banner", defaultValue: "#005D66" },
-    bannerEdge: { type: ControlType.Color, title: "Banner Shadow", defaultValue: "#00353A" },
-    trimColor: { type: ControlType.Color, title: "Trim", defaultValue: "#C9D2D4" },
-    stripeColor: { type: ControlType.Color, title: "Stripe", defaultValue: "#4FAE5B" },
-    accentColor: { type: ControlType.Color, title: "Accent", defaultValue: "#4FAE5B" },
-    textColor: { type: ControlType.Color, title: "Text", defaultValue: "#F4F7F7" },
-    numberTop: { type: ControlType.Color, title: "Number Top", defaultValue: "#CFD8DA" },
-    numberBottom: { type: ControlType.Color, title: "Number Bottom", defaultValue: "#93A0A2" },
+    bannerColor: { type: ControlType.Color, title: "Banner", defaultValue: "#33464A" },
+    bannerEdge: { type: ControlType.Color, title: "Banner Shadow", defaultValue: "#1C2729" },
+    trimColor: { type: ControlType.Color, title: "Trim", defaultValue: "#A9B3B5" },
+    stripeColor: { type: ControlType.Color, title: "Stripe", defaultValue: "#566468" },
+    textColor: { type: ControlType.Color, title: "Text", defaultValue: "#E4E9EA" },
+    numberTop: { type: ControlType.Color, title: "Number Top", defaultValue: "#B9C2C4" },
+    numberBottom: { type: ControlType.Color, title: "Number Bottom", defaultValue: "#7C898B" },
     ropeColor: { type: ControlType.Color, title: "Rope", defaultValue: "#CDBF9C" },
     trussColor: { type: ControlType.Color, title: "Truss", defaultValue: "#3A484B" },
-    ledColor: { type: ControlType.Color, title: "Ribbon LED", defaultValue: "#79E07F" },
-    spotColor: { type: ControlType.Color, title: "Spotlight", defaultValue: "rgba(255, 244, 214, 0.17)" },
-    tagColor: { type: ControlType.Color, title: "Tag Fill", defaultValue: "#E9EFF0" },
+    ledColor: { type: ControlType.Color, title: "Ribbon LED", defaultValue: "#E3A857" },
+    spotColor: { type: ControlType.Color, title: "Spotlight", defaultValue: "rgba(255, 244, 214, 0.1)" },
+    tagColor: { type: ControlType.Color, title: "Tag Fill", defaultValue: "#C4CCCE" },
     tagTextColor: { type: ControlType.Color, title: "Tag Text", defaultValue: "#081113" },
 
     // Fonts
@@ -799,6 +799,7 @@ addPropertyControls(FEPRafters, {
     dust: { type: ControlType.Number, title: "Dust", defaultValue: 1, min: 0, max: 3, step: 0.1 },
     parallax: { type: ControlType.Number, title: "Depth", defaultValue: 0.42, min: 0, max: 0.9, step: 0.02 },
     reducedMotionSafe: { type: ControlType.Boolean, title: "Respect Reduced Motion", defaultValue: true },
+    arrivalShine: { type: ControlType.Boolean, title: "Arrival Shine", defaultValue: false, description: "A sheen and flash as each banner reaches the truss. Off, since nobody is celebrating." },
 
     // Layout
     slotWidth: { type: ControlType.Number, title: "Banner Spacing", defaultValue: 236, min: 200, max: 400, step: 2 },
@@ -807,4 +808,20 @@ addPropertyControls(FEPRafters, {
     cornerRadius: { type: ControlType.Number, title: "Radius", defaultValue: 8, min: 0, max: 48 },
     showStripe: { type: ControlType.Boolean, title: "Stripe", defaultValue: true },
     showTassel: { type: ControlType.Boolean, title: "Tassel", defaultValue: true },
+
+    // Spacing
+    spacing: {
+        type: ControlType.Object,
+        title: "Spacing",
+        controls: {
+            top: { type: ControlType.Number, title: "Top", defaultValue: 24, min: 0, max: 80, step: 1, unit: "px" },
+            seasonToPhoto: { type: ControlType.Number, title: "Season → Photo", defaultValue: 12, min: 0, max: 60, step: 1, unit: "px" },
+            photoToName: { type: ControlType.Number, title: "Photo → Name", defaultValue: 14, min: 0, max: 60, step: 1, unit: "px" },
+            nameToNumber: { type: ControlType.Number, title: "Name → Week", defaultValue: 10, min: -20, max: 60, step: 1, unit: "px" },
+            numberToLabel: { type: ControlType.Number, title: "Week → Label", defaultValue: 8, min: -20, max: 60, step: 1, unit: "px" },
+            labelToRule: { type: ControlType.Number, title: "Label → Rule", defaultValue: 12, min: 0, max: 60, step: 1, unit: "px" },
+            ruleToStats: { type: ControlType.Number, title: "Rule → Stats", defaultValue: 12, min: 0, max: 60, step: 1, unit: "px" },
+            betweenStats: { type: ControlType.Number, title: "Between Stats", defaultValue: 4, min: 0, max: 40, step: 1, unit: "px" },
+        },
+    },
 })

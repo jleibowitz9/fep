@@ -246,6 +246,8 @@ through.
 rafters. This week's class is lowered, lit and hoisted one at a time when the
 component scrolls into view. Earlier weeks hang dimmed, and an empty hook
 hangs for everyone still alive, plus the champion's hook, which stays empty.
+Each banner shows the season, a photo, the name, the week they went out, and
+their peak odds and picks record.
 
 The newsletter binds the component's visibility to
 `weeks.eliminated_this_week`, so it only appears in weeks with an elimination.
@@ -287,3 +289,19 @@ Set Source to Auto and bind **Week** to the newsletter's week. Nothing else
 changes week to week.
 
 The ribbon text takes `{names}`, `{alive}` and `{season}`.
+
+## Tone
+
+These are elimination banners, not championship ones, and the defaults say
+so: a muted slate banner with a grey stripe rather than Eagles green, a flat
+grey number with no white shine, a dimmer spotlight, an amber ribbon, and
+"Eliminated" rather than "Retired" in the tag and ribbon. **Arrival Shine**
+(off) brings back the sheen and flash as each banner reaches the truss.
+
+## Spacing
+
+The **Spacing** group sets every gap on the banner, top to bottom: Top,
+Season to Photo, Photo to Name, Name to Week, Week to Label, Label to Rule,
+Rule to Stats, and Between Stats (Peak above the picks line). Name to Week
+and Week to Label go negative, because the number's font has its own
+built-in space above and below.
