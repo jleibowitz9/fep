@@ -673,8 +673,8 @@ function Banner({ c, arriving, dimmed, props }: { c: Competitor; arriving: boole
                 <div style={{ fontSize: 11, letterSpacing: "0.24em", fontWeight: 600, textTransform: "uppercase", color: trimColor, opacity: 0.85, marginTop: gap.numberToLabel, paddingLeft: "0.24em", ...labelFont }}>{eliminatedLabel}</div>
                 <div style={{ width: 44, height: 1, flexShrink: 0, background: `linear-gradient(90deg, transparent, ${trimColor}, transparent)`, margin: `${gap.labelToRule}px 0 ${gap.ruleToStats}px` }} />
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: gap.betweenStats, fontWeight: 500, color: trimColor, fontVariantNumeric: "tabular-nums", ...labelFont, fontSize: 13.5, lineHeight: 1.2 }}>
-                    <span>{peakLabel} <b style={{ color: textColor }}>{c.peak}</b></span>
-                    <span><b style={{ color: textColor }}>{c.picks}</b> {picksSuffix}</span>
+                    <span>{peakLabel} {c.peak}</span>
+                    <span>{c.picks} {picksSuffix}</span>
                 </div>
             </div>
         </article>
