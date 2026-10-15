@@ -62,6 +62,7 @@ type Props = {
     ink?: string
     muted?: string
     grid?: string
+    padding?: number
     style?: React.CSSProperties
 }
 
@@ -83,6 +84,7 @@ export default function FEPChart({
     ink = "#eafaf6",
     muted = "#7f9c96",
     grid = "#12463f",
+    padding = 0,
     style,
 }: Props) {
 
@@ -148,13 +150,20 @@ export default function FEPChart({
     const narrow = width < 520
 
     // ---- geometry --------------------------------------------------------
-    const W = 760
-    const H = narrow ? 560 : 420
+    // The SVG is drawn at the container's real width, so one SVG unit is one
+    // CSS pixel and a 12px label renders at 12px. The old fixed 760-wide
+    // viewBox was scaled down to fit a phone, which shrank every label to
+    // less than half size and made the axis unreadable.
+    const W = Math.max(260, Math.round(width))
+    const H = narrow ? 380 : 420
+    const axisFont = narrow ? 12 : 10.5
 
     const geo = useMemo(() => {
         if (!data) return null
-        const left = narrow ? 30 : 36
-        const right = 14  // no end labels, so the plot gets the width
+        const left = 36
+        // No end labels, so the plot gets the width. Narrow keeps enough
+        // for half of a "W10" label centred on the final tick.
+        const right = narrow ? 16 : 14
         const top = 20
         const bottom = showResults ? 54 : 34
 
@@ -188,7 +197,7 @@ export default function FEPChart({
                 left + (W - left - right) * (n === 1 ? 0.5 : i / (n - 1)),
             y: (v: number) => top + (H - top - bottom) * (1 - v / ceil),
         }
-    }, [data, narrow, H, showResults])
+    }, [data, narrow, W, H, showResults])
 
     // Trim trailing zeros so an eliminated line terminates instead of crawling.
     const drawn = useMemo(() => {
@@ -283,6 +292,11 @@ export default function FEPChart({
     }
 
     const every = narrow ? (n > 10 ? 3 : 2) : 1
+    // Which weeks get an axis label and a result badge. The final week always
+    // does; on a phone the rest are sampled, and a sampled week sitting right
+    // next to the final one is dropped so "W9" never collides with "W10".
+    const labelled = (i: number) =>
+        i === lastIndex || (i % every === 0 && lastIndex - i >= every)
 
     return (
         <div
@@ -291,8 +305,8 @@ export default function FEPChart({
                 ...style,
                 background,
                 color: ink,
-                borderRadius: 14,
-                padding: "18px 16px 14px",
+                borderRadius: padding ? 14 : 0,
+                padding,
                 position: "relative",
                 fontFamily:
                     'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
@@ -350,9 +364,9 @@ export default function FEPChart({
                             <line x1={geo.left} x2={W - geo.right + 6} y1={y} y2={y} stroke={grid} strokeWidth={1} />
                             <text
                                 x={geo.left - 7}
-                                y={y + 3.5}
+                                y={y + axisFont / 3}
                                 fill={muted}
-                                fontSize={10.5}
+                                fontSize={axisFont}
                                 textAnchor="end"
                                 style={{ fontVariantNumeric: "tabular-nums" }}
                             >
@@ -364,13 +378,13 @@ export default function FEPChart({
 
                 {/* x axis */}
                 {data.labels.map((lab, i) =>
-                    i % every === 0 || i === lastIndex ? (
+                    labelled(i) ? (
                         <text
                             key={`x${i}`}
                             x={geo.x(i)}
                             y={H - geo.bottom + 16}
                             fill={muted}
-                            fontSize={10.5}
+                            fontSize={axisFont}
                             textAnchor="middle"
                         >
                             {lab}
@@ -381,7 +395,7 @@ export default function FEPChart({
                 {/* what actually happened */}
                 {showResults &&
                     data.games.map((gm, i) => {
-                        if (i % every !== 0 && i !== lastIndex) return null
+                        if (!labelled(i)) return null
                         // Only a game LABELLED "Bye" is a bye. A missing result
                         // otherwise just means the game has not been played, and
                         // gets no badge at all -- which is what chart.py does.
@@ -396,18 +410,18 @@ export default function FEPChart({
                         return (
                             <g key={`r${i}`}>
                                 <rect
-                                    x={x - 9}
+                                    x={x - (narrow ? 10 : 9)}
                                     y={y}
-                                    width={18}
-                                    height={14}
+                                    width={narrow ? 20 : 18}
+                                    height={narrow ? 16 : 14}
                                     rx={4}
                                     fill={bye ? "#2c4a45" : win ? "#1f7a4d" : "#7a2130"}
                                 />
                                 <text
                                     x={x}
-                                    y={y + 10.2}
+                                    y={y + (narrow ? 11.8 : 10.2)}
                                     fill={ink}
-                                    fontSize={9.5}
+                                    fontSize={narrow ? 11 : 9.5}
                                     fontWeight={800}
                                     textAnchor="middle"
                                 >
@@ -674,6 +688,18 @@ addPropertyControls(FEPChart, {
         title: "W/L strip",
         defaultValue: true,
         description: "Show each week's actual game result under the axis.",
+    },
+    padding: {
+        type: ControlType.Number,
+        title: "Padding",
+        defaultValue: 0,
+        min: 0,
+        max: 48,
+        step: 1,
+        displayStepper: true,
+        description:
+            "Space inside the card, all four sides. Leave at 0 when the " +
+            "section around the chart already provides it.",
     },
     background: {
         type: ControlType.String,

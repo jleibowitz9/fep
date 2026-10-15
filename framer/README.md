@@ -73,6 +73,7 @@ numbers.
 | **Data base URL** | Set once. The folder holding the year folders. |
 | **Title** | On by default, auto-generated. Override with Custom title. |
 | **W/L strip** | The green/red result badges under the axis. |
+| **Padding** | Space inside the card. 0 by default, since the page section already pads it. Any non-zero value also rounds the corners. |
 | **Background / Text / Muted / Grid** | Colours, defaulted to the Eagles palette. |
 
 ## What changed about the chart itself
@@ -90,6 +91,9 @@ numbers.
 - **The legend is ordered by standing**, then alphabetically.
 - **A W/L strip under the axis** ties every move to the game that caused it,
   including the bye.
+- **The SVG is drawn at the container's real pixel width**, not a fixed 760
+  viewBox scaled to fit. Axis labels and W/L badges render at their stated
+  size on a phone (12px below 520px) instead of being shrunk to under half.
 
 ## Fallback
 
