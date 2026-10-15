@@ -88,7 +88,12 @@ quirks where the stated total is authoritative.
 ## The app in the Dock
 
 `scripts/FEP.app` is the icon: it starts the server if none is running and
-opens the page in a window. Out of the box that window is Chrome's, which
+opens the page in a window. The server runs as a launchd agent of yours,
+`com.fep.dashboard`, registered in `~/Library/LaunchAgents` the first time
+the icon is tapped and re-registered if the repo moves; the icon asks launchd
+to run it and exits. That is not a nicety: since macOS 27 a server the icon
+merely started was ended a second after the icon's own process exited, on
+every tap. Nothing runs at login, and Quit in the page stops it. Out of the box that window is Chrome's, which
 means Chrome's icon gets the Dock's dot and a tap on either icon can open a
 window you did not want. To give the page a window of its own, once:
 

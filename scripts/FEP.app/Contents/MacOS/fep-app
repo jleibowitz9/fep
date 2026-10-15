@@ -7,11 +7,21 @@
 # long as its executable lives, and a tap on a running app only activates it:
 # the executable is never run again. An earlier version stayed alive to own the
 # server, which meant closing the window left an app that was still "running"
-# and could not be reopened by tapping it. So the server is detached instead
-# and this exits, which makes every tap do the same thing.
+# and could not be reopened by tapping it.
 #
-# serve.py handles both cases on its own: it opens the window and exits if a
-# server is already answering, and becomes the server if not.
+# The server is not this script's child either. Since macOS 27 the system ends
+# everything an app started once the app itself has exited, a second or so
+# later, whatever the app's lifetime was: a server forked with nohup was up
+# and answering, the launcher exited after two seconds as designed, and the
+# server got a SIGTERM three quarters of a second after that, on every tap.
+# A new session (setsid) made no difference, because what is tracked is who
+# launched the process, not its process group. So the server is handed to
+# launchd instead, as a per-user agent that launchd owns and this script
+# merely asks for. Nothing of this app's remains to be ended.
+#
+# serve.py handles the other case on its own: run while a server is already
+# answering, it opens the window and exits. That run is short and happens
+# right here.
 #
 # No Terminal window, and no weekly run. Quit from the page, which stops the
 # server properly.
@@ -21,9 +31,13 @@
 
 REPO="$(cd "$(dirname "$0")/../../../.." && pwd)"
 SERVER="$REPO/dashboard/serve.py"
-LOG="$REPO/data/dashboard_cache/app.log"
-URL_FILE="$REPO/data/dashboard_cache/url.txt"
+CACHE="$REPO/data/dashboard_cache"
+LOG="$CACHE/app.log"
+URL_FILE="$CACHE/url.txt"
 PORT="${FEP_PORT:-8765}"
+LABEL="com.fep.dashboard"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+DOMAIN="gui/$(id -u)"
 
 alert() {
   osascript -e "display alert \"FEP\" message \"$1\" as critical" >/dev/null 2>&1
@@ -48,17 +62,9 @@ if [ -z "$PY" ]; then
 fi
 
 cd "$REPO" || exit 1
-mkdir -p "$(dirname "$LOG")"
+mkdir -p "$CACHE"
 { echo; echo "=== $(date '+%Y-%m-%d %H:%M:%S') ==="; } >> "$LOG"
 
-# nohup and the background, so the server outlives this script.
-nohup "$PY" "$SERVER" >> "$LOG" 2>&1 &
-PID=$!
-
-# Wait only until it is answering, then leave. A start that fails does so
-# quickly and the log is the only place it said why, so that gets an alert
-# rather than a window that never appears.
-#
 # Where to look comes from the server, not from this script. The port it wanted
 # is not always the port it got, and hardcoding the default here meant the
 # health check polled a port nothing was on and reported a failure while the
@@ -69,34 +75,107 @@ answering() {
   /usr/bin/curl -fsS -m 1 "http://127.0.0.1:$PORT/api/state" >/dev/null 2>&1
 }
 
-# This script must exit promptly, but not instantly. Since macOS 27 (September
-# 2026) an app whose executable exits within about half a second of launch is
-# treated as a launch that failed, and the system then ends everything it
-# started: the server got a SIGTERM a second after it was up, on every tap,
-# and closed cleanly with nothing in any log to say why. The same script run
-# from Terminal was fine, and so was the launcher once it lived two seconds.
-# It is the launcher's lifetime that matters, not the server's parentage:
-# a server in its own session (setsid) died the same way. So the exit waits
-# until MIN_TICKS quarter seconds have passed since the server was started.
-# One second was enough on a busy machine; two is the margin. The only cost
-# is the icon bouncing for that long. TestLauncher in tests/test_serve.py
-# pins this.
-MIN_TICKS=8
+# The agent has a process at the moment, whether or not it answers yet.
+agent_running() {
+  /bin/launchctl print "$DOMAIN/$LABEL" 2>/dev/null | grep -q '^[[:space:]]*pid = '
+}
+
+# This script must exit promptly, but not instantly: an app whose executable
+# exits within about half a second of launch counts to macOS as a launch that
+# failed. With launchd owning the server there is nothing left for that
+# verdict to end, so this is only about not being reported as broken. One
+# second is plenty. TestLauncher in tests/test_serve.py pins this.
+MIN_TICKS=4
 TICKS=0
 tick() { sleep 0.25; TICKS=$((TICKS + 1)); }
 linger() { while [ "$TICKS" -lt "$MIN_TICKS" ]; do tick; done; }
 
-# Only a start that actually failed gets an alert, and a failure is the child
-# exiting without anything answering. A slow start is not a failure: alerting on
-# a timeout meant a dialog saying the app could not start while the log directly
-# behind it showed the app starting perfectly well.
-while kill -0 "$PID" 2>/dev/null; do
+# A server is up: serve.py raises the window and exits, and so does this.
+if answering; then
+  "$PY" "$SERVER" >> "$LOG" 2>&1
+  linger
+  exit 0
+fi
+
+# The agent is registered once, in the user's LaunchAgents folder, so that
+# launchd owns it from login on and the app only ever asks for it to run.
+# Registering it from here did not do: a service bootstrapped by an app went
+# away with the app, on macOS 27, and the server with it. RunAtLoad is off, so
+# login starts nothing; a tap does, through kickstart. KeepAlive is off on
+# purpose: a server that could not start must say so once in the log and stop,
+# not be restarted by launchd every ten seconds for the rest of the day.
+# ThrottleInterval is down from launchd's ten seconds so that Quit followed
+# by a tap starts at once rather than after a pause.
+# Interactive keeps it in the user's session, where opening the window works.
+#
+# The file is rewritten when the repo or the interpreter has moved, which is
+# the only time its content changes, and reloaded then.
+xml() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+wanted="$(cat <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>$LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$(xml "$PY")</string>
+    <string>$(xml "$SERVER")</string>
+  </array>
+  <key>WorkingDirectory</key><string>$(xml "$REPO")</string>
+  <key>EnvironmentVariables</key>
+  <dict><key>FEP_PORT</key><string>$PORT</string></dict>
+  <key>StandardOutPath</key><string>$(xml "$LOG")</string>
+  <key>StandardErrorPath</key><string>$(xml "$LOG")</string>
+  <key>RunAtLoad</key><false/>
+  <key>KeepAlive</key><false/>
+  <key>ThrottleInterval</key><integer>1</integer>
+  <key>ProcessType</key><string>Interactive</string>
+</dict>
+</plist>
+PLIST
+)"
+
+agent_loaded() {
+  /bin/launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1
+}
+
+register() {
+  mkdir -p "$(dirname "$PLIST")"
+  printf '%s\n' "$wanted" > "$PLIST"
+  /bin/launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null
+  /bin/launchctl bootstrap "$DOMAIN" "$PLIST" >> "$LOG" 2>&1
+}
+
+# A start from a previous tap is still on its way up. Wait for it rather than
+# tearing it down to start another.
+if ! agent_running; then
+  if [ "$(cat "$PLIST" 2>/dev/null)" != "$wanted" ] || ! agent_loaded; then
+    if ! register; then
+      alert "The app could not start: launchd refused the server.
+
+$(tail -n 12 "$LOG" | tr '"' "'")"
+      exit 1
+    fi
+  fi
+  if ! /bin/launchctl kickstart "$DOMAIN/$LABEL" >> "$LOG" 2>&1; then
+    alert "The app could not start: launchd would not run the server.
+
+$(tail -n 12 "$LOG" | tr '"' "'")"
+    exit 1
+  fi
+fi
+
+# Only a start that actually failed gets an alert, and a failure is the server
+# exiting without anything answering. A slow start is not a failure: alerting
+# on a timeout meant a dialog saying the app could not start while the log
+# directly behind it showed the app starting perfectly well.
+while agent_running; do
   answering && { linger; exit 0; }
   tick
 done
 
-# The child exiting on its own is the normal path when a server was already up:
-# serve.py opened the window and stopped. Give the socket a moment either way.
+# Give the socket a moment either way.
 for _ in 1 2 3 4; do
   answering && { linger; exit 0; }
   tick

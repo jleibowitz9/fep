@@ -486,13 +486,32 @@ class TestLauncher(unittest.TestCase):
     def test_it_starts_the_server(self):
         self.assertIn("serve.py", self.script)
 
-    def test_it_detaches_the_server_and_exits(self):
+    def test_it_hands_the_server_to_launchd(self):
         # macOS only re-runs a bundle's executable when the app is not already
         # running, so a launcher that stays alive to own the server makes the
-        # second tap of the icon do nothing at all. The server is detached and
-        # this exits.
-        self.assertIn("nohup", self.script)
+        # second tap of the icon do nothing at all. And since macOS 27 a
+        # process the app merely started (nohup, setsid, anything) is ended
+        # about a second after the app exits, however long the app lived. So
+        # the server is a launchd agent: launchd owns it, the icon kickstarts
+        # it, and the app's exit has nothing left to end.
+        self.assertNotIn('nohup "$PY"', self.script)
         self.assertNotIn('wait "$PID"', self.script)
+        self.assertIn("launchctl kickstart", self.script)
+
+    def test_the_agent_is_registered_outside_the_app(self):
+        # A service bootstrapped by the app went away with the app, and the
+        # server with it. The agent lives in the user's LaunchAgents folder,
+        # where launchd loads it at login, and is only (re)registered from the
+        # icon when it is missing or stale.
+        self.assertIn("Library/LaunchAgents/$LABEL.plist", self.script)
+        self.assertIn("launchctl bootstrap", self.script)
+
+    def test_the_agent_never_restarts_itself(self):
+        # A server that could not start must say so once and stop, not be
+        # restarted by launchd every ten seconds for the rest of the day. And
+        # login starts nothing: a tap does.
+        self.assertIn("<key>KeepAlive</key><false/>", self.script)
+        self.assertIn("<key>RunAtLoad</key><false/>", self.script)
 
     def test_it_stops_waiting_once_the_server_answers(self):
         # Rather than a fixed sleep, which is either too short to catch a
@@ -500,13 +519,11 @@ class TestLauncher(unittest.TestCase):
         self.assertIn("/api/state", self.script)
 
     def test_it_outlives_the_launch_check(self):
-        # Since macOS 27 an app whose executable exits within about half a
-        # second of launch counts as a failed launch, and the system then
-        # ends everything it started: the server got a SIGTERM a second
-        # after it was up, on every tap, and closed cleanly. Detaching it
-        # further (its own session) changed nothing; the launcher living two
-        # seconds fixed it. So every successful exit goes through linger.
-        self.assertIn("MIN_TICKS=8", self.script)
+        # An app whose executable exits within about half a second of launch
+        # counts to macOS as a launch that failed. Nothing of the app's is
+        # left to be ended for that any more, but it is still reported as
+        # broken, so every successful exit goes through linger.
+        self.assertIn("MIN_TICKS=4", self.script)
         self.assertEqual(self.script.count("answering && { linger; exit 0; }"), 2)
         self.assertNotIn("answering && exit 0", self.script)
 

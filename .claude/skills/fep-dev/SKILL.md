@@ -103,15 +103,21 @@ worked. `serve.py` now appends `TOOL_DIRS` to its own PATH at import
 (`_widen_path`). If a tool the server shells out to is "not found" only from
 the Dock, that list is the place to look, not the launcher script.
 
-**The launcher must live two seconds, since macOS 27.** An app whose
-executable exits within about half a second of launch is treated as a launch
-that failed, and the system then ends everything it started. From 2026-09-21
-that gave the server a SIGTERM a second after every tap, and it closed cleanly
-(`Closed.` in `app.log`, nothing else, nothing in the unified log), while the
-same script run from Terminal was fine. Putting the server in its own session
-did not help; the launcher lingering did. `fep-app` now waits `MIN_TICKS`
-quarter seconds from starting the server before it exits, on every successful
-path. If the icon ever "does nothing" again, check that first.
+**The server is a launchd agent, since macOS 27.** Anything an app's
+process starts (nohup, setsid, its own session, anything) is ended about a
+second after the app exits, however long the app lived. From 2026-09-21 that
+gave the server a SIGTERM after every tap and it closed cleanly (`Closed.` in
+`app.log`, nothing else, nothing in the unified log), while the same script
+run from Terminal was fine. A two-second linger seemed to fix it on 09-29 and
+did not hold on 27.0.1 (measured 2026-10-05: launcher gone at ~1.5s, server
+gone at ~2.25s). So `fep-app` registers `com.fep.dashboard` in
+`~/Library/LaunchAgents` (RunAtLoad and KeepAlive both off, ThrottleInterval
+1), rewrites and reloads it when the repo or interpreter moves, and
+`launchctl kickstart`s it on a tap; launchd owns the server and the app's
+exit has nothing to end. A server already answering `/api/state` is left
+alone and `serve.py` is run inline to raise the window. If the icon ever
+"does nothing" again, `launchctl print gui/501/com.fep.dashboard` and
+`app.log` are the first two places to look.
 
 **The window should be the web app's, not Chrome's.** A Chrome `--app`
 window belongs to Chrome: Chrome's icon carries the Dock's dot, a tap on it
