@@ -24,7 +24,7 @@ import { useInView } from "framer-motion"
 import ProfilePictures from "https://framer.com/m/Profile-Pictures-D5IVuk.js@XYSR2b2CKDBIqnqlk9u1"
 
 // ---------- Base geometry (everything scales to the component's height) ----------
-const ARENA_H = 640
+const ARENA_H = 660 // the default arena; the real one follows the Spacing gaps below the banner
 const TRUSS_TOP = 18
 const TRUSS_H = 44
 const PULLEY_TOP = 54
@@ -34,8 +34,9 @@ const LIFT_W = 212
 const BANNER_W = 196
 const BANNER_H = 432
 const ROPE_OFFSET = 76
-const RIBBON_TOP = 574
-const NEWTAG_TOP = 612
+const BANNER_BOTTOM = 546 // the tassel's tip, a hoisted banner's lowest point
+const NEWTAG_H = 20
+const RIBBON_H = 34
 const DROP = 700
 
 // Three hand-over-hand pulls, a small sag after each, a slight overshoot at the top.
@@ -67,7 +68,10 @@ const DATA_URL = "https://raw.githubusercontent.com/jleibowitz9/fep/main/chart-d
 
 // Gaps between the banner's elements, top to bottom, in banner pixels.
 // Written again as the Spacing control's defaults; keep the two in step.
-const SPACING = { top: 24, seasonToPhoto: 12, photoToName: 14, nameToNumber: 10, numberToLabel: 8, labelToRule: 12, ruleToStats: 12, betweenStats: 4 }
+const SPACING = {
+    top: 24, seasonToPhoto: 12, photoToName: 14, nameToNumber: 10, numberToLabel: 8, labelToRule: 12, ruleToStats: 12, betweenStats: 4,
+    bannerToBadge: 14, badgeToTicker: 24, tickerToBottom: 22,
+}
 
 function useFetchedRafters(enabled: boolean, baseUrl: string, year: number, week: number) {
     const [state, setState] = useState<{ rafters: Rafters | null; fileWeek: number; error: string | null }>({
@@ -131,7 +135,7 @@ function photoVariant(name: string): string | null {
  * @framerSupportedLayoutWidth any
  * @framerSupportedLayoutHeight fixed
  * @framerIntrinsicWidth 1000
- * @framerIntrinsicHeight 640
+ * @framerIntrinsicHeight 660
  */
 export default function FEPRafters(rawProps: any) {
     // Every default is written twice, here and in addPropertyControls, because
@@ -203,23 +207,38 @@ export default function FEPRafters(rawProps: any) {
     const runRef = useRef(0)
     const uid = useId().replace(/:/g, "")
 
+    // Below the banners: the badge, then the ticker, then the arena's floor.
+    // The arena is as tall as that stack, and everything scales to fit it.
+    const gap = { ...SPACING, ...(spacing || {}) }
+    const tagTop = BANNER_BOTTOM + gap.bannerToBadge
+    const ribbonTop = showNewTag ? tagTop + NEWTAG_H + gap.badgeToTicker : tagTop
+    const arenaH = (showRibbon ? ribbonTop + RIBBON_H : showNewTag ? tagTop + NEWTAG_H : BANNER_BOTTOM) + gap.tickerToBottom
+
     // Scale to height
     const [h, setH] = useState(ARENA_H)
+    const [w, setW] = useState(1000)
     useEffect(() => {
         const el = rootRef.current
         if (!el) return
-        const ro = new ResizeObserver(() => setH(el.clientHeight || ARENA_H))
+        const ro = new ResizeObserver(() => {
+            setH(el.clientHeight || ARENA_H)
+            setW(el.clientWidth || 1000)
+        })
         ro.observe(el)
         return () => ro.disconnect()
     }, [])
-    const s = h / ARENA_H
+    const s = h / arenaH
 
     // Slots in order: competitors (as listed), then empty hooks, then champion hook
     const list: Competitor[] = competitors || []
     const newIdx = list.map((c, i) => (c.status === "new" ? i : -1)).filter((i) => i >= 0)
     const hooks = Math.max(0, Math.round(emptyHooks || 0))
     const totalSlots = list.length + hooks + (showChampionHook ? 1 : 0)
-    const trackW = totalSlots * slotWidth + edgePadding * 2
+    // At least half the container either side, so any banner can be scrolled to
+    // the middle. A lone banner at the start of the row could not otherwise be
+    // centred, since the scroll stops at zero.
+    const pad = Math.max(edgePadding, w / s / 2 - slotWidth / 2)
+    const trackW = totalSlots * slotWidth + pad * 2
     const alive = hooks + (showChampionHook ? 1 : 0)
     const names = (rafters ? rafters.this_week : newIdx.map((i) => list[i].name)).join(" · ")
     const ribbon = (ribbonText || "").replace("{names}", names).replace("{alive}", String(alive)).replace("{season}", seasonLabel)
@@ -250,7 +269,7 @@ export default function FEPRafters(rawProps: any) {
     const centerOn = (i: number, smooth = true) => {
         const sc = scrollerRef.current
         if (!sc) return
-        const x = (edgePadding + i * slotWidth + slotWidth / 2) * s - sc.clientWidth / 2
+        const x = (pad + i * slotWidth + slotWidth / 2) * s - sc.clientWidth / 2
         sc.scrollTo({ left: Math.max(0, x), behavior: smooth ? "smooth" : "auto" })
     }
 
@@ -262,14 +281,14 @@ export default function FEPRafters(rawProps: any) {
         const cv = canvasRef.current
         if (!cv) return
         cv.width = trackW * dpr
-        cv.height = ARENA_H * dpr
-    }, [trackW, dpr])
+        cv.height = arenaH * dpr
+    }, [trackW, arenaH, dpr])
     const tick = () => {
         const cv = canvasRef.current
         if (!cv) return
         const ctx = cv.getContext("2d")!
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-        ctx.clearRect(0, 0, trackW, ARENA_H)
+        ctx.clearRect(0, 0, trackW, arenaH)
         parts.current = parts.current.filter((p) => p.life < p.max)
         for (const p of parts.current) {
             p.life++
@@ -345,7 +364,7 @@ export default function FEPRafters(rawProps: any) {
             { duration: 260 }
         )
         if (dust > 0) {
-            const cx = edgePadding + i * slotWidth + slotWidth / 2
+            const cx = pad + i * slotWidth + slotWidth / 2
             burst(cx - ROPE_OFFSET, CLIP_TOP - 2)
             burst(cx + ROPE_OFFSET, CLIP_TOP - 2)
         }
@@ -393,7 +412,7 @@ export default function FEPRafters(rawProps: any) {
             const sc = scrollerRef.current
             if (sc) {
                 const mid = (newIdx[0] + newIdx[newIdx.length - 1]) / 2
-                const x = (edgePadding + mid * slotWidth + slotWidth / 2) * s - sc.clientWidth / 2
+                const x = (pad + mid * slotWidth + slotWidth / 2) * s - sc.clientWidth / 2
                 sc.scrollTo({ left: Math.max(0, x), behavior: "smooth" })
             }
         }
@@ -411,9 +430,9 @@ export default function FEPRafters(rawProps: any) {
 
     // On the Framer canvas, show the finished state centered on this week's class
     useEffect(() => {
-        if (skip && newIdx.length) centerOn(newIdx[0], false)
+        if (skip && newIdx.length) centerOn((newIdx[0] + newIdx[newIdx.length - 1]) / 2, false)
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [skip, h, slotWidth, classKey])
+    }, [skip, h, w, slotWidth, classKey])
 
     // ---------- Art ----------
     const svgUrl = (svg: string) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
@@ -432,7 +451,7 @@ export default function FEPRafters(rawProps: any) {
 
     const css = `
     .${P} *{box-sizing:border-box}
-    .${P} .fr-scroller{position:absolute;inset:0;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;overscroll-behavior-x:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+    .${P} .fr-scroller{position:absolute;inset:0;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch}
     .${P} .fr-scroller::-webkit-scrollbar{display:none}
     .${P} .fr-far,.${P} .fr-truss,.${P} .fr-slot{transition:filter .9s ease}
     .${P}.fr-dark .fr-far,.${P}.fr-dark .fr-truss{filter:brightness(${dim})}
@@ -471,7 +490,7 @@ export default function FEPRafters(rawProps: any) {
     )
 
     const slotStyle = (i: number): React.CSSProperties => ({
-        position: "absolute", top: 0, left: edgePadding + i * slotWidth, width: slotWidth, height: ARENA_H, scrollSnapAlign: "center",
+        position: "absolute", top: 0, left: pad + i * slotWidth, width: slotWidth, height: arenaH,
     })
 
     const renderBanner = (c: Competitor, i: number) => {
@@ -501,7 +520,7 @@ export default function FEPRafters(rawProps: any) {
                     </div>
                 </div>
                 {isNew && showNewTag && (
-                    <div className="fr-newtag" style={{ position: "absolute", left: "50%", top: NEWTAG_TOP, transform: "translateX(-50%)", zIndex: 3, whiteSpace: "nowrap",
+                    <div className="fr-newtag" style={{ position: "absolute", left: "50%", top: tagTop, height: NEWTAG_H, transform: "translateX(-50%)", zIndex: 3, whiteSpace: "nowrap",
                         background: tagColor, color: tagTextColor, padding: "4px 9px 3px", borderRadius: 3, textTransform: "uppercase",
                         fontSize: 11, letterSpacing: "0.2em", fontWeight: 700, ...labelFont }}>
                         {newTagText}
@@ -547,8 +566,8 @@ export default function FEPRafters(rawProps: any) {
             <div ref={scrollerRef} className="fr-scroller" tabIndex={0} aria-label="The rafters. Scroll to look across."
                 style={{ WebkitMaskImage: `linear-gradient(90deg, transparent 0, #000 ${fade}, #000 calc(100% - ${fade}), transparent 100%)`,
                     maskImage: `linear-gradient(90deg, transparent 0, #000 ${fade}, #000 calc(100% - ${fade}), transparent 100%)` }}>
-                <div style={{ position: "relative", width: trackW * s, height: ARENA_H * s }}>
-                    <div style={{ position: "absolute", left: 0, top: 0, width: trackW, height: ARENA_H, transform: `scale(${s})`, transformOrigin: "0 0" }}>
+                <div style={{ position: "relative", width: trackW * s, height: arenaH * s }}>
+                    <div style={{ position: "absolute", left: 0, top: 0, width: trackW, height: arenaH, transform: `scale(${s})`, transformOrigin: "0 0" }}>
                         {/* Far layer */}
                         <div ref={farRef} className="fr-far" style={{ position: "absolute", inset: 0, zIndex: 0, willChange: "transform" }}>
                             <div style={{ position: "absolute", left: 0, right: 0, top: 128, height: 22, opacity: 0.32, backgroundImage: truss2Bg, backgroundSize: "30px 22px" }} />
@@ -558,7 +577,7 @@ export default function FEPRafters(rawProps: any) {
                                 background: "repeating-linear-gradient(180deg, rgba(255,255,255,.035) 0 1px, transparent 1px 9px)",
                                 WebkitMaskImage: "linear-gradient(180deg, transparent, #000 40%)", maskImage: "linear-gradient(180deg, transparent, #000 40%)" }} />
                             {showRibbon && (
-                                <div style={{ position: "absolute", left: 0, right: 0, top: RIBBON_TOP, height: 30, overflow: "hidden", background: "#020606", borderTop: "2px solid #1b2527", borderBottom: "2px solid #1b2527" }}>
+                                <div style={{ position: "absolute", left: 0, right: 0, top: ribbonTop, height: RIBBON_H - 4, overflow: "hidden", background: "#020606", borderTop: "2px solid #1b2527", borderBottom: "2px solid #1b2527" }}>
                                     <div className="fr-marquee">
                                         {[0, 1].map((k) => (
                                             <span key={k} style={{ letterSpacing: "0.14em", fontWeight: 700, textTransform: "uppercase", whiteSpace: "nowrap",
@@ -580,7 +599,7 @@ export default function FEPRafters(rawProps: any) {
                             {Array.from({ length: hooks }, (_, k) => renderHook(list.length + k, reservedLabel, `h${k}`))}
                             {showChampionHook && renderHook(list.length + hooks, championLabel, "champ")}
                         </div>
-                        <canvas ref={canvasRef} style={{ position: "absolute", left: 0, top: 0, width: trackW, height: ARENA_H, zIndex: 5, pointerEvents: "none" }} />
+                        <canvas ref={canvasRef} style={{ position: "absolute", left: 0, top: 0, width: trackW, height: arenaH, zIndex: 5, pointerEvents: "none" }} />
                     </div>
                 </div>
             </div>
@@ -820,6 +839,9 @@ addPropertyControls(FEPRafters, {
             labelToRule: { type: ControlType.Number, title: "Label → Rule", defaultValue: 12, min: 0, max: 60, step: 1, unit: "px" },
             ruleToStats: { type: ControlType.Number, title: "Rule → Stats", defaultValue: 12, min: 0, max: 60, step: 1, unit: "px" },
             betweenStats: { type: ControlType.Number, title: "Between Stats", defaultValue: 4, min: 0, max: 40, step: 1, unit: "px" },
+            bannerToBadge: { type: ControlType.Number, title: "Banner → Badge", defaultValue: 14, min: 0, max: 80, step: 1, unit: "px" },
+            badgeToTicker: { type: ControlType.Number, title: "Badge → Ticker", defaultValue: 24, min: 0, max: 80, step: 1, unit: "px" },
+            tickerToBottom: { type: ControlType.Number, title: "Ticker → Bottom", defaultValue: 22, min: 0, max: 80, step: 1, unit: "px" },
         },
     },
 })

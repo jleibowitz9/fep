@@ -305,3 +305,17 @@ Season to Photo, Photo to Name, Name to Week, Week to Label, Label to Rule,
 Rule to Stats, and Between Stats (Peak above the picks line). Name to Week
 and Week to Label go negative, because the number's font has its own
 built-in space above and below.
+
+Three more set the stack below the banners: Banner to Badge (the "Eliminated
+this week" tag), Badge to Ticker, and Ticker to Bottom. The arena is as tall
+as that stack, and the whole component scales to fit its frame's height, so
+a bigger gap there shrinks everything slightly rather than pushing the
+ticker out of the frame.
+
+## Centring
+
+There is always at least half the frame's width of empty truss either side
+of the row, so any banner can be scrolled to the middle. On the canvas, and
+at the end of the ceremony, this week's class is centred: a lone banner, or
+the midpoint of two or more. The row free-scrolls rather than snapping to
+banners, because a snap pulled an even-sized class half a slot off centre.
