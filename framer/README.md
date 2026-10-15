@@ -288,7 +288,9 @@ an empty rafters.
 Set Source to Auto and bind **Week** to the newsletter's week. Nothing else
 changes week to week.
 
-The ribbon text takes `{names}`, `{alive}` and `{season}`.
+The ribbon text takes `{names}`, `{alive}` and `{season}`. Its copies run
+end to end with nothing added between them, and spaces are kept as typed, so
+the gap where the text loops is whatever the end of Ribbon Text holds.
 
 ## Tone
 

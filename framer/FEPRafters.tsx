@@ -243,6 +243,22 @@ export default function FEPRafters(rawProps: any) {
     const names = (rafters ? rafters.this_week : newIdx.map((i) => list[i].name)).join(" · ")
     const ribbon = (ribbonText || "").replace("{names}", names).replace("{alive}", String(alive)).replace("{season}", seasonLabel)
 
+    // The ticker is copies of the text laid end to end with nothing between
+    // them, so the only gaps are the ones typed into Ribbon Text (spaces are
+    // kept as typed). It scrolls by exactly one copy and loops, and there are
+    // enough copies to cover the whole truss however wide the frame is. Its
+    // speed matches the old two-copy ticker's for a 1000px line of text.
+    const copyRef = useRef<HTMLSpanElement>(null)
+    const [copyW, setCopyW] = useState(0)
+    useEffect(() => {
+        const el = copyRef.current
+        if (!el) return
+        const ro = new ResizeObserver(() => setCopyW(el.offsetWidth))
+        ro.observe(el)
+        return () => ro.disconnect()
+    }, [showRibbon])
+    const copies = copyW > 0 ? Math.ceil(trackW / copyW) + 1 : 2
+
     // Ceremony state
     const reduce = reducedMotionSafe && typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
     const skip = isCanvas || reduce
@@ -460,7 +476,7 @@ export default function FEPRafters(rawProps: any) {
     .${P} .fr-idle{transform-origin:50% 0;animation:${P}idle var(--dur) ease-in-out var(--delay) infinite}
     @keyframes ${P}idle{0%,100%{transform:rotate(calc(var(--amp) * -1))}50%{transform:rotate(var(--amp))}}
     .${P} .fr-marquee{display:flex;width:max-content;animation:${P}marquee 38s linear infinite}
-    @keyframes ${P}marquee{to{transform:translateX(-50%)}}
+    @keyframes ${P}marquee{to{transform:translateX(calc(-1 * var(--copy)))}}
     .${P} .fr-cone{opacity:0;transition:opacity .7s ease}
     .${P} .fr-lit .fr-cone{opacity:1}
     .${P} .fr-fresh .fr-cone{opacity:.42}
@@ -578,10 +594,11 @@ export default function FEPRafters(rawProps: any) {
                                 WebkitMaskImage: "linear-gradient(180deg, transparent, #000 40%)", maskImage: "linear-gradient(180deg, transparent, #000 40%)" }} />
                             {showRibbon && (
                                 <div style={{ position: "absolute", left: 0, right: 0, top: ribbonTop, height: RIBBON_H - 4, overflow: "hidden", background: "#020606", borderTop: "2px solid #1b2527", borderBottom: "2px solid #1b2527" }}>
-                                    <div className="fr-marquee">
-                                        {[0, 1].map((k) => (
-                                            <span key={k} style={{ letterSpacing: "0.14em", fontWeight: 700, textTransform: "uppercase", whiteSpace: "nowrap",
-                                                paddingRight: 60, ...labelFont, fontSize: 20, lineHeight: "26px", color: ledColor, textShadow: `0 0 8px ${ledColor}` }}>
+                                    <div className="fr-marquee" style={{ "--copy": `${copyW}px`, animationDuration: `${(38 * copyW) / 1000}s` } as React.CSSProperties}>
+                                        {Array.from({ length: copies }, (_, k) => (
+                                            <span key={k} ref={k ? undefined : copyRef} aria-hidden={k ? true : undefined}
+                                                style={{ letterSpacing: "0.14em", fontWeight: 700, textTransform: "uppercase", whiteSpace: "pre", flexShrink: 0,
+                                                ...labelFont, fontSize: 20, lineHeight: "26px", color: ledColor, textShadow: `0 0 8px ${ledColor}` }}>
                                                 {ribbon}
                                             </span>
                                         ))}
