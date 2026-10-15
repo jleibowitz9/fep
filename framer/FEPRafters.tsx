@@ -442,9 +442,9 @@ export default function FEPRafters(rawProps: any) {
     @keyframes ${P}idle{0%,100%{transform:rotate(calc(var(--amp) * -1))}50%{transform:rotate(var(--amp))}}
     .${P} .fr-marquee{display:flex;width:max-content;animation:${P}marquee 38s linear infinite}
     @keyframes ${P}marquee{to{transform:translateX(-50%)}}
-    .${P} .fr-cone,.${P} .fr-pool{opacity:0;transition:opacity .7s ease}
-    .${P} .fr-lit .fr-cone,.${P} .fr-lit .fr-pool{opacity:1}
-    .${P} .fr-fresh .fr-cone{opacity:.42}.${P} .fr-fresh .fr-pool{opacity:.5}
+    .${P} .fr-cone{opacity:0;transition:opacity .7s ease}
+    .${P} .fr-lit .fr-cone{opacity:1}
+    .${P} .fr-fresh .fr-cone{opacity:.42}
     .${P} .fr-newtag{opacity:0;transition:opacity .6s ease .2s}.${P} .fr-fresh .fr-newtag{opacity:1}
     .${P} .fr-sheen::before{content:"";position:absolute;top:-10%;bottom:-10%;width:60%;left:-80%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.22),transparent);transform:skewX(-14deg)}
     .${P} .fr-arrive .fr-sheen::before{animation:${P}sheen 1.1s ease-out .05s both}
@@ -484,8 +484,6 @@ export default function FEPRafters(rawProps: any) {
                 <div className="fr-cone" style={{ position: "absolute", top: -30, left: "50%", width: 520, height: 700, transform: "translateX(-50%)", pointerEvents: "none",
                     background: `conic-gradient(from 165deg at 50% 0%, transparent 0deg, ${spotColor} 8deg, ${spotColor} 22deg, transparent 30deg, transparent 360deg)`,
                     WebkitMaskImage: "linear-gradient(180deg,#000 40%,transparent 96%)", maskImage: "linear-gradient(180deg,#000 40%,transparent 96%)", mixBlendMode: "screen" }} />
-                <div className="fr-pool" style={{ position: "absolute", left: "50%", bottom: 40, width: 300, height: 40, transform: "translateX(-50%)", borderRadius: "50%",
-                    background: `radial-gradient(closest-side, ${spotColor}, transparent)`, pointerEvents: "none" }} />
                 {pulley(-ROPE_OFFSET)}
                 {pulley(ROPE_OFFSET)}
                 <div style={{ position: "absolute", top: CLIP_TOP, left: -30, right: -30, bottom: -800, overflow: "hidden", zIndex: 1 }}>
