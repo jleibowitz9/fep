@@ -493,7 +493,7 @@ SNAPSHOT_RECORD_FIELDS = (
     "week", "is_bye", "remaining_outcomes", "weighted", "straight",
     "current_points", "deciding", "points_mean", "points_sd",
     "results", "points_for", "weights", "eliminated", "game",
-    "counterfactual", "leverage",
+    "counterfactual", "leverage", "counterfactual_eliminated",
 )
 
 # Record fields that a week recorded before they existed may acquire once,
@@ -504,7 +504,7 @@ SNAPSHOT_RECORD_FIELDS = (
 # a change nobody made. A fill is one-directional and happens once: a field
 # that is present and now differs is drift like anywhere, and so is a field
 # going back to absent.
-SNAPSHOT_FILLABLE_FIELDS = ("counterfactual", "leverage")
+SNAPSHOT_FILLABLE_FIELDS = ("counterfactual", "leverage", "counterfactual_eliminated")
 
 
 def _when(stamp) -> str:
@@ -652,7 +652,16 @@ def snapshot(season: dict, week: int, board: engine.Board, note: str = "",
     # would put a new key on every rebuilt 2025 entry, which the backfill's
     # reproducibility test rightly refuses.
     if counterfactual is not None:
+        # Who the other result would have eliminated, appended October 2026
+        # for the standings carousel. Kept beside the counterfactual rather
+        # than inside it: fills are per field, so a new key inside a recorded
+        # counterfactual would read as drift and refuse weeks 1-5, where this
+        # fills in once from absent like `leverage` did.
+        counterfactual = dict(counterfactual)
+        eliminated = counterfactual.pop("eliminated", None)
         entry["counterfactual"] = counterfactual
+        if eliminated is not None:
+            entry["counterfactual_eliminated"] = eliminated
     # Every game's leverage as it stood this week (analytics.spine). Recorded
     # for the same reason as `deciding`, plus one of its own: a remaining
     # game's leverage moves with ESPN's lines, so recomputing week 3 in week 8
@@ -665,12 +674,15 @@ def snapshot(season: dict, week: int, board: engine.Board, note: str = "",
     stored = get_snapshot(season, week)
     if stored is not None:
         drift = snapshot_drift(stored, entry)
-        if not drift:
+        fills = snapshot_fills(stored, entry)
+        if not drift and not fills:
             # Nothing to write. Returning the stored entry rather than the new
             # one keeps the original `taken_at`, which is the honest answer to
             # "when was this week recorded".
             return stored, "unchanged"
-        fills = snapshot_fills(stored, entry)
+        # Checked even when snapshot_drift saw nothing: it compares leaves, so
+        # an empty list (nobody the flip would eliminate) has none and reads
+        # the same as absent, and that week would never fill.
         if fills:
             # A field the week was recorded without, filled in once. The
             # stored entry is kept whole, including when it was taken and any

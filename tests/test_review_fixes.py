@@ -1574,8 +1574,12 @@ class TestCounterfactualIsRecorded(unittest.TestCase):
         board = season_mod.run(season, through_week=1)
         entry, status = season_mod.snapshot(season, 1, board, counterfactual=cf)
         self.assertEqual(status, "created")
+        # Who the flip would eliminate sits beside it, so it can fill in.
+        cf = dict(cf)
+        self.assertEqual(entry["counterfactual_eliminated"], cf.pop("eliminated"))
         self.assertEqual(entry["counterfactual"], cf)
-        _, status = season_mod.snapshot(season, 1, board, counterfactual=cf)
+        _, status = season_mod.snapshot(season, 1, board,
+                                        counterfactual=analytics.counterfactual_for_week(season, 1))
         self.assertEqual(status, "unchanged")
 
     def test_a_week_recorded_before_the_field_existed_replays_unchanged(self):

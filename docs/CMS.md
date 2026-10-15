@@ -160,6 +160,15 @@ were reconstructed from final weights, and a counterfactual recomputed today
 would contradict them. Bind the carousel's visibility to
 `weeks.counterfactual_result` being non-empty.
 
+`counterfactual_is_eliminated` (appended October 2026) says whether the other
+result would have left them mathematically out: `TRUE`/`FALSE`, blank wherever
+the other three are. It reads the snapshot's `counterfactual_eliminated`, the
+rules count from the unrounded flipped board, never `counterfactual_weighted ==
+0` (that board is rounded). Fillable (Code.gs `2026.10.15-a`), so the first 2026
+push after the append reports `standings: 60 filled in` for weeks 1-5 and
+nothing `CORRECTED`. To show only the people the flip would newly eliminate,
+filter on `counterfactual_is_eliminated` true and `is_eliminated` false.
+
 ## Slugs
 
 Every slug carries the year, because Framer upserts on slug: without it, 2027

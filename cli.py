@@ -200,7 +200,7 @@ def cmd_week(argv):
     print("\n{} FEP | Week {}{}{}".format(
         YEAR, week, "  (bye week)" if pack["is_bye"] else "",
         {"unchanged": "  (already recorded, unchanged)",
-         "filled": "  (already recorded; leverage filled in)",
+         "filled": "  (already recorded; new fields filled in)",
          "corrected": "  (CORRECTED)"}.get(status, "")))
     # "Alive" is a claim about the rules. concentration.alive is deliberately
     # the other notion (measurable odds) and stays that way for the field

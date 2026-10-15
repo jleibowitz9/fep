@@ -848,6 +848,10 @@ STANDING_COLUMNS = [
     # way, for the standings carousel. All three blank when the snapshot has no
     # counterfactual (week 0, a bye, a tie, an unplayed game).
     "counterfactual_weighted", "counterfactual_rank", "counterfactual_change",
+    # Appended October 2026: would the other result have eliminated them.
+    # Blank whenever the three above are, and for a week recorded before the
+    # snapshot carried it.
+    "counterfactual_is_eliminated",
 ]
 
 
@@ -876,6 +880,9 @@ def standings_table(season: dict) -> Table:
         # recomputed today would move with the weights and unfreeze the row.
         cf_board = (snapshot.get("counterfactual") or {}).get("board") or {}
         cf_ranks = _ranked(cf_board) if cf_board else {}
+        # Never read off cf_board == 0: that board is rounded, the same trap
+        # is_eliminated's fallback documents. No recorded list, no answer.
+        cf_out = snapshot.get("counterfactual_eliminated") if cf_board else None
         for name in sorted(board):
             before = previous.get(name)
             rows.append({
@@ -905,6 +912,8 @@ def standings_table(season: dict) -> Table:
                 # would have been better for them.
                 "counterfactual_change": (round(cf_board[name] - board[name], 1)
                                           if name in cf_board else ""),
+                "counterfactual_is_eliminated": ((name in cf_out)
+                                                 if cf_out is not None else ""),
             })
         previous, previous_week = dict(board), week
     return Table("standings", STANDING_COLUMNS, rows)

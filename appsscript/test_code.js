@@ -376,6 +376,23 @@ r = post({op:'writeTable', tab:'weeks', year:2026, columns:WCOLS4,
 check('a name added afterwards is refused',
       !r.ok && /frozen table/.test(r.error) && /eliminated_this_week/.test(r.error), r);
 
+console.log('\n--- counterfactual_is_eliminated fills in on standings ---');
+// Appended to standings October 2026, after 2026 weeks 0-5 were out.
+delete SHEETS['standings'];   // its own narrow tab, not the earlier tests' one
+const SC = ['slug','season','week','name','weighted'];
+const SC2 = SC.concat(['counterfactual_is_eliminated']);
+const s05 = ['2030-w05-pop', 2030, 5, 'pop', 0.4];
+r = post({op:'writeTable', tab:'standings', year:2030, columns:SC, rows:[s05]});
+check('a published standings row at the old width', r.ok && r.added===1, r);
+r = post({op:'writeTable', tab:'standings', year:2030, columns:SC2, rows:[s05.concat([true])]});
+check('the new column fills in once, and is not a correction',
+      r.ok && r.filled===1 && r.corrected.length===0, r);
+r = post({op:'writeTable', tab:'standings', year:2030, columns:SC2, rows:[s05.concat([false])]});
+check('flipping it afterwards is refused',
+      !r.ok && /frozen table/.test(r.error) && /counterfactual_is_eliminated/.test(r.error), r);
+r = post({op:'writeTable', tab:'standings', year:2030, columns:SC2, rows:[s05.slice(0,4).concat([0.5, true])]});
+check('and the rest of the row is still frozen', !r.ok && /weighted/.test(r.error), r);
+
 console.log('\n--- the sheet is widened before it is read ---');
 delete SHEETS['games'];   // a fresh tab, 26 columns wide, like a new Sheet
 const WIDE = ['slug','season'].concat(Array.from({length:25}, (_, i) => 'c' + i));   // 27

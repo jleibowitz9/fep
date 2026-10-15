@@ -220,6 +220,11 @@ def counterfactual(season: dict, game_index: Optional[int] = None) -> Optional[d
         "actual": actual,
         "hypothetical": flipped[game_index],
         "board": {n: round(board.weighted[n], 1) for n in board.order},
+        # Who would be mathematically out under the other result. From the
+        # unrounded board's rules count, never off `board` above: a 0.0 there
+        # can be someone clinging on at 0.04%. season.snapshot records this
+        # beside the counterfactual rather than inside it (see there).
+        "eliminated": sorted(board.eliminated()),
     }
 
 

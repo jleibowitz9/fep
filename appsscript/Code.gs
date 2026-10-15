@@ -47,7 +47,7 @@
 // about. The Python client reads the same constant out of its local copy and
 // refuses to push when the two disagree, because editing this file does not
 // redeploy it and the two have now silently diverged twice.
-var CODE_VERSION = '2026.10.14-a';
+var CODE_VERSION = '2026.10.15-a';
 
 // The CMS tables. Nothing outside this list can be written by writeTable, so
 // even a caller holding the URL and the token cannot touch the legacy
@@ -101,7 +101,11 @@ var FILLABLE_COLUMNS = {
           'volatile_value', 'volatile_gloss',
           // FEPRafters' visibility, appended October 2026. Read off the
           // snapshots, so every published week fills in once like the rest.
-          'eliminated_this_week']
+          'eliminated_this_week'],
+  // The counterfactual's eliminations, appended to `standings` October 2026.
+  // Weeks 1-5 of 2026 carry it in their snapshots, so their rows fill in once;
+  // the rest stay blank, which is the right answer for them.
+  standings: ['counterfactual_is_eliminated']
 };
 
 

@@ -948,7 +948,8 @@ class CounterfactualColumnsTest(unittest.TestCase):
     week 0 and an unplayed game have no counterfactual and read blank; nothing
     guesses a W or an L."""
 
-    CF = ("counterfactual_weighted", "counterfactual_rank", "counterfactual_change")
+    CF = ("counterfactual_weighted", "counterfactual_rank", "counterfactual_change",
+          "counterfactual_is_eliminated")
 
     def _standings(self, season, week):
         return {r["name"]: r for r in cms.standings_table(season).rows
@@ -990,6 +991,40 @@ class CounterfactualColumnsTest(unittest.TestCase):
             self.assertEqual(row["counterfactual_change"],
                              round(cf["board"][name] - row["weighted"], 1))
         self.assertEqual(self._weeks(season)[3]["counterfactual_result"], cf["hypothetical"])
+
+    def test_the_flipped_board_says_who_it_would_eliminate(self):
+        from fep import analytics
+        season = build_season()
+        walk_with_counterfactual(season, 18)
+        seen_true = False
+        for snap in season["snapshots"]:
+            if "counterfactual" not in snap:
+                continue
+            week = snap["week"]
+            # Recorded beside the counterfactual, not inside it, so a week
+            # recorded without it can fill in rather than drift.
+            self.assertNotIn("eliminated", snap["counterfactual"])
+            expected = analytics.counterfactual_for_week(season, week)["eliminated"]
+            self.assertEqual(snap["counterfactual_eliminated"], expected)
+            for name, row in self._standings(season, week).items():
+                self.assertEqual(row["counterfactual_is_eliminated"], name in expected)
+                seen_true = seen_true or row["counterfactual_is_eliminated"]
+        self.assertTrue(seen_true, "nobody was ever eliminated by a flip; the test proves nothing")
+
+    def test_a_week_recorded_before_it_fills_in_once(self):
+        from fep import analytics
+        season = build_season()
+        walk_with_counterfactual(season, 3)
+        snap = next(s for s in season["snapshots"] if s["week"] == 3)
+        del snap["counterfactual_eliminated"]
+        for row in self._standings(season, 3).values():
+            self.assertEqual(row["counterfactual_is_eliminated"], "")
+        board = season_mod.run(season, through_week=3)
+        _, status = season_mod.snapshot(
+            season, 3, board, counterfactual=analytics.counterfactual_for_week(season, 3))
+        self.assertEqual(status, "filled")
+        for row in self._standings(season, 3).values():
+            self.assertIn(row["counterfactual_is_eliminated"], (True, False))
 
     def test_week_zero_and_the_bye_are_blank(self):
         season = build_season(bye_week=10)

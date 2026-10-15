@@ -658,6 +658,13 @@
    "Pop": 15.2,
    "Sarah": 0.0
   },
+  "eliminated": [
+   "Emer",
+   "Hanan",
+   "Jacob",
+   "Jay",
+   "Sarah"
+  ],
   "game_index": 6,
   "hypothetical": "W",
   "label": "vs. Cowboys"
