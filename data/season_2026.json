@@ -2749,6 +2749,9 @@
           "result": "",
           "kind": "remaining"
         }
+      ],
+      "counterfactual_eliminated": [
+        "Marsha"
       ]
     }
   ],
@@ -2768,7 +2771,7 @@
     "points_model": "shrunk"
   },
   "created_at": "2026-09-02T22:02:30",
-  "updated_at": "2026-10-20T08:10:32",
+  "updated_at": "2026-10-22T20:11:05",
   "bye_weeks": [
     10
   ],
