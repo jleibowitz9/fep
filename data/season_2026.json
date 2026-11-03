@@ -417,12 +417,12 @@
       "venue": "Northwest Stadium",
       "date": "2026-11-02",
       "division": true,
-      "result": "A",
+      "result": "L",
       "result_source": "espn",
-      "points_for": null,
-      "points_against": null,
+      "points_for": 10,
+      "points_against": 27,
       "points_source": "espn",
-      "weight": 0.3557,
+      "weight": 0.3449,
       "weight_source": "espn"
     },
     {
@@ -441,7 +441,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.4807,
+      "weight": 0.4516,
       "weight_source": "espn"
     },
     {
@@ -460,7 +460,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.3605,
+      "weight": 0.3101,
       "weight_source": "espn"
     },
     {
@@ -479,7 +479,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.2009,
+      "weight": 0.1871,
       "weight_source": "espn"
     },
     {
@@ -498,7 +498,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.4357,
+      "weight": 0.3704,
       "weight_source": "espn"
     },
     {
@@ -517,7 +517,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.3582,
+      "weight": 0.3806,
       "weight_source": "espn"
     },
     {
@@ -536,7 +536,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.1986,
+      "weight": 0.2016,
       "weight_source": "espn"
     },
     {
@@ -555,7 +555,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.2756,
+      "weight": 0.259,
       "weight_source": "espn"
     },
     {
@@ -574,7 +574,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.1194,
+      "weight": 0.1037,
       "weight_source": "espn"
     },
     {
@@ -593,7 +593,7 @@
       "points_for": null,
       "points_against": null,
       "points_source": "espn",
-      "weight": 0.3867,
+      "weight": 0.3557,
       "weight_source": "espn"
     }
   ],
@@ -3066,6 +3066,327 @@
           "kind": "remaining"
         }
       ]
+    },
+    {
+      "week": 8,
+      "taken_at": "2026-11-03T11:33:50",
+      "note": "",
+      "is_bye": false,
+      "remaining_outcomes": 512,
+      "weighted": {
+        "Amir": 0.0,
+        "Andy": 69.5,
+        "Buhduh": 0.0,
+        "Emer": 0.0,
+        "Hanan": 0.0,
+        "Jacob": 12.0,
+        "Jay": 0.0,
+        "Jen": 0.0,
+        "Marsha": 0.0,
+        "Nathan": 18.4,
+        "Pop": 0.0,
+        "Sarah": 0.0
+      },
+      "straight": {
+        "Amir": 0.0,
+        "Andy": 43.8,
+        "Buhduh": 0.0,
+        "Emer": 0.0,
+        "Hanan": 0.0,
+        "Jacob": 24.9,
+        "Jay": 0.0,
+        "Jen": 0.0,
+        "Marsha": 0.0,
+        "Nathan": 31.4,
+        "Pop": 0.0,
+        "Sarah": 0.0
+      },
+      "current_points": {
+        "Amir": 3,
+        "Andy": 6,
+        "Buhduh": 4,
+        "Emer": 4,
+        "Hanan": 4,
+        "Jacob": 5,
+        "Jay": 3,
+        "Jen": 4,
+        "Marsha": 3,
+        "Nathan": 6,
+        "Pop": 3,
+        "Sarah": 4
+      },
+      "deciding": {
+        "outright": 88.8,
+        "tb1": 3.3,
+        "tb2": 0.0,
+        "tb3": 7.9,
+        "split": 0.0
+      },
+      "points_mean": 305.5,
+      "points_sd": 44.5,
+      "results": [
+        "W",
+        "W",
+        "L",
+        "L",
+        "L",
+        "L",
+        "L",
+        "L",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A"
+      ],
+      "points_for": [
+        24,
+        24,
+        7,
+        20,
+        17,
+        14,
+        21,
+        10,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "weights": [
+        0.66,
+        0.6961,
+        0.6457,
+        0.36,
+        0.2623,
+        0.4221,
+        0.2787,
+        0.3449,
+        0.4516,
+        0.3101,
+        0.1871,
+        0.3704,
+        0.3806,
+        0.2016,
+        0.259,
+        0.1037,
+        0.3557
+      ],
+      "eliminated": [
+        "Amir",
+        "Buhduh",
+        "Emer",
+        "Hanan",
+        "Jay",
+        "Jen",
+        "Marsha",
+        "Pop",
+        "Sarah"
+      ],
+      "game": {
+        "index": 7,
+        "event_id": "401873035",
+        "label": "@ Commanders",
+        "opponent": "WSH",
+        "opponent_name": "Commanders",
+        "home": false,
+        "neutral_site": false,
+        "venue": "Northwest Stadium",
+        "division": true,
+        "result": "L",
+        "points_for": 10,
+        "points_against": 27
+      },
+      "counterfactual": {
+        "game_index": 7,
+        "label": "@ Commanders",
+        "actual": "L",
+        "hypothetical": "W",
+        "board": {
+          "Amir": 0.8,
+          "Andy": 61.9,
+          "Buhduh": 0.0,
+          "Emer": 3.3,
+          "Hanan": 1.4,
+          "Jacob": 11.1,
+          "Jay": 0.0,
+          "Jen": 10.8,
+          "Marsha": 0.0,
+          "Nathan": 10.2,
+          "Pop": 0.4,
+          "Sarah": 0.0
+        }
+      },
+      "counterfactual_eliminated": [
+        "Buhduh",
+        "Jay",
+        "Marsha",
+        "Sarah"
+      ],
+      "leverage": [
+        {
+          "game_index": 0,
+          "nfl_week": 1,
+          "label": "vs. Commanders",
+          "short": "WSH",
+          "leverage": 0.0,
+          "result": "W",
+          "kind": "played"
+        },
+        {
+          "game_index": 1,
+          "nfl_week": 2,
+          "label": "@ Titans",
+          "short": "TEN",
+          "leverage": 1.3,
+          "result": "W",
+          "kind": "played"
+        },
+        {
+          "game_index": 2,
+          "nfl_week": 3,
+          "label": "@ Bears",
+          "short": "CHI",
+          "leverage": 59.4,
+          "result": "L",
+          "kind": "played"
+        },
+        {
+          "game_index": 3,
+          "nfl_week": 4,
+          "label": "vs. Rams",
+          "short": "LAR",
+          "leverage": 51.0,
+          "result": "L",
+          "kind": "played"
+        },
+        {
+          "game_index": 4,
+          "nfl_week": 5,
+          "label": "vs. Jaguars (London)",
+          "short": "JAX",
+          "leverage": 11.3,
+          "result": "L",
+          "kind": "played"
+        },
+        {
+          "game_index": 5,
+          "nfl_week": 6,
+          "label": "vs. Panthers",
+          "short": "CAR",
+          "leverage": 0.0,
+          "result": "L",
+          "kind": "played"
+        },
+        {
+          "game_index": 6,
+          "nfl_week": 7,
+          "label": "vs. Cowboys",
+          "short": "DAL",
+          "leverage": 70.4,
+          "result": "L",
+          "kind": "played"
+        },
+        {
+          "game_index": 7,
+          "nfl_week": 8,
+          "label": "@ Commanders",
+          "short": "WSH",
+          "leverage": 16.7,
+          "result": "L",
+          "kind": "played"
+        },
+        {
+          "game_index": 8,
+          "nfl_week": 9,
+          "label": "vs. Giants",
+          "short": "NYG",
+          "leverage": 0.0,
+          "result": "",
+          "kind": "remaining"
+        },
+        {
+          "game_index": 9,
+          "nfl_week": 11,
+          "label": "vs. Steelers",
+          "short": "PIT",
+          "leverage": 0.0,
+          "result": "",
+          "kind": "remaining"
+        },
+        {
+          "game_index": 10,
+          "nfl_week": 12,
+          "label": "@ Cowboys",
+          "short": "DAL",
+          "leverage": 61.8,
+          "result": "",
+          "kind": "remaining"
+        },
+        {
+          "game_index": 11,
+          "nfl_week": 13,
+          "label": "@ Cardinals",
+          "short": "ARI",
+          "leverage": 0.0,
+          "result": "",
+          "kind": "remaining"
+        },
+        {
+          "game_index": 12,
+          "nfl_week": 14,
+          "label": "vs. Colts",
+          "short": "IND",
+          "leverage": 0.0,
+          "result": "",
+          "kind": "remaining"
+        },
+        {
+          "game_index": 13,
+          "nfl_week": 15,
+          "label": "vs. Seahawks",
+          "short": "SEA",
+          "leverage": 69.2,
+          "result": "",
+          "kind": "remaining"
+        },
+        {
+          "game_index": 14,
+          "nfl_week": 16,
+          "label": "vs. Texans",
+          "short": "HOU",
+          "leverage": 34.7,
+          "result": "",
+          "kind": "remaining"
+        },
+        {
+          "game_index": 15,
+          "nfl_week": 17,
+          "label": "@ 49ers",
+          "short": "SF",
+          "leverage": 47.6,
+          "result": "",
+          "kind": "remaining"
+        },
+        {
+          "game_index": 16,
+          "nfl_week": 18,
+          "label": "@ Giants",
+          "short": "NYG",
+          "leverage": 16.9,
+          "result": "",
+          "kind": "remaining"
+        }
+      ]
     }
   ],
   "sheet": {
@@ -3084,24 +3405,23 @@
     "points_model": "shrunk"
   },
   "created_at": "2026-09-02T22:02:30",
-  "updated_at": "2026-10-27T08:06:18",
+  "updated_at": "2026-11-03T11:33:50",
   "bye_weeks": [
     10
   ],
-  "last_refresh": "2026-10-27T08:06:18",
+  "last_refresh": "2026-11-03T11:33:50",
   "last_refresh_changes": [
-    "game 6 result A -> L",
-    "game 6 points None -> 21",
-    "game 6 weight 0.3059 -> 0.2787",
-    "game 7 weight 0.3741 -> 0.3557",
-    "game 8 weight 0.5798 -> 0.4807",
-    "game 9 weight 0.3974 -> 0.3605",
-    "game 10 weight 0.2377 -> 0.2009",
-    "game 11 weight 0.4547 -> 0.4357",
-    "game 12 weight 0.3876 -> 0.3582",
-    "game 13 weight 0.255 -> 0.1986",
-    "game 14 weight 0.2669 -> 0.2756",
-    "game 15 weight 0.122 -> 0.1194",
-    "game 16 weight 0.4882 -> 0.3867"
+    "game 7 result A -> L",
+    "game 7 points None -> 10",
+    "game 7 weight 0.3557 -> 0.3449",
+    "game 8 weight 0.4807 -> 0.4516",
+    "game 9 weight 0.3605 -> 0.3101",
+    "game 10 weight 0.2009 -> 0.1871",
+    "game 11 weight 0.4357 -> 0.3704",
+    "game 12 weight 0.3582 -> 0.3806",
+    "game 13 weight 0.1986 -> 0.2016",
+    "game 14 weight 0.2756 -> 0.259",
+    "game 15 weight 0.1194 -> 0.1037",
+    "game 16 weight 0.3867 -> 0.3557"
   ]
 }
